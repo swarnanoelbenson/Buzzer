@@ -191,7 +191,6 @@ class DataManager: ObservableObject {
         do {
             if let listEntity = try context.fetch(listRequest).first {
                 sessionEntity.list = listEntity
-                
                 // Create record entities
                 for record in records {
                     let recordEntity = AttendanceRecordEntity(context: context)
@@ -258,7 +257,8 @@ class DataManager: ObservableObject {
             listId: entity.list?.id ?? UUID(),
             sessionType: SessionType(rawValue: entity.sessionType ?? "pickup") ?? .pickup,
             createdDate: entity.createdDate ?? Date(),
-            records: records
+            records: records,
+            finalCheckTimestamp: entity.finalCheckTimestamp
         )
     }
     

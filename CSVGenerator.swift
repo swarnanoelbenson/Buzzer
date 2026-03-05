@@ -9,22 +9,183 @@ import Foundation
 
 struct CSVGenerator {
     
+    // MARK: - Weekly Manifest Report
+    
+    /// Generates bus manifest in Excel-friendly CSV format for a week
+    static func generateWeeklyManifest(
+        for sessions: [AttendanceSession],
+        list: AttendeeList,
+        weekStartDate: Date,
+        currentUser: User?
+    ) -> String {
+        var csv = ""
+        
+        // Get week end date
+        let calendar = Calendar.current
+        let weekEndDate = calendar.date(byAdding: .day, value: 6, to: weekStartDate) ?? weekStartDate
+        
+        // Get final check timestamp from the most recent dropoff session
+        let dropoffSessions = sessions.filter { $0.sessionType == .dropoff }
+        let finalCheckTimestamp = dropoffSessions.last?.finalCheckTimestamp
+        
+        // HEADER SECTION
+        csv += "MANIFEST - \(TimestampFormatter.formatDateLong(weekStartDate))\n"
+        csv += "\n"
+        csv += "ROUTE:,\(list.name)\n"
+        csv += "REGISTRATION:,\(currentUser?.busRegistration ?? "N/A")\n"
+        csv += "DRIVER:,\(currentUser?.displayName ?? "N/A")\n"
+        csv += "PHONE:,\(currentUser?.phone ?? "N/A")\n"
+        csv += "EMAIL:,\(currentUser?.email ?? "N/A")\n"
+        csv += "\n"
+        
+        // ATTENDANCE TABLE HEADERS
+        csv += "Name,Grade"
+        
+        // Add weekday columns with Pickup/Dropoff sub-columns (Mon-Fri)
+        let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+        for day in weekdays {
+            csv += ",\(day) Pickup,\(day) Dropoff"
+        }
+        csv += "\n"
+        
+        // Sort attendees by original list order
+        let sortedAttendees = list.attendees.sorted { $0.orderIndex < $1.orderIndex }
+        
+        // Get current date for comparison
+        let today = Date()
+        
+        // DATA ROWS - One row per student
+        for attendee in sortedAttendees {
+            csv += escapeCSV(attendee.name)
+            csv += ","
+            csv += escapeCSV(attendee.grade)
+            
+            // Add daily pickup and dropoff times for Mon-Fri
+            for dayOffset in 0..<5 {
+                let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDate) ?? weekStartDate
+                
+                // Check if this day is in the future
+                let isDayInFuture = calendar.compare(dayDate, to: today, toGranularity: .day) == .orderedDescending
+                
+                // Pickup timestamp
+                csv += ","
+                if isDayInFuture {
+                    // Leave blank for future dates
+                    csv += ""
+                } else {
+                    let pickupTimestamp = getPickupTimestamp(for: attendee.id, on: dayDate, in: sessions)
+                    if let time = pickupTimestamp {
+                        csv += TimestampFormatter.formatTimeShort12Hour(time)
+                    } else {
+                        csv += "Absent"
+                    }
+                }
+                
+                // Dropoff timestamp
+                csv += ","
+                if isDayInFuture {
+                    // Leave blank for future dates
+                    csv += ""
+                } else {
+                    let dropoffTimestamp = getDropoffTimestamp(for: attendee.id, on: dayDate, in: sessions)
+                    if let time = dropoffTimestamp {
+                        csv += TimestampFormatter.formatTimeShort12Hour(time)
+                    } else {
+                        csv += "Absent"
+                    }
+                }
+            }
+            csv += "\n"
+        }
+        
+        csv += "\n"
+        
+        // FINAL CHECK ROW
+        csv += "No Child Left On Bus,"
+        if let finalCheck = finalCheckTimestamp {
+            csv += TimestampFormatter.formatTime12Hour(finalCheck)
+        } else {
+            csv += "N/A"
+        }
+        csv += "\n"
+        csv += "\n"
+        
+        // TRAVEL NOTES SECTION
+        csv += "TRAVEL NOTES\n"
+        csv += "Student Name,Notes\n"
+        
+        for attendee in sortedAttendees {
+            if !attendee.notes.isEmpty {
+                csv += escapeCSV(attendee.name)
+                csv += ","
+                csv += escapeCSV(attendee.notes)
+                csv += "\n"
+            }
+        }
+        
+        return csv
+    }
+    
+    // MARK: - Manifest Helper Functions
+    
+    /// Gets pickup timestamp for a specific attendee on a specific date
+    private static func getPickupTimestamp(for attendeeId: UUID, on date: Date, in sessions: [AttendanceSession]) -> Date? {
+        let calendar = Calendar.current
+        let pickupSessions = sessions.filter { 
+            $0.sessionType == .pickup && calendar.isDate($0.createdDate, inSameDayAs: date)
+        }
+        
+        for session in pickupSessions {
+            if let record = session.records.first(where: { $0.attendeeId == attendeeId && $0.status == .present }) {
+                return record.timestamp
+            }
+        }
+        
+        return nil
+    }
+    
+    /// Gets dropoff timestamp for a specific attendee on a specific date
+    private static func getDropoffTimestamp(for attendeeId: UUID, on date: Date, in sessions: [AttendanceSession]) -> Date? {
+        let calendar = Calendar.current
+        let dropoffSessions = sessions.filter { 
+            $0.sessionType == .dropoff && calendar.isDate($0.createdDate, inSameDayAs: date)
+        }
+        
+        for session in dropoffSessions {
+            if let record = session.records.first(where: { $0.attendeeId == attendeeId && $0.status == .present }) {
+                return record.timestamp
+            }
+        }
+        
+        return nil
+    }
+    
+    /// Escapes CSV values with quotes if needed
+    private static func escapeCSV(_ value: String) -> String {
+        if value.contains(",") || value.contains("\"") || value.contains("\n") {
+            return "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
+        }
+        return value
+    }
+    
     // MARK: - Single Session Export
     
-    /// Generates CSV content for a single session
+    /// Generates CSV content for a single attendance session
     static func generateCSV(for session: AttendanceSession, list: AttendeeList) -> String {
         var csv = ""
         
-        // Header with metadata
-        csv += "Report Generated: \(TimestampFormatter.formatDateTimeFull(Date()))\n"
-        csv += "List: \(list.name)\n"
-        csv += "Session Type: \(session.sessionType == .pickup ? "Pick-Up" : "Drop-Off")\n"
-        csv += "Session Date: \(TimestampFormatter.formatDateLong(session.createdDate))\n"
-        csv += "Session Time: \(TimestampFormatter.formatTime(session.createdDate))\n"
+        // HEADER SECTION
+        let sessionTypeName = session.sessionType == .pickup ? "Pick-Up" : "Drop-Off"
+        csv += "ATTENDANCE SESSION - \(sessionTypeName)\n"
+        csv += "\n"
+        csv += "List:,\(list.name)\n"
+        csv += "Date:,\(TimestampFormatter.formatDateLong(session.createdDate))\n"
+        csv += "Time:,\(TimestampFormatter.formatTime(session.createdDate))\n"
+        csv += "Session Type:,\(sessionTypeName)\n"
         csv += "\n"
         
-        // Column headers
-        csv += "Serial Number,Attendee Name,Status,Timestamp\n"
+        // ATTENDANCE TABLE HEADERS
+        csv += "Name,Status,Timestamp\n"
         
         // Sort records by attendee order in the list
         let sortedRecords = session.records.sorted { record1, record2 in
@@ -33,153 +194,60 @@ struct CSVGenerator {
             return index1 < index2
         }
         
-        // Data rows
-        for (index, record) in sortedRecords.enumerated() {
-            let serialNumber = index + 1
-            let attendeeName = getAttendeeName(for: record.attendeeId, in: list)
-            let status = record.status == .present ? "Present" : "Absent"
-            let timestamp = TimestampFormatter.formatForCSV(timestamp: record.timestamp)
+        // DATA ROWS - One row per attendee
+        for record in sortedRecords {
+            let attendeeName = list.attendees.first { $0.id == record.attendeeId }?.name ?? "Unknown"
+            let statusText = record.status == .present ? "Present" : "Absent"
+            let timestampText = record.timestamp != nil ? TimestampFormatter.formatTime(record.timestamp!) : "N/A"
             
-            csv += "\(serialNumber),\"\(attendeeName)\",\(status),\(timestamp)\n"
+            csv += escapeCSV(attendeeName)
+            csv += ","
+            csv += statusText
+            csv += ","
+            csv += timestampText
+            csv += "\n"
         }
+        
+        csv += "\n"
+        
+        // SUMMARY SECTION
+        let presentCount = session.records.filter { $0.status == .present }.count
+        let absentCount = session.records.filter { $0.status == .absent }.count
+        let attendanceRate = session.records.count > 0 ? Int((Double(presentCount) / Double(session.records.count)) * 100) : 0
+        
+        csv += "SUMMARY\n"
+        csv += "Total Attendees:,\(session.records.count)\n"
+        csv += "Present:,\(presentCount)\n"
+        csv += "Absent:,\(absentCount)\n"
+        csv += "Attendance Rate:,\(attendanceRate)%\n"
         
         return csv
     }
     
-    // MARK: - Multiple Sessions Export (Date Range)
-    
-    /// Generates CSV content for multiple sessions
-    static func generateCSV(for sessions: [AttendanceSession], list: AttendeeList, dateRange: (start: Date, end: Date)? = nil) -> String {
-        var csv = ""
+    /// Generates filename for a single session export
+    static func generateFilename(for session: AttendanceSession, list: AttendeeList) -> String {
+        let dateStr = TimestampFormatter.formatDate(session.createdDate)
+        let timeStr = TimestampFormatter.formatTimeShort12Hour(session.createdDate)
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: " ", with: "_")
+        let sessionType = session.sessionType == .pickup ? "Pickup" : "Dropoff"
+        let listName = sanitizeFilename(list.name)
         
-        // Header with metadata
-        csv += "Report Generated: \(TimestampFormatter.formatDateTimeFull(Date()))\n"
-        csv += "List: \(list.name)\n"
-        
-        if let dateRange = dateRange {
-            csv += "Date Range: \(TimestampFormatter.formatDate(dateRange.start)) to \(TimestampFormatter.formatDate(dateRange.end))\n"
-        } else {
-            csv += "All Sessions\n"
-        }
-        csv += "\n"
-        
-        // Column headers
-        csv += "Serial Number,Attendee Name,Date,Session Type,Status,Timestamp\n"
-        
-        // Sort sessions by date (oldest first for reports)
-        let sortedSessions = sessions.sorted { $0.createdDate < $1.createdDate }
-        
-        var serialNumber = 1
-        
-        // Process each session
-        for session in sortedSessions {
-            let sortedRecords = session.records.sorted { record1, record2 in
-                let index1 = list.attendees.firstIndex { $0.id == record1.attendeeId } ?? 999
-                let index2 = list.attendees.firstIndex { $0.id == record2.attendeeId } ?? 999
-                return index1 < index2
-            }
-            
-            for record in sortedRecords {
-                let attendeeName = getAttendeeName(for: record.attendeeId, in: list)
-                let date = TimestampFormatter.formatDate(session.createdDate)
-                let sessionType = session.sessionType == .pickup ? "Pick-Up" : "Drop-Off"
-                let status = record.status == .present ? "Present" : "Absent"
-                let timestamp = TimestampFormatter.formatForCSV(timestamp: record.timestamp)
-                
-                csv += "\(serialNumber),\"\(attendeeName)\",\(date),\(sessionType),\(status),\(timestamp)\n"
-                serialNumber += 1
-            }
-        }
-        
-        return csv
-    }
-    
-    // MARK: - Daily Report (Today's Sessions)
-    
-    /// Generates CSV for today's sessions
-    static func generateTodayReport(for sessions: [AttendanceSession], list: AttendeeList) -> String {
-        let today = Date()
-        let todaySessions = sessions.filter { Calendar.current.isDate($0.createdDate, inSameDayAs: today) }
-        
-        var csv = ""
-        
-        // Header with metadata
-        csv += "Report Generated: \(TimestampFormatter.formatDateTimeFull(Date()))\n"
-        csv += "List: \(list.name)\n"
-        csv += "Report Date: \(TimestampFormatter.formatDateLong(today))\n"
-        csv += "\n"
-        
-        // Column headers
-        csv += "Serial Number,Attendee Name,Pick-up Timestamp,Drop-off Timestamp\n"
-        
-        // Create a map of attendees with their pick-up and drop-off records
-        var attendeeRecords: [UUID: (name: String, pickup: Date?, dropoff: Date?)] = [:]
-        
-        for attendee in list.attendees {
-            attendeeRecords[attendee.id] = (name: attendee.name, pickup: nil, dropoff: nil)
-        }
-        
-        // Fill in the timestamps
-        for session in todaySessions {
-            for record in session.records {
-                if var existing = attendeeRecords[record.attendeeId] {
-                    if session.sessionType == .pickup && record.status == .present {
-                        existing.pickup = record.timestamp
-                    } else if session.sessionType == .dropoff && record.status == .present {
-                        existing.dropoff = record.timestamp
-                    }
-                    attendeeRecords[record.attendeeId] = existing
-                }
-            }
-        }
-        
-        // Sort by original list order
-        let sortedAttendees = list.attendees.sorted { $0.orderIndex < $1.orderIndex }
-        
-        // Generate rows
-        for (index, attendee) in sortedAttendees.enumerated() {
-            let serialNumber = index + 1
-            if let data = attendeeRecords[attendee.id] {
-                let pickupTime = TimestampFormatter.formatForCSV(timestamp: data.pickup)
-                let dropoffTime = TimestampFormatter.formatForCSV(timestamp: data.dropoff)
-                csv += "\(serialNumber),\"\(data.name)\",\(pickupTime),\(dropoffTime)\n"
-            }
-        }
-        
-        return csv
+        return "Session_\(listName)_\(sessionType)_\(dateStr)_\(timeStr).csv"
     }
     
     // MARK: - File Naming
     
-    /// Generates appropriate filename for a single session
-    static func generateFilename(for session: AttendanceSession, list: AttendeeList) -> String {
-        let date = TimestampFormatter.formatDate(session.createdDate)
-        let time = TimestampFormatter.formatTimeShort(session.createdDate).replacingOccurrences(of: ":", with: "-")
-        let type = session.sessionType == .pickup ? "Pickup" : "Dropoff"
+    /// Generates filename for weekly manifest report
+    static func generateManifestFilename(for list: AttendeeList, weekStartDate: Date) -> String {
+        let calendar = Calendar.current
+        let weekEndDate = calendar.date(byAdding: .day, value: 6, to: weekStartDate) ?? weekStartDate
+        
+        let startDateStr = TimestampFormatter.formatDate(weekStartDate)
+        let endDateStr = TimestampFormatter.formatDate(weekEndDate)
         let listName = sanitizeFilename(list.name)
         
-        return "\(date)_\(time)_\(type)_\(listName).csv"
-    }
-    
-    /// Generates filename for date range report
-    static func generateFilename(for list: AttendeeList, dateRange: (start: Date, end: Date)? = nil) -> String {
-        let listName = sanitizeFilename(list.name)
-        
-        if let dateRange = dateRange {
-            let startDate = TimestampFormatter.formatDate(dateRange.start)
-            let endDate = TimestampFormatter.formatDate(dateRange.end)
-            return "\(startDate)_to_\(endDate)_\(listName).csv"
-        } else {
-            let date = TimestampFormatter.formatDate(Date())
-            return "\(date)_All_Sessions_\(listName).csv"
-        }
-    }
-    
-    /// Generates filename for today's report
-    static func generateTodayFilename(for list: AttendeeList) -> String {
-        let date = TimestampFormatter.formatDate(Date())
-        let listName = sanitizeFilename(list.name)
-        return "\(date)_\(listName).csv"
+        return "Manifest_\(listName)_\(startDateStr)_to_\(endDateStr).csv"
     }
     
     // MARK: - Helpers
@@ -191,11 +259,6 @@ struct CSVGenerator {
             .components(separatedBy: invalidCharacters)
             .joined(separator: "_")
             .replacingOccurrences(of: " ", with: "_")
-    }
-    
-    /// Gets attendee name by ID
-    private static func getAttendeeName(for attendeeId: UUID, in list: AttendeeList) -> String {
-        return list.attendees.first { $0.id == attendeeId }?.name ?? "Unknown"
     }
     
     // MARK: - Save to File
@@ -214,3 +277,5 @@ struct CSVGenerator {
         }
     }
 }
+
+

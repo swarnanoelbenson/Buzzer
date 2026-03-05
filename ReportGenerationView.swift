@@ -11,12 +11,11 @@ import UniformTypeIdentifiers
 struct ReportGenerationView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataManager: DataManager
+    @EnvironmentObject var authManager: FirebaseAuthManager
     
     let list: AttendeeList
     
-    @State private var reportType: ReportType = .today
-    @State private var startDate = Date()
-    @State private var endDate = Date()
+    @State private var weekStartDate = Date()
     @State private var showFileExporter = false
     @State private var csvDocument: CSVDocument?
     @State private var showSuccessAlert = false
@@ -27,14 +26,13 @@ struct ReportGenerationView: View {
     var body: some View {
         NavigationView {
             List {
-                reportTypeSection
-                dateRangeSection
+                weekSelectionSection
                 previewSection
                 generateButtonSection
                 emptyStateSection
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Generate Report")
+            .navigationTitle("Weekly Manifest")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -47,7 +45,7 @@ struct ReportGenerationView: View {
                 isPresented: $showFileExporter,
                 document: csvDocument,
                 contentType: .commaSeparatedText,
-                defaultFilename: csvDocument?.filename ?? "report.csv",
+                defaultFilename: csvDocument?.filename ?? "manifest.csv",
                 onCompletion: handleFileExport
             )
             .alert("Export Successful", isPresented: $showSuccessAlert) {
@@ -55,7 +53,7 @@ struct ReportGenerationView: View {
                     dismiss()
                 }
             } message: {
-                Text("CSV report has been successfully created and saved.")
+                Text("Weekly manifest has been successfully created and saved.")
             }
             .alert("Export Failed", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) { }
@@ -67,39 +65,24 @@ struct ReportGenerationView: View {
     
     // MARK: - View Sections
     
-    private var reportTypeSection: some View {
+    private var weekSelectionSection: some View {
         Section {
-            Picker("Report Type", selection: $reportType) {
-                ForEach(ReportType.allCases, id: \.self) { type in
-                    Text(type.displayName).tag(type)
+            DatePicker("Week Start (Monday)", selection: $weekStartDate, displayedComponents: .date)
+                .onChange(of: weekStartDate) { newValue in
+                    // Adjust to Monday if needed
+                    weekStartDate = getMondayOfWeek(for: newValue)
                 }
-            }
-            .pickerStyle(.menu)
         } header: {
-            Text("Report Type")
+            Text("Week Selection")
         } footer: {
-            Text(reportType.description)
-        }
-    }
-    
-    private var dateRangeSection: some View {
-        Group {
-            if reportType == .dateRange {
-                Section {
-                    DatePicker("Start Date", selection: $startDate, in: ...Date(), displayedComponents: .date)
-                    DatePicker("End Date", selection: $endDate, in: startDate...Date(), displayedComponents: .date)
-                } header: {
-                    Text("Date Range")
-                } footer: {
-                    Text("Select the start and end dates for your report.")
-                }
-            }
+            Text("Select any day of the week. The manifest will automatically generate for that week's Monday through Friday.")
         }
     }
     
     private var previewSection: some View {
         Section {
             listPreviewRow
+            weekRangePreviewRow
             sessionsPreviewRow
             filenamePreviewRow
         } header: {
@@ -109,7 +92,7 @@ struct ReportGenerationView: View {
     
     private var listPreviewRow: some View {
         HStack {
-            Label("List", systemImage: "list.bullet.clipboard")
+            Label("Route", systemImage: "list.bullet.clipboard")
                 .foregroundColor(.orange)
             Spacer()
             Text(list.name)
@@ -117,10 +100,25 @@ struct ReportGenerationView: View {
         }
     }
     
+    private var weekRangePreviewRow: some View {
+        HStack {
+            Label("Week", systemImage: "calendar")
+                .foregroundColor(.blue)
+            Spacer()
+            VStack(alignment: .trailing) {
+                Text(TimestampFormatter.formatDateLong(mondayDate))
+                    .font(.subheadline)
+                Text("to \(TimestampFormatter.formatDateShort(fridayDate))")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
     private var sessionsPreviewRow: some View {
         HStack {
             Label("Sessions", systemImage: "clock.fill")
-                .foregroundColor(.blue)
+                .foregroundColor(.green)
             Spacer()
             Text("\(sessionsToExport.count)")
                 .foregroundColor(.secondary)
@@ -149,7 +147,7 @@ struct ReportGenerationView: View {
                             .progressViewStyle(.circular)
                             .padding(.trailing, 8)
                     }
-                    Text(isGenerating ? "Generating..." : "Generate & Export CSV")
+                    Text(isGenerating ? "Generating..." : "Generate & Export Manifest")
                         .font(.headline)
                     Spacer()
                 }
@@ -157,7 +155,7 @@ struct ReportGenerationView: View {
                 .padding(.vertical, 12)
             }
             .listRowBackground(Color.accentColor)
-            .disabled(isGenerating || sessionsToExport.isEmpty)
+            .disabled(isGenerating)
         }
     }
     
@@ -165,13 +163,20 @@ struct ReportGenerationView: View {
         Group {
             if sessionsToExport.isEmpty {
                 Section {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
+                    VStack(spacing: 12) {
+                        Image(systemName: "calendar.badge.exclamationmark")
+                            .font(.largeTitle)
                             .foregroundColor(.orange)
-                        Text("No sessions available for the selected criteria")
+                        Text("No sessions recorded yet for this week")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
+                        Text("The manifest will show blank cells for days without attendance records.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding()
                 }
             }
         }
@@ -179,38 +184,31 @@ struct ReportGenerationView: View {
     
     // MARK: - Computed Properties
     
+    private var mondayDate: Date {
+        getMondayOfWeek(for: weekStartDate)
+    }
+    
+    private var fridayDate: Date {
+        Calendar.current.date(byAdding: .day, value: 4, to: mondayDate) ?? mondayDate
+    }
+    
     private var sessionsToExport: [AttendanceSession] {
         let allSessions = dataManager.fetchSessions(for: list)
-        
-        switch reportType {
-        case .today:
-            return allSessions.filter { Calendar.current.isDateInToday($0.createdDate) }
-        case .yesterday:
-            return allSessions.filter { Calendar.current.isDateInYesterday($0.createdDate) }
-        case .thisWeek:
-            let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            return allSessions.filter { $0.createdDate >= weekAgo }
-        case .thisMonth:
-            let monthAgo = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
-            return allSessions.filter { $0.createdDate >= monthAgo }
-        case .dateRange:
-            let start = Calendar.current.startOfDay(for: startDate)
-            let end = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: endDate)) ?? endDate
-            return allSessions.filter { $0.createdDate >= start && $0.createdDate < end }
-        case .all:
-            return allSessions
-        }
+        let start = Calendar.current.startOfDay(for: mondayDate)
+        let end = Calendar.current.date(byAdding: .day, value: 7, to: start) ?? start
+        return allSessions.filter { $0.createdDate >= start && $0.createdDate < end }
     }
     
     private var filename: String {
-        switch reportType {
-        case .today:
-            return CSVGenerator.generateTodayFilename(for: list)
-        case .dateRange:
-            return CSVGenerator.generateFilename(for: list, dateRange: (startDate, endDate))
-        default:
-            return CSVGenerator.generateFilename(for: list, dateRange: nil)
-        }
+        CSVGenerator.generateManifestFilename(for: list, weekStartDate: mondayDate)
+    }
+    
+    // MARK: - Helper Functions
+    
+    private func getMondayOfWeek(for date: Date) -> Date {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return calendar.date(from: components) ?? date
     }
     
     // MARK: - Generate Report
@@ -220,19 +218,16 @@ struct ReportGenerationView: View {
         
         // Small delay to show loading state
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            let csvContent: String
-            
-            switch reportType {
-            case .today:
-                csvContent = CSVGenerator.generateTodayReport(for: sessionsToExport, list: list)
-            default:
-                let dateRange: (start: Date, end: Date)? = reportType == .dateRange ? (startDate, endDate) : nil
-                csvContent = CSVGenerator.generateCSV(for: sessionsToExport, list: list, dateRange: dateRange)
-            }
+            let csvContent = CSVGenerator.generateWeeklyManifest(
+                for: sessionsToExport,
+                list: list,
+                weekStartDate: mondayDate,
+                currentUser: authManager.currentUser
+            )
             
             // Validate CSV content
             guard !csvContent.isEmpty else {
-                errorMessage = "Failed to generate CSV content. No data available."
+                errorMessage = "Failed to generate manifest content."
                 showErrorAlert = true
                 isGenerating = false
                 return
@@ -243,8 +238,9 @@ struct ReportGenerationView: View {
             isGenerating = false
             showFileExporter = true
             
-            print("✅ CSV generated successfully")
+            print("✅ Weekly Manifest generated successfully")
             print("✅ File size: \(csvContent.count) characters")
+            print("✅ Week: \(TimestampFormatter.formatDateLong(mondayDate)) - \(TimestampFormatter.formatDateShort(fridayDate))")
         }
     }
     
@@ -253,45 +249,12 @@ struct ReportGenerationView: View {
     private func handleFileExport(_ result: Result<URL, Error>) {
         switch result {
         case .success(let url):
-            print("✅ Report successfully saved to: \(url)")
+            print("✅ Manifest successfully saved to: \(url)")
             showSuccessAlert = true
         case .failure(let error):
-            errorMessage = "Failed to save report: \(error.localizedDescription)"
+            errorMessage = "Failed to save manifest: \(error.localizedDescription)"
             showErrorAlert = true
-            print("❌ Report export failed: \(error)")
-        }
-    }
-}
-
-// MARK: - Report Type
-
-enum ReportType: String, CaseIterable {
-    case today = "today"
-    case yesterday = "yesterday"
-    case thisWeek = "this_week"
-    case thisMonth = "this_month"
-    case dateRange = "date_range"
-    case all = "all"
-    
-    var displayName: String {
-        switch self {
-        case .today: return "Today"
-        case .yesterday: return "Yesterday"
-        case .thisWeek: return "This Week"
-        case .thisMonth: return "This Month"
-        case .dateRange: return "Date Range"
-        case .all: return "All Sessions"
-        }
-    }
-    
-    var description: String {
-        switch self {
-        case .today: return "Export all sessions from today with combined pick-up and drop-off times."
-        case .yesterday: return "Export all sessions from yesterday."
-        case .thisWeek: return "Export sessions from the last 7 days."
-        case .thisMonth: return "Export sessions from the last 30 days."
-        case .dateRange: return "Export sessions within a custom date range."
-        case .all: return "Export all available sessions for this list."
+            print("❌ Manifest export failed: \(error)")
         }
     }
 }
@@ -330,4 +293,5 @@ struct CSVDocument: FileDocument {
         Attendee(name: "Jane Smith", orderIndex: 1)
     ]))
     .environmentObject(DataManager())
+    .environmentObject(FirebaseAuthManager.shared)
 }

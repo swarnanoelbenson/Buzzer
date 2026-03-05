@@ -27,11 +27,19 @@ struct Attendee: Identifiable, Equatable {
     let id: UUID
     var name: String
     var orderIndex: Int
+    var grade: String
+    var scheduledAM: Bool
+    var scheduledPM: Bool
+    var notes: String
     
-    init(id: UUID = UUID(), name: String, orderIndex: Int = 0) {
+    init(id: UUID = UUID(), name: String, orderIndex: Int = 0, grade: String = "", scheduledAM: Bool = true, scheduledPM: Bool = true, notes: String = "") {
         self.id = id
         self.name = name
         self.orderIndex = orderIndex
+        self.grade = grade
+        self.scheduledAM = scheduledAM
+        self.scheduledPM = scheduledPM
+        self.notes = notes
     }
 }
 
@@ -54,13 +62,15 @@ struct AttendanceSession: Identifiable {
     var sessionType: SessionType
     var createdDate: Date
     var records: [AttendanceRecord]
+    var finalCheckTimestamp: Date?
     
-    init(id: UUID = UUID(), listId: UUID, sessionType: SessionType, createdDate: Date = Date(), records: [AttendanceRecord] = []) {
+    init(id: UUID = UUID(), listId: UUID, sessionType: SessionType, createdDate: Date = Date(), records: [AttendanceRecord] = [], finalCheckTimestamp: Date? = nil) {
         self.id = id
         self.listId = listId
         self.sessionType = sessionType
         self.createdDate = createdDate
         self.records = records
+        self.finalCheckTimestamp = finalCheckTimestamp
     }
 }
 

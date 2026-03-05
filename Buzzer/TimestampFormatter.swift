@@ -25,12 +25,21 @@ struct TimestampFormatter {
         return formatter.string(from: date)
     }
     
-    /// Formats a date as h:MM:SS a (12-hour format with AM/PM)
+    /// Formats time in 12-hour short format (e.g., "7:05am")
+    static func formatTimeShort12Hour(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mma"
+        return formatter.string(from: date).lowercased()
+    }
+    
+    /// Formats time in 12-hour format with space (e.g., "3:35 PM")
     static func formatTime12Hour(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm:ss a"
+        formatter.dateFormat = "h:mm a"
         return formatter.string(from: date)
     }
+    
+
     
     // MARK: - ISO 8601 Formatting
     
@@ -97,12 +106,12 @@ struct TimestampFormatter {
     
     // MARK: - CSV Formatting
     
-    /// Formats timestamp for CSV export (HH:MM:SS or "Absent")
+    /// Formats timestamp for CSV export (7:05am format or "Absent")
     static func formatForCSV(timestamp: Date?) -> String {
         guard let timestamp = timestamp else {
             return "Absent"
         }
-        return formatTime(timestamp)
+        return formatTimeShort12Hour(timestamp)
     }
     
     // MARK: - Helpers

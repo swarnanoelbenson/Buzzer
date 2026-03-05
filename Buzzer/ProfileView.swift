@@ -67,7 +67,12 @@ struct ProfileView: View {
                         ProfileDetailRow(
                             icon: "phone.fill",
                             title: "Phone",
-                            value: authManager.currentUser?.phone.isEmpty == false ? authManager.currentUser?.phone ?? "Not provided" : "Not provided"
+                            value: {
+                                if let phone = authManager.currentUser?.phone, !phone.isEmpty {
+                                    return phone
+                                }
+                                return "Not provided"
+                            }()
                         )
                         
                         Divider()
@@ -77,7 +82,12 @@ struct ProfileView: View {
                         ProfileDetailRow(
                             icon: "bus.fill",
                             title: "Bus Registration",
-                            value: authManager.currentUser?.busRegistration.isEmpty == false ? authManager.currentUser?.busRegistration ?? "Not provided" : "Not provided",
+                            value: {
+                                if let busReg = authManager.currentUser?.busRegistration, !busReg.isEmpty {
+                                    return busReg
+                                }
+                                return "Not provided"
+                            }(),
                             isLast: true
                         )
                     }
