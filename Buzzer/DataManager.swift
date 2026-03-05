@@ -176,12 +176,13 @@ class DataManager: ObservableObject {
     
     // MARK: - Session Operations
     
-    func saveSession(_ session: AttendanceSession, records: [AttendanceRecord]) {
+    func saveSession(_ session: AttendanceSession, records: [AttendanceRecord], finalCheckTimestamp: Date? = nil) {
         // Create session entity
         let sessionEntity = AttendanceSessionEntity(context: context)
         sessionEntity.id = session.id
         sessionEntity.sessionType = session.sessionType.rawValue
         sessionEntity.createdDate = session.createdDate
+        sessionEntity.finalCheckTimestamp = finalCheckTimestamp
         
         // Link to list
         let listRequest: NSFetchRequest<AttendeeListEntity> = AttendeeListEntity.fetchRequest()

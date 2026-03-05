@@ -13,6 +13,7 @@ class SessionManager: ObservableObject {
     @Published var currentAttendeeIndex: Int = 0
     @Published var recordedStatuses: [UUID: AttendanceRecord] = [:]
     @Published var isSessionActive: Bool = false
+    @Published var finalCheckTimestamp: Date?
     
     private let dataManager: DataManager
     
@@ -33,19 +34,21 @@ class SessionManager: ObservableObject {
         currentSession = session
         currentAttendeeIndex = 0
         recordedStatuses.removeAll()
+        finalCheckTimestamp = nil
         isSessionActive = true
     }
     
     func stopSession() {
         guard let session = currentSession else { return }
         
-        // Save session to Core Data
-        dataManager.saveSession(session, records: Array(recordedStatuses.values))
+        // Save session to Core Data with final check timestamp
+        dataManager.saveSession(session, records: Array(recordedStatuses.values), finalCheckTimestamp: finalCheckTimestamp)
         
         // Clear state
         currentSession = nil
         currentAttendeeIndex = 0
         recordedStatuses.removeAll()
+        finalCheckTimestamp = nil
         isSessionActive = false
     }
     
@@ -53,6 +56,7 @@ class SessionManager: ObservableObject {
         currentSession = nil
         currentAttendeeIndex = 0
         recordedStatuses.removeAll()
+        finalCheckTimestamp = nil
         isSessionActive = false
     }
     
@@ -73,6 +77,10 @@ class SessionManager: ObservableObject {
     
     func undoLastRecord(for attendee: Attendee) {
         recordedStatuses.removeValue(forKey: attendee.id)
+    }
+    
+    func setFinalCheckTimestamp(_ timestamp: Date) {
+        finalCheckTimestamp = timestamp
     }
     
     // MARK: - Navigation

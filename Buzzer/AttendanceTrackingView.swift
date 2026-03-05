@@ -17,6 +17,7 @@ struct AttendanceTrackingView: View {
     
     @State private var showStopConfirmation = false
     @State private var showSessionReview = false
+    @State private var showFinalCheck = false
     @State private var canSwipeBack = false
     
     var body: some View {
@@ -69,6 +70,13 @@ struct AttendanceTrackingView: View {
                 list: list,
                 sessionType: sessionType
             )
+        }
+        .sheet(isPresented: $showFinalCheck) {
+            FinalCheckView { timestamp in
+                sessionManager.setFinalCheckTimestamp(timestamp)
+                sessionManager.stopSession()
+                dismiss()
+            }
         }
     }
     
@@ -263,9 +271,9 @@ struct AttendanceTrackingView: View {
                 }
                 
                 Button {
-                    stopSession()
+                    showFinalCheck = true
                 } label: {
-                    Text("Save & Exit")
+                    Text("Final Check")
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
