@@ -12,6 +12,8 @@ struct SignInView: View {
     
     @State private var email = ""
     @State private var password = ""
+    @State private var phone = ""
+    @State private var busRegistration = ""
     @State private var isSignUp = false
     @State private var showError = false
     @State private var showForgotPassword = false
@@ -20,7 +22,7 @@ struct SignInView: View {
     @FocusState private var focusedField: Field?
     
     enum Field {
-        case email, password
+        case email, password, phone, busRegistration
     }
     
     var body: some View {
@@ -84,6 +86,39 @@ struct SignInView: View {
                                 .focused($focusedField, equals: .password)
                                 .accessibilityLabel("Password")
                                 .accessibilityHint("Enter your password, minimum 4 characters")
+                        }
+                        
+                        // Phone number field (signup only)
+                        if isSignUp {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Phone Number")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .accessibilityHidden(true)
+                                
+                                TextField("0400 899 877", text: $phone)
+                                    .textFieldStyle(AccessibleTextFieldStyle())
+                                    .textContentType(.telephoneNumber)
+                                    .keyboardType(.phonePad)
+                                    .focused($focusedField, equals: .phone)
+                                    .accessibilityLabel("Phone number")
+                                    .accessibilityHint("Enter your phone number")
+                            }
+                        }
+                        
+                        // Bus registration field (signup only)
+                        if isSignUp {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Bus Registration")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .accessibilityHidden(true)
+                                
+                                TextField("BS08-CA", text: $busRegistration)
+                                    .textFieldStyle(AccessibleTextFieldStyle())
+                                    .autocapitalization(.allCharacters)
+                                    .focused($focusedField, equals: .busRegistration)
+                                    .accessibilityLabel("Bus registration")
+                                    .accessibilityHint("Enter your bus registration number")
+                            }
                         }
                         
                         // Forgot password (sign in only)
@@ -172,7 +207,7 @@ struct SignInView: View {
         isLoading = true
         
         if isSignUp {
-            authManager.signUp(email: email, password: password) { result in
+            authManager.signUp(email: email, password: password, phone: phone, busRegistration: busRegistration) { result in
                 isLoading = false
                 switch result {
                 case .success:

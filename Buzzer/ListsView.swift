@@ -11,9 +11,9 @@ struct ListsView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var authManager: FirebaseAuthManager
     @State private var showingCreateList = false
+    @State private var showingProfile = false
     @State private var listToDelete: AttendeeList?
     @State private var showDeleteConfirmation = false
-    @State private var showSignOutConfirmation = false
     
     var body: some View {
         NavigationView {
@@ -28,11 +28,11 @@ struct ListsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
-                        showSignOutConfirmation = true
+                        showingProfile = true
                     } label: {
-                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                        Image(systemName: "person.circle.fill")
                             .imageScale(.large)
-                            .accessibilityLabel("Sign out")
+                            .accessibilityLabel("Profile")
                     }
                 }
                 
@@ -41,11 +41,16 @@ struct ListsView: View {
                         showingCreateList = true
                     } label: {
                         Image(systemName: "plus")
+                            .imageScale(.large)
+                            .accessibilityLabel("Create new list")
                     }
                 }
             }
             .sheet(isPresented: $showingCreateList) {
                 CreateListView()
+            }
+            .sheet(isPresented: $showingProfile) {
+                ProfileView()
             }
             .alert("Delete List", isPresented: $showDeleteConfirmation, presenting: listToDelete) { list in
                 Button("Cancel", role: .cancel) {
@@ -57,14 +62,6 @@ struct ListsView: View {
                 }
             } message: { list in
                 Text("Are you sure you want to delete \"\(list.name)\"? This will remove all attendees and attendance records.")
-            }
-            .alert("Sign Out", isPresented: $showSignOutConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Sign Out", role: .destructive) {
-                    authManager.signOut()
-                }
-            } message: {
-                Text("Are you sure you want to sign out?")
             }
         }
         .navigationViewStyle(.stack)

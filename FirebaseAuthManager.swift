@@ -24,6 +24,7 @@ class FirebaseAuthManager: ObservableObject {
     // Mock user storage (in production, this would be Firebase)
     private let userDefaultsKey = "BuzzerAuthenticatedUser"
     private let mockUsersKey = "BuzzerMockUsers"
+    private let mockUserProfilesKey = "BuzzerMockUserProfiles"
     
     private init() {
         checkAuthenticationStatus()
@@ -33,8 +34,12 @@ class FirebaseAuthManager: ObservableObject {
     
     func checkAuthenticationStatus() {
         if let savedEmail = UserDefaults.standard.string(forKey: userDefaultsKey) {
-            // User is logged in
-            currentUser = User(email: savedEmail)
+            // User is logged in - load full profile
+            if let profile = getUserProfile(email: savedEmail) {
+                currentUser = User(email: savedEmail, phone: profile.phone, busRegistration: profile.busRegistration)
+            } else {
+                currentUser = User(email: savedEmail, phone: "", busRegistration: "")
+            }
             isAuthenticated = true
         } else {
             // User is not logged in
@@ -74,8 +79,9 @@ class FirebaseAuthManager: ObservableObject {
             
             // Check if user exists and password matches
             if let storedPassword = mockUsers[email], storedPassword == password {
-                // Sign in successful
-                let user = User(email: email)
+                // Sign in successful - load full profile
+                let profile = self.getUserProfile(email: email)
+                let user = User(email: email, phone: profile?.phone ?? "", busRegistration: profile?.busRegistration ?? "")
                 self.currentUser = user
                 self.isAuthenticated = true
                 self.authError = nil
@@ -94,7 +100,7 @@ class FirebaseAuthManager: ObservableObject {
     
     // MARK: - Sign Up
     
-    func signUp(email: String, password: String, completion: @escaping (Result<User, AuthError>) -> Void) {
+    func signUp(email: String, password: String, phone: String, busRegistration: String, completion: @escaping (Result<User, AuthError>) -> Void) {
         // Validate input
         guard !email.isEmpty else {
             authError = "Email cannot be empty"
@@ -138,8 +144,12 @@ class FirebaseAuthManager: ObservableObject {
             mockUsers[email] = password
             self.saveMockUsers(mockUsers)
             
+            // Save user profile with phone and bus registration
+            let profile = UserProfile(email: email, phone: phone, busRegistration: busRegistration)
+            self.saveUserProfile(profile)
+            
             // Sign in the new user
-            let user = User(email: email)
+            let user = User(email: email, phone: phone, busRegistration: busRegistration)
             self.currentUser = user
             self.isAuthenticated = true
             self.authError = nil
@@ -217,12 +227,47 @@ class FirebaseAuthManager: ObservableObject {
             UserDefaults.standard.set(data, forKey: mockUsersKey)
         }
     }
+    
+    private func getUserProfile(email: String) -> UserProfile? {
+        if let data = UserDefaults.standard.data(forKey: mockUserProfilesKey),
+           let profiles = try? JSONDecoder().decode([String: UserProfile].self, from: data) {
+            return profiles[email]
+        }
+        return nil
+    }
+    
+    private func saveUserProfile(_ profile: UserProfile) {
+        var profiles = getAllUserProfiles()
+        profiles[profile.email] = profile
+        
+        if let data = try? JSONEncoder().encode(profiles) {
+            UserDefaults.standard.set(data, forKey: mockUserProfilesKey)
+        }
+    }
+    
+    private func getAllUserProfiles() -> [String: UserProfile] {
+        if let data = UserDefaults.standard.data(forKey: mockUserProfilesKey),
+           let profiles = try? JSONDecoder().decode([String: UserProfile].self, from: data) {
+            return profiles
+        }
+        return [:]
+    }
+}
+
+// MARK: - User Profile
+
+struct UserProfile: Codable {
+    let email: String
+    let phone: String
+    let busRegistration: String
 }
 
 // MARK: - User Model
 
 struct User {
     let email: String
+    let phone: String
+    let busRegistration: String
     
     var displayName: String {
         // Return email prefix as display name
