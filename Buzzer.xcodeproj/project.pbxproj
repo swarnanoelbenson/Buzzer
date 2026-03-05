@@ -16,6 +16,10 @@
 		593A3DE62F593719004B6282 /* PHASE4_COMPLETE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */; };
 		593A3DE82F593764004B6282 /* PHASE4_TESTING_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */; };
 		593A3DEA2F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */; };
+		593A3DEC2F594DE0004B6282 /* FirebaseAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DEB2F594DE0004B6282 /* FirebaseAuthManager.swift */; };
+		593A3DEE2F594E04004B6282 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DED2F594E04004B6282 /* SignInView.swift */; };
+		593A3DF02F594E11004B6282 /* BuzzerLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */; };
+		593A3DF22F594E1B004B6282 /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DF12F594E1B004B6282 /* SplashScreenView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +32,10 @@
 		593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_COMPLETE.md; sourceTree = "<group>"; };
 		593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_TESTING_GUIDE.md; sourceTree = "<group>"; };
 		593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_IMPLEMENTATION.md; sourceTree = "<group>"; };
+		593A3DEB2F594DE0004B6282 /* FirebaseAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthManager.swift; sourceTree = "<group>"; };
+		593A3DED2F594E04004B6282 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuzzerLogo.swift; sourceTree = "<group>"; };
+		593A3DF12F594E1B004B6282 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		595DE1CF2F5849D00031EAC7 /* Buzzer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Buzzer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -64,6 +72,10 @@
 				593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */,
 				593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */,
 				593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */,
+				593A3DEB2F594DE0004B6282 /* FirebaseAuthManager.swift */,
+				593A3DED2F594E04004B6282 /* SignInView.swift */,
+				593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */,
+				593A3DF12F594E1B004B6282 /* SplashScreenView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -156,8 +168,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				593A3DE42F5936BF004B6282 /* ReportGenerationView.swift in Sources */,
+				593A3DF22F594E1B004B6282 /* SplashScreenView.swift in Sources */,
 				593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */,
+				593A3DEE2F594E04004B6282 /* SignInView.swift in Sources */,
 				593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */,
+				593A3DF02F594E11004B6282 /* BuzzerLogo.swift in Sources */,
+				593A3DEC2F594DE0004B6282 /* FirebaseAuthManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

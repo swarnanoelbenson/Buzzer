@@ -25,19 +25,20 @@ struct SessionSelectionView: View {
                     .foregroundColor(.accentColor)
                 
                 Text(currentList?.name ?? list.name)
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(.system(size: 28, weight: .bold)) // Accessible size
                     .multilineTextAlignment(.center)
+                    .accessibleHeader()
                 
                 Text("\(currentList?.attendees.count ?? 0) attendees")
-                    .font(.subheadline)
+                    .font(.system(size: 18)) // Accessible size
                     .foregroundColor(.secondary)
+                    .accessibilityLabel("\(currentList?.attendees.count ?? 0) attendees in this list")
             }
             .padding(.top, 40)
             
             Spacer()
             
-            // Session buttons
+            // Session buttons - Accessibility enhanced for 60+
             VStack(spacing: 20) {
                 
                 Button {
@@ -46,18 +47,21 @@ struct SessionSelectionView: View {
                     sessionButton(
                         title: "Start Pick-Up",
                         systemImage: "arrow.up.circle.fill",
-                        color: .green
+                        color: .accessibleGreen
                     )
                 }
                 .disabled(isEmpty)
+                .accessibilityLabel("Start pick-up session")
+                .accessibilityHint("Begin recording pick-up attendance")
                 
                 if let lastPickup = dataManager.fetchRecentSession(for: list, type: .pickup) {
                     Text("Last pick-up: \(lastPickup.createdDate, style: .relative)")
-                        .font(.caption)
+                        .font(.system(size: 16)) // Accessible font size
                         .foregroundColor(.secondary)
+                        .accessibilityLabel("Last pick-up session was \(lastPickup.createdDate, style: .relative)")
                 }
                 
-                Divider()
+                AccessibleDivider()
                     .padding(.vertical, 8)
                 
                 Button {
@@ -66,15 +70,18 @@ struct SessionSelectionView: View {
                     sessionButton(
                         title: "Start Drop-Off",
                         systemImage: "arrow.down.circle.fill",
-                        color: .orange
+                        color: .accessibleOrange
                     )
                 }
                 .disabled(isEmpty)
+                .accessibilityLabel("Start drop-off session")
+                .accessibilityHint("Begin recording drop-off attendance")
                 
                 if let lastDropoff = dataManager.fetchRecentSession(for: list, type: .dropoff) {
                     Text("Last drop-off: \(lastDropoff.createdDate, style: .relative)")
-                        .font(.caption)
+                        .font(.system(size: 16)) // Accessible font size
                         .foregroundColor(.secondary)
+                        .accessibilityLabel("Last drop-off session was \(lastDropoff.createdDate, style: .relative)")
                 }
             }
             .padding(.horizontal, 24)
@@ -97,49 +104,39 @@ struct SessionSelectionView: View {
         }
         .navigationTitle("Start Session")
         .navigationBarTitleDisplayMode(.inline)
-        .background {
-            // Hidden navigation links for programmatic navigation
-            NavigationLink(
-                destination: AttendanceTrackingView(
-                    sessionManager: sessionManager,
-                    list: currentList ?? list,
-                    sessionType: .pickup
-                    
-                )
-                .environmentObject(dataManager),
-                isActive: $navigateToPickup
-            ) {
-                EmptyView()
-            }
-            .hidden()
-            
-            NavigationLink(
-                destination: AttendanceTrackingView(
-                    sessionManager: sessionManager,
-                    list: currentList ?? list,
-                    sessionType: .dropoff
-                    
-                )
-                .environmentObject(dataManager),
-                isActive: $navigateToDropoff
-            ) {
-                EmptyView()
-            }
-            .hidden()
+        
+        // ✅ NEW iOS 16 Navigation
+        
+        .navigationDestination(isPresented: $navigateToPickup) {
+            AttendanceTrackingView(
+                sessionManager: sessionManager,
+                list: currentList ?? list,
+                sessionType: .pickup
+                
+            )
+        }
+
+        .navigationDestination(isPresented: $navigateToDropoff) {
+            AttendanceTrackingView(
+                sessionManager: sessionManager,
+                list: currentList ?? list,
+                sessionType: .dropoff
+                
+            )
         }
     }
     
     // MARK: - Helpers
     
     private func sessionButton(title: String, systemImage: String, color: Color) -> some View {
-        HStack {
+        HStack(spacing: 16) {
             Image(systemName: systemImage)
-                .font(.title2)
+                .font(.system(size: 32)) // Large icon
             Text(title)
-                .font(.title3)
-                .fontWeight(.semibold)
+                .font(.system(size: 24, weight: .bold)) // 20pt+ font for accessibility
         }
         .frame(maxWidth: .infinity)
+        .frame(minWidth: 60, minHeight: 70) // Accessibility: 60x70pt minimum
         .padding(.vertical, 20)
         .background(color)
         .foregroundColor(.white)

@@ -9,9 +9,11 @@ import SwiftUI
 
 struct ListsView: View {
     @EnvironmentObject var dataManager: DataManager
+    @EnvironmentObject var authManager: FirebaseAuthManager
     @State private var showingCreateList = false
     @State private var listToDelete: AttendeeList?
     @State private var showDeleteConfirmation = false
+    @State private var showSignOutConfirmation = false
     
     var body: some View {
         NavigationView {
@@ -24,6 +26,16 @@ struct ListsView: View {
             }
             .navigationTitle("Buzzer")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showSignOutConfirmation = true
+                    } label: {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .imageScale(.large)
+                            .accessibilityLabel("Sign out")
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingCreateList = true
@@ -45,6 +57,14 @@ struct ListsView: View {
                 }
             } message: { list in
                 Text("Are you sure you want to delete \"\(list.name)\"? This will remove all attendees and attendance records.")
+            }
+            .alert("Sign Out", isPresented: $showSignOutConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Sign Out", role: .destructive) {
+                    authManager.signOut()
+                }
+            } message: {
+                Text("Are you sure you want to sign out?")
             }
         }
         .navigationViewStyle(.stack)

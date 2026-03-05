@@ -179,7 +179,7 @@ struct AccessibilityHintModifier: ViewModifier {
 struct AccessibleDatePicker: View {
     @Binding var selection: Date
     let label: String
-    let in range: PartialRangeThrough<Date>
+    let range: PartialRangeThrough<Date>
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

@@ -44,27 +44,42 @@ struct ListDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                // History button (Phase 3)
+                // History button (Phase 3) - Accessible for 60+
                 if let currentList = currentList {
                     NavigationLink(destination: SessionHistoryView(list: currentList)) {
-                        Image(systemName: "clock.fill")
-                            .imageScale(.medium)
+                        VStack(spacing: 2) {
+                            Image(systemName: "clock.fill")
+                                .font(.system(size: 24))
+                            Text("History")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .frame(height: 70) // Accessibility: 70pt height
                     }
+                    .accessibilityLabel("Session history")
+                    .accessibilityHint("View past attendance sessions")
                 }
             }
             
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
-                    // Play button (start session)
+                    // Play button (start session) - Accessible for 60+
                     if let currentList = currentList, !currentList.attendees.isEmpty {
                         NavigationLink(destination: SessionSelectionView(list: currentList, dataManager: dataManager)) {
-                            Image(systemName: "play.circle.fill")
-                                .imageScale(.large)
+                            VStack(spacing: 2) {
+                                Image(systemName: "play.circle.fill")
+                                    .font(.system(size: 24))
+                                Text("Start")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .frame(minWidth: 60, minHeight: 70) // Accessibility: 60x70pt
                         }
+                        .accessibilityLabel("Start session")
+                        .accessibilityHint("Start a new pick-up or drop-off session")
                     }
                     
                     // Edit button
                     EditButton()
+                        .font(.system(size: 18)) // Larger font
                 }
             }
         }

@@ -10,11 +10,30 @@ import SwiftUI
 @main
 struct BuzzerApp: App {
     @StateObject private var dataManager = DataManager(persistenceController: .shared)
+    @StateObject private var authManager = FirebaseAuthManager.shared
+    
+    @State private var showSplash = true
     
     var body: some Scene {
         WindowGroup {
-            ListsView()
-                .environmentObject(dataManager)
+            ZStack {
+                if showSplash {
+                    SplashScreenView {
+                        showSplash = false
+                    }
+                } else {
+                    if authManager.isAuthenticated {
+                        // Main app
+                        ListsView()
+                            .environmentObject(dataManager)
+                            .environmentObject(authManager)
+                    } else {
+                        // Sign in screen
+                        SignInView()
+                            .environmentObject(authManager)
+                    }
+                }
+            }
         }
     }
 }
