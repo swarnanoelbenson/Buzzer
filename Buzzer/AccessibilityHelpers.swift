@@ -71,6 +71,62 @@ struct AccessibleLargeButton: View {
     }
 }
 
+// MARK: - Accessible Navigation Button
+
+/// Large rectangular navigation button with icon and text
+struct AccessibleNavigationButton: View {
+    let title: String
+    let subtitle: String?
+    let systemImage: String
+    let color: Color
+    
+    init(
+        _ title: String,
+        subtitle: String? = nil,
+        systemImage: String,
+        color: Color = .green
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.systemImage = systemImage
+        self.color = color
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 24, weight: .bold))
+            
+            if let subtitle = subtitle {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 18, weight: .bold))
+                    
+                    Text(subtitle)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(.white.opacity(0.9))
+                }
+            } else {
+                Text(title)
+                    .font(.system(size: 20, weight: .bold))
+                    .lineLimit(1)
+            }
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .foregroundColor(.white.opacity(0.8))
+                .font(.system(size: 14, weight: .semibold))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 70)
+        .padding(.horizontal, 16)
+        .background(color)
+        .foregroundColor(.white)
+        .cornerRadius(12)
+    }
+}
+
 // MARK: - High Contrast Divider
 
 /// High contrast divider for better visibility
@@ -215,6 +271,28 @@ struct AccessibleDatePicker: View {
             print("Tapped")
         }
         .buttonStyle(AccessibleButtonStyle(color: .blue))
+    }
+    .padding()
+}
+
+#Preview("Navigation Buttons") {
+    VStack(spacing: 16) {
+        NavigationLink(destination: Text("Session")) {
+            AccessibleNavigationButton(
+                "START SESSION",
+                systemImage: "play.fill",
+                color: .green
+            )
+        }
+        
+        NavigationLink(destination: Text("History")) {
+            AccessibleNavigationButton(
+                "View History",
+                subtitle: "Reports from previous days",
+                systemImage: "clock.fill",
+                color: .orange
+            )
+        }
     }
     .padding()
 }

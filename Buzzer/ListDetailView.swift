@@ -27,6 +27,39 @@ struct ListDetailView: View {
     var body: some View {
         VStack(spacing: 0) {
             if let currentList = currentList {
+                // Top action buttons (START SESSION and HISTORY)
+                VStack(spacing: 12) {
+                    // START SESSION button
+                    if !currentList.attendees.isEmpty {
+                        NavigationLink(destination: SessionSelectionView(list: currentList, dataManager: dataManager)) {
+                            AccessibleNavigationButton(
+                                "START SESSION",
+                                systemImage: "play.fill",
+                                color: .green
+                            )
+                        }
+                        .accessibilityLabel("Start session")
+                        .accessibilityHint("Start a new pick-up or drop-off session")
+                    }
+                    
+                    // HISTORY button
+                    NavigationLink(destination: SessionHistoryView(list: currentList)) {
+                        AccessibleNavigationButton(
+                            "View History",
+                            subtitle: "Reports from previous days",
+                            systemImage: "clock.fill",
+                            color: .orange
+                        )
+                    }
+                    .accessibilityLabel("Session history")
+                    .accessibilityHint("View past attendance sessions")
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+                
+                Divider()
+                
                 if currentList.attendees.isEmpty {
                     emptyStateView
                 } else {
@@ -43,44 +76,10 @@ struct ListDetailView: View {
         .navigationTitle(currentList?.name ?? "List")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                // History button (Phase 3) - Accessible for 60+
-                if let currentList = currentList {
-                    NavigationLink(destination: SessionHistoryView(list: currentList)) {
-                        VStack(spacing: 2) {
-                            Image(systemName: "clock.fill")
-                                .font(.system(size: 24))
-                            Text("History")
-                                .font(.system(size: 12, weight: .medium))
-                        }
-                        .frame(height: 70) // Accessibility: 70pt height
-                    }
-                    .accessibilityLabel("Session history")
-                    .accessibilityHint("View past attendance sessions")
-                }
-            }
-            
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 12) {
-                    // Play button (start session) - Accessible for 60+
-                    if let currentList = currentList, !currentList.attendees.isEmpty {
-                        NavigationLink(destination: SessionSelectionView(list: currentList, dataManager: dataManager)) {
-                            VStack(spacing: 2) {
-                                Image(systemName: "play.circle.fill")
-                                    .font(.system(size: 24))
-                                Text("Start")
-                                    .font(.system(size: 12, weight: .medium))
-                            }
-                            .frame(minWidth: 60, minHeight: 70) // Accessibility: 60x70pt
-                        }
-                        .accessibilityLabel("Start session")
-                        .accessibilityHint("Start a new pick-up or drop-off session")
-                    }
-                    
-                    // Edit button
-                    EditButton()
-                        .font(.system(size: 18)) // Larger font
-                }
+                // Edit button
+                EditButton()
+                    .font(.system(size: 18)) // Larger font
             }
         }
         .environment(\.editMode, $isEditMode)
