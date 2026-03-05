@@ -17,6 +17,7 @@ struct SessionHistoryView: View {
     @State private var searchDate: Date = Date()
     @State private var showDatePicker = false
     @State private var showReportGenerator = false
+    @State private var showWeeklyManifest = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -32,15 +33,6 @@ struct SessionHistoryView: View {
         }
         .navigationTitle("Session History")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showReportGenerator = true
-                } label: {
-                    Image(systemName: "square.and.arrow.up")
-                }
-            }
-        }
         .onAppear {
             loadSessions()
         }
@@ -52,6 +44,7 @@ struct SessionHistoryView: View {
         .sheet(isPresented: $showReportGenerator) {
             ReportGenerationView(list: list)
         }
+
     }
     
     // MARK: - Filter Bar
@@ -105,6 +98,81 @@ struct SessionHistoryView: View {
                 .padding(.bottom, 8)
             }
             
+            Divider()
+            
+            // DOWNLOAD REPORT Button (Blue)
+            Button {
+                showReportGenerator = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "arrow.down.doc.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("DOWNLOAD REPORT")
+                            .font(.system(size: 18, weight: .bold))
+                        
+                        Text("Export and save attendance data")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 70)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .padding(.horizontal)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+            .accessibilityLabel("Download Report")
+            .accessibilityHint("Navigate to generate and download attendance reports")
+            
+            // Weekly Manifest Button (Purple)
+//            Button {
+//                showWeeklyManifest = true
+//            } label: {
+//                HStack(spacing: 12) {
+//                    Image(systemName: "calendar.badge.checkmark")
+//                        .font(.system(size: 24, weight: .semibold))
+//                    
+//                    VStack(alignment: .leading, spacing: 4) {
+//                        Text("WEEKLY MANIFEST")
+//                            .font(.system(size: 18, weight: .bold))
+//                        
+//                        Text("Generate weekly bus manifest")
+//                            .font(.system(size: 14, weight: .regular))
+//                            .foregroundColor(.white.opacity(0.9))
+//                    }
+//                    
+//                    Spacer()
+//                    
+//                    Image(systemName: "chevron.right")
+//                        .font(.system(size: 16, weight: .semibold))
+//                        .foregroundColor(.white.opacity(0.8))
+//                }
+//                .frame(maxWidth: .infinity)
+//                .frame(height: 70)
+//                .padding(.horizontal, 16)
+//                .padding(.vertical, 12)
+//                .background(Color.purple)
+//                .foregroundColor(.white)
+//                .cornerRadius(12)
+//            }
+//            .padding(.horizontal)
+//            .padding(.bottom, 12)
+//            .accessibilityLabel("Weekly Manifest")
+//            .accessibilityHint("Generate weekly bus manifest report")
+//            
             Divider()
         }
         .background(Color(uiColor: .systemBackground))
