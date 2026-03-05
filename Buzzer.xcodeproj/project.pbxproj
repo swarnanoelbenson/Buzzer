@@ -8,10 +8,26 @@
 
 /* Begin PBXBuildFile section */
 		593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */; };
+		593A3DDC2F5934AC004B6282 /* PHASE3_COMPLETE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DDB2F5934AC004B6282 /* PHASE3_COMPLETE.md */; };
+		593A3DDE2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DDD2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md */; };
+		593A3DE02F593513004B6282 /* PHASE3_IMPLEMENTATION.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DDF2F593513004B6282 /* PHASE3_IMPLEMENTATION.md */; };
+		593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DE12F593685004B6282 /* CSVGenerator.swift */; };
+		593A3DE42F5936BF004B6282 /* ReportGenerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */; };
+		593A3DE62F593719004B6282 /* PHASE4_COMPLETE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */; };
+		593A3DE82F593764004B6282 /* PHASE4_TESTING_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */; };
+		593A3DEA2F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		593A3DD32F58EC30004B6282 /* Buzzer.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Buzzer.xcdatamodel; sourceTree = "<group>"; };
+		593A3DDB2F5934AC004B6282 /* PHASE3_COMPLETE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE3_COMPLETE.md; sourceTree = "<group>"; };
+		593A3DDD2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE3_TESTING_GUIDE.md; sourceTree = "<group>"; };
+		593A3DDF2F593513004B6282 /* PHASE3_IMPLEMENTATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE3_IMPLEMENTATION.md; sourceTree = "<group>"; };
+		593A3DE12F593685004B6282 /* CSVGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVGenerator.swift; sourceTree = "<group>"; };
+		593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportGenerationView.swift; sourceTree = "<group>"; };
+		593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_COMPLETE.md; sourceTree = "<group>"; };
+		593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_TESTING_GUIDE.md; sourceTree = "<group>"; };
+		593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_IMPLEMENTATION.md; sourceTree = "<group>"; };
 		595DE1CF2F5849D00031EAC7 /* Buzzer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Buzzer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -40,6 +56,14 @@
 				593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */,
 				595DE1D12F5849D00031EAC7 /* Buzzer */,
 				595DE1D02F5849D00031EAC7 /* Products */,
+				593A3DDB2F5934AC004B6282 /* PHASE3_COMPLETE.md */,
+				593A3DDD2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md */,
+				593A3DDF2F593513004B6282 /* PHASE3_IMPLEMENTATION.md */,
+				593A3DE12F593685004B6282 /* CSVGenerator.swift */,
+				593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */,
+				593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */,
+				593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */,
+				593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */,
 			);
 			sourceTree = "<group>";
 		};
@@ -115,6 +139,12 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				593A3DDE2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md in Resources */,
+				593A3DE82F593764004B6282 /* PHASE4_TESTING_GUIDE.md in Resources */,
+				593A3DEA2F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md in Resources */,
+				593A3DE02F593513004B6282 /* PHASE3_IMPLEMENTATION.md in Resources */,
+				593A3DDC2F5934AC004B6282 /* PHASE3_COMPLETE.md in Resources */,
+				593A3DE62F593719004B6282 /* PHASE4_COMPLETE.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -125,6 +155,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				593A3DE42F5936BF004B6282 /* ReportGenerationView.swift in Sources */,
+				593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */,
 				593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

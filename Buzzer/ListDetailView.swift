@@ -43,6 +43,16 @@ struct ListDetailView: View {
         .navigationTitle(currentList?.name ?? "List")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                // History button (Phase 3)
+                if let currentList = currentList {
+                    NavigationLink(destination: SessionHistoryView(list: currentList)) {
+                        Image(systemName: "clock.fill")
+                            .imageScale(.medium)
+                    }
+                }
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
                     // Play button (start session)

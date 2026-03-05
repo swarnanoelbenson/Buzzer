@@ -188,22 +188,30 @@ struct ExportOptionsSheet: View {
     let session: AttendanceSession
     let list: AttendeeList
     
+    @State private var showShareSheet = false
+    @State private var csvFileURL: URL?
+    @State private var showSuccessAlert = false
+    @State private var showErrorAlert = false
+    
     var body: some View {
         NavigationView {
             List {
                 Section {
-                    Text("Export functionality will be available in Phase 4")
-                        .foregroundColor(.secondary)
-                        .font(.subheadline)
+                    Button {
+                        exportCSV()
+                    } label: {
+                        Label("Export as CSV", systemImage: "doc.text")
+                    }
                 } header: {
                     Text("Export Options")
                 } footer: {
-                    Text("Phase 4 will add CSV export, email sharing, and file save capabilities.")
+                    Text("Export this session as a CSV file. You can save it to Files, share via email, or send to other apps.")
                 }
                 
                 Section {
                     HStack {
                         Label("Session Type", systemImage: session.sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                            .foregroundColor(session.sessionType == .pickup ? .green : .orange)
                         Spacer()
                         Text(session.sessionType == .pickup ? "Pick-Up" : "Drop-Off")
                             .foregroundColor(.secondary)
@@ -211,15 +219,41 @@ struct ExportOptionsSheet: View {
                     
                     HStack {
                         Label("Date", systemImage: "calendar")
+                            .foregroundColor(.blue)
                         Spacer()
                         Text(TimestampFormatter.formatDate(session.createdDate))
                             .foregroundColor(.secondary)
                     }
                     
                     HStack {
+                        Label("Time", systemImage: "clock")
+                            .foregroundColor(.purple)
+                        Spacer()
+                        Text(TimestampFormatter.formatTime(session.createdDate))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
                         Label("Attendees", systemImage: "person.2")
+                            .foregroundColor(.orange)
                         Spacer()
                         Text("\(session.records.count)")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Label("Present", systemImage: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Spacer()
+                        Text("\(presentCount)")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Label("Absent", systemImage: "xmark.circle.fill")
+                            .foregroundColor(.red)
+                        Spacer()
+                        Text("\(absentCount)")
                             .foregroundColor(.secondary)
                     }
                 } header: {
@@ -237,7 +271,63 @@ struct ExportOptionsSheet: View {
                     .fontWeight(.semibold)
                 }
             }
+            .sheet(isPresented: $showShareSheet) {
+                if let url = csvFileURL {
+                    ShareSheet(items: [url])
+                }
+            }
+            .alert("Export Successful", isPresented: $showSuccessAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("CSV file has been created and is ready to share.")
+            }
+            .alert("Export Failed", isPresented: $showErrorAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text("Failed to create CSV file. Please try again.")
+            }
         }
+    }
+    
+    // MARK: - Computed Properties
+    
+    private var presentCount: Int {
+        session.records.filter { $0.status == .present }.count
+    }
+    
+    private var absentCount: Int {
+        session.records.filter { $0.status == .absent }.count
+    }
+    
+    // MARK: - Export Functions
+    
+    private func exportCSV() {
+        // Generate CSV content
+        let csvContent = CSVGenerator.generateCSV(for: session, list: list)
+        let filename = CSVGenerator.generateFilename(for: session, list: list)
+        
+        // Save to temporary file
+        if let fileURL = CSVGenerator.saveToTemporaryFile(csvContent: csvContent, filename: filename) {
+            csvFileURL = fileURL
+            showShareSheet = true
+        } else {
+            showErrorAlert = true
+        }
+    }
+}
+
+// MARK: - Share Sheet
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+        // No update needed
     }
 }
 

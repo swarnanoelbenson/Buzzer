@@ -16,6 +16,7 @@ struct SessionHistoryView: View {
     @State private var filterType: SessionFilterType = .all
     @State private var searchDate: Date = Date()
     @State private var showDatePicker = false
+    @State private var showReportGenerator = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -31,6 +32,15 @@ struct SessionHistoryView: View {
         }
         .navigationTitle("Session History")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showReportGenerator = true
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+        }
         .onAppear {
             loadSessions()
         }
@@ -38,6 +48,9 @@ struct SessionHistoryView: View {
             DatePickerSheet(selectedDate: $searchDate, onDone: {
                 showDatePicker = false
             })
+        }
+        .sheet(isPresented: $showReportGenerator) {
+            ReportGenerationView(list: list)
         }
     }
     

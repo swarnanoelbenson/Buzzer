@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ReportGenerationView: View {
     @Environment(\.dismiss) var dismiss
@@ -16,107 +17,21 @@ struct ReportGenerationView: View {
     @State private var reportType: ReportType = .today
     @State private var startDate = Date()
     @State private var endDate = Date()
-    @State private var showShareSheet = false
-    @State private var csvFileURL: URL?
+    @State private var showFileExporter = false
+    @State private var csvDocument: CSVDocument?
     @State private var showSuccessAlert = false
     @State private var showErrorAlert = false
+    @State private var errorMessage = ""
     @State private var isGenerating = false
     
     var body: some View {
         NavigationView {
             List {
-                // Report Type Selection
-                Section {
-                    Picker("Report Type", selection: $reportType) {
-                        ForEach(ReportType.allCases, id: \.self) { type in
-                            Text(type.displayName).tag(type)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                } header: {
-                    Text("Report Type")
-                } footer: {
-                    Text(reportType.description)
-                }
-                
-                // Date Range Selection (for date range reports)
-                if reportType == .dateRange {
-                    Section {
-                        DatePicker("Start Date", selection: $startDate, in: ...Date(), displayedComponents: .date)
-                        DatePicker("End Date", selection: $endDate, in: startDate...Date(), displayedComponents: .date)
-                    } header: {
-                        Text("Date Range")
-                    } footer: {
-                        Text("Select the start and end dates for your report.")
-                    }
-                }
-                
-                // Preview Section
-                Section {
-                    HStack {
-                        Label("List", systemImage: "list.bullet.clipboard")
-                            .foregroundColor(.orange)
-                        Spacer()
-                        Text(list.name)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Label("Sessions", systemImage: "clock.fill")
-                            .foregroundColor(.blue)
-                        Spacer()
-                        Text("\(sessionsToExport.count)")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Label("File Name", systemImage: "doc.text")
-                            .foregroundColor(.purple)
-                        Spacer()
-                        Text(filename)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                } header: {
-                    Text("Preview")
-                }
-                
-                // Generate Button
-                Section {
-                    Button {
-                        generateReport()
-                    } label: {
-                        HStack {
-                            Spacer()
-                            if isGenerating {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .padding(.trailing, 8)
-                            }
-                            Text(isGenerating ? "Generating..." : "Generate & Export CSV")
-                                .font(.headline)
-                            Spacer()
-                        }
-                        .foregroundColor(.white)
-                        .padding(.vertical, 12)
-                    }
-                    .listRowBackground(Color.accentColor)
-                    .disabled(isGenerating || sessionsToExport.isEmpty)
-                }
-                
-                // Info Section
-                if sessionsToExport.isEmpty {
-                    Section {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text("No sessions available for the selected criteria")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
+                reportTypeSection
+                dateRangeSection
+                previewSection
+                generateButtonSection
+                emptyStateSection
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Generate Report")
@@ -128,22 +43,136 @@ struct ReportGenerationView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showShareSheet) {
-                if let url = csvFileURL {
-                    ShareSheet(items: [url])
-                }
-            }
+            .fileExporter(
+                isPresented: $showFileExporter,
+                document: csvDocument,
+                contentType: .commaSeparatedText,
+                defaultFilename: csvDocument?.filename ?? "report.csv",
+                onCompletion: handleFileExport
+            )
             .alert("Export Successful", isPresented: $showSuccessAlert) {
                 Button("OK", role: .cancel) {
                     dismiss()
                 }
             } message: {
-                Text("CSV file has been created and is ready to share.")
+                Text("CSV report has been successfully created and saved.")
             }
             .alert("Export Failed", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text("Failed to create CSV file. Please try again.")
+                Text(errorMessage)
+            }
+        }
+    }
+    
+    // MARK: - View Sections
+    
+    private var reportTypeSection: some View {
+        Section {
+            Picker("Report Type", selection: $reportType) {
+                ForEach(ReportType.allCases, id: \.self) { type in
+                    Text(type.displayName).tag(type)
+                }
+            }
+            .pickerStyle(.menu)
+        } header: {
+            Text("Report Type")
+        } footer: {
+            Text(reportType.description)
+        }
+    }
+    
+    private var dateRangeSection: some View {
+        Group {
+            if reportType == .dateRange {
+                Section {
+                    DatePicker("Start Date", selection: $startDate, in: ...Date(), displayedComponents: .date)
+                    DatePicker("End Date", selection: $endDate, in: startDate...Date(), displayedComponents: .date)
+                } header: {
+                    Text("Date Range")
+                } footer: {
+                    Text("Select the start and end dates for your report.")
+                }
+            }
+        }
+    }
+    
+    private var previewSection: some View {
+        Section {
+            listPreviewRow
+            sessionsPreviewRow
+            filenamePreviewRow
+        } header: {
+            Text("Preview")
+        }
+    }
+    
+    private var listPreviewRow: some View {
+        HStack {
+            Label("List", systemImage: "list.bullet.clipboard")
+                .foregroundColor(.orange)
+            Spacer()
+            Text(list.name)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var sessionsPreviewRow: some View {
+        HStack {
+            Label("Sessions", systemImage: "clock.fill")
+                .foregroundColor(.blue)
+            Spacer()
+            Text("\(sessionsToExport.count)")
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var filenamePreviewRow: some View {
+        HStack {
+            Label("File Name", systemImage: "doc.text")
+                .foregroundColor(.purple)
+            Spacer()
+            Text(filename)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+        }
+    }
+    
+    private var generateButtonSection: some View {
+        Section {
+            Button(action: generateReport) {
+                HStack {
+                    Spacer()
+                    if isGenerating {
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .padding(.trailing, 8)
+                    }
+                    Text(isGenerating ? "Generating..." : "Generate & Export CSV")
+                        .font(.headline)
+                    Spacer()
+                }
+                .foregroundColor(.white)
+                .padding(.vertical, 12)
+            }
+            .listRowBackground(Color.accentColor)
+            .disabled(isGenerating || sessionsToExport.isEmpty)
+        }
+    }
+    
+    private var emptyStateSection: some View {
+        Group {
+            if sessionsToExport.isEmpty {
+                Section {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("No sessions available for the selected criteria")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
         }
     }
@@ -201,15 +230,35 @@ struct ReportGenerationView: View {
                 csvContent = CSVGenerator.generateCSV(for: sessionsToExport, list: list, dateRange: dateRange)
             }
             
-            // Save to file
-            if let fileURL = CSVGenerator.saveToTemporaryFile(csvContent: csvContent, filename: filename) {
-                csvFileURL = fileURL
-                isGenerating = false
-                showShareSheet = true
-            } else {
-                isGenerating = false
+            // Validate CSV content
+            guard !csvContent.isEmpty else {
+                errorMessage = "Failed to generate CSV content. No data available."
                 showErrorAlert = true
+                isGenerating = false
+                return
             }
+            
+            // Create document and show file exporter
+            csvDocument = CSVDocument(content: csvContent, filename: filename)
+            isGenerating = false
+            showFileExporter = true
+            
+            print("✅ CSV generated successfully")
+            print("✅ File size: \(csvContent.count) characters")
+        }
+    }
+    
+    // MARK: - File Export Handler
+    
+    private func handleFileExport(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            print("✅ Report successfully saved to: \(url)")
+            showSuccessAlert = true
+        case .failure(let error):
+            errorMessage = "Failed to save report: \(error.localizedDescription)"
+            showErrorAlert = true
+            print("❌ Report export failed: \(error)")
         }
     }
 }
@@ -244,6 +293,34 @@ enum ReportType: String, CaseIterable {
         case .dateRange: return "Export sessions within a custom date range."
         case .all: return "Export all available sessions for this list."
         }
+    }
+}
+
+// MARK: - CSV Document (For fileExporter)
+
+struct CSVDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.commaSeparatedText] }
+    
+    let content: String
+    let filename: String
+    
+    init(content: String, filename: String) {
+        self.content = content
+        self.filename = filename
+    }
+    
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents,
+              let content = String(data: data, encoding: .utf8) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.content = content
+        self.filename = "report.csv"
+    }
+    
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        let data = content.data(using: .utf8)!
+        return FileWrapper(regularFileWithContents: data)
     }
 }
 
