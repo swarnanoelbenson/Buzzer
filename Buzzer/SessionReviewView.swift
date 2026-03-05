@@ -122,11 +122,6 @@ struct AttendeeReviewRow: View {
 
 #Preview {
     SessionReviewView(
-        list: AttendeeList(name: "Morning Route", attendees: [
-            Attendee(name: "John Doe", orderIndex: 0),
-            Attendee(name: "Jane Smith", orderIndex: 1)
-        ]),
-        sessionType: .pickup,
         sessionManager: {
             let manager = SessionManager(dataManager: DataManager())
             manager.recordedStatuses = [
@@ -137,6 +132,11 @@ struct AttendeeReviewRow: View {
                 )
             ]
             return manager
-        }()
+        }(),
+        list: AttendeeList(name: "Morning Route", attendees: [
+            Attendee(name: "John Doe", orderIndex: 0),
+            Attendee(name: "Jane Smith", orderIndex: 1)
+        ]),
+        sessionType: .pickup
     )
 }

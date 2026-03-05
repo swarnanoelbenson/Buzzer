@@ -1,10 +1,3 @@
-//
-//  SessionSelectionView.swift
-//  Buzzer
-//
-//  Created by Noel Benson on 4/3/2026.
-//
-
 import SwiftUI
 
 struct SessionSelectionView: View {
@@ -24,6 +17,7 @@ struct SessionSelectionView: View {
     
     var body: some View {
         VStack(spacing: 24) {
+            
             // Header
             VStack(spacing: 8) {
                 Image(systemName: "bus.fill")
@@ -43,28 +37,20 @@ struct SessionSelectionView: View {
             
             Spacer()
             
-            // Session type buttons
+            // Session buttons
             VStack(spacing: 20) {
-                // Pick-up button
+                
                 Button {
                     startSession(type: .pickup)
                 } label: {
-                    HStack {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                        Text("Start Pick-Up")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(16)
+                    sessionButton(
+                        title: "Start Pick-Up",
+                        systemImage: "arrow.up.circle.fill",
+                        color: .green
+                    )
                 }
                 .disabled(isEmpty)
                 
-                // Last pick-up info
                 if let lastPickup = dataManager.fetchRecentSession(for: list, type: .pickup) {
                     Text("Last pick-up: \(lastPickup.createdDate, style: .relative)")
                         .font(.caption)
@@ -74,26 +60,17 @@ struct SessionSelectionView: View {
                 Divider()
                     .padding(.vertical, 8)
                 
-                // Drop-off button
                 Button {
                     startSession(type: .dropoff)
                 } label: {
-                    HStack {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .font(.title2)
-                        Text("Start Drop-Off")
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(Color.orange)
-                    .foregroundColor(.white)
-                    .cornerRadius(16)
+                    sessionButton(
+                        title: "Start Drop-Off",
+                        systemImage: "arrow.down.circle.fill",
+                        color: .orange
+                    )
                 }
                 .disabled(isEmpty)
                 
-                // Last drop-off info
                 if let lastDropoff = dataManager.fetchRecentSession(for: list, type: .dropoff) {
                     Text("Last drop-off: \(lastDropoff.createdDate, style: .relative)")
                         .font(.caption)
@@ -104,7 +81,6 @@ struct SessionSelectionView: View {
             
             Spacer()
             
-            // Empty list warning
             if isEmpty {
                 HStack {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -121,31 +97,53 @@ struct SessionSelectionView: View {
         }
         .navigationTitle("Start Session")
         .navigationBarTitleDisplayMode(.inline)
-        .background(
-            Group {
-                NavigationLink(
-                    destination: AttendanceTrackingView(
-                        list: currentList ?? list,
-                        sessionType: .pickup,
-                        sessionManager: sessionManager
-                    ),
-                    isActive: $navigateToPickup
-                ) {
-                    EmptyView()
-                }
-                
-                NavigationLink(
-                    destination: AttendanceTrackingView(
-                        list: currentList ?? list,
-                        sessionType: .dropoff,
-                        sessionManager: sessionManager
-                    ),
-                    isActive: $navigateToDropoff
-                ) {
-                    EmptyView()
-                }
+        .background {
+            // Hidden navigation links for programmatic navigation
+            NavigationLink(
+                destination: AttendanceTrackingView(
+                    sessionManager: sessionManager,
+                    list: currentList ?? list,
+                    sessionType: .pickup
+                    
+                )
+                .environmentObject(dataManager),
+                isActive: $navigateToPickup
+            ) {
+                EmptyView()
             }
-        )
+            .hidden()
+            
+            NavigationLink(
+                destination: AttendanceTrackingView(
+                    sessionManager: sessionManager,
+                    list: currentList ?? list,
+                    sessionType: .dropoff
+                    
+                )
+                .environmentObject(dataManager),
+                isActive: $navigateToDropoff
+            ) {
+                EmptyView()
+            }
+            .hidden()
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func sessionButton(title: String, systemImage: String, color: Color) -> some View {
+        HStack {
+            Image(systemName: systemImage)
+                .font(.title2)
+            Text(title)
+                .font(.title3)
+                .fontWeight(.semibold)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .background(color)
+        .foregroundColor(.white)
+        .cornerRadius(16)
     }
     
     private var currentList: AttendeeList? {
@@ -153,11 +151,12 @@ struct SessionSelectionView: View {
     }
     
     private var isEmpty: Bool {
-        (currentList?.attendees.isEmpty ?? true)
+        currentList?.attendees.isEmpty ?? true
     }
     
     private func startSession(type: SessionType) {
-        guard let currentList = currentList, !currentList.attendees.isEmpty else {
+        guard let currentList = currentList,
+              !currentList.attendees.isEmpty else {
             showEmptyListAlert = true
             return
         }
@@ -169,17 +168,5 @@ struct SessionSelectionView: View {
         } else {
             navigateToDropoff = true
         }
-    }
-}
-
-#Preview {
-    NavigationView {
-        SessionSelectionView(
-            list: AttendeeList(name: "Morning Route A", attendees: [
-                Attendee(name: "John Doe"),
-                Attendee(name: "Jane Smith")
-            ]),
-            dataManager: DataManager()
-        )
     }
 }

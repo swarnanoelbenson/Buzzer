@@ -6,7 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
+		593A3DD32F58EC30004B6282 /* Buzzer.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Buzzer.xcdatamodel; sourceTree = "<group>"; };
 		595DE1CF2F5849D00031EAC7 /* Buzzer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Buzzer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -32,6 +37,7 @@
 		595DE1C62F5849D00031EAC7 = {
 			isa = PBXGroup;
 			children = (
+				593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */,
 				595DE1D12F5849D00031EAC7 /* Buzzer */,
 				595DE1D02F5849D00031EAC7 /* Products */,
 			);
@@ -119,6 +125,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -328,6 +335,19 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCVersionGroup section */
+		593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				593A3DD32F58EC30004B6282 /* Buzzer.xcdatamodel */,
+			);
+			currentVersion = 593A3DD32F58EC30004B6282 /* Buzzer.xcdatamodel */;
+			path = Buzzer.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 	};
 	rootObject = 595DE1C72F5849D00031EAC7 /* Project object */;
 }

@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreData
+import Combine
 
 class DataManager: ObservableObject {
     private let persistenceController: PersistenceController
@@ -133,7 +134,7 @@ class DataManager: ObservableObject {
         request.predicate = NSPredicate(format: "id == %@", list.id as CVarArg)
         
         do {
-            if let listEntity = try context.fetch(request).first {
+            if (try context.fetch(request).first) != nil {
                 for (index, attendee) in attendees.enumerated() {
                     let attendeeRequest: NSFetchRequest<AttendeeEntity> = AttendeeEntity.fetchRequest()
                     attendeeRequest.predicate = NSPredicate(format: "id == %@", attendee.id as CVarArg)
@@ -170,6 +171,102 @@ class DataManager: ObservableObject {
             id: entity.id ?? UUID(),
             name: entity.name ?? "",
             orderIndex: Int(entity.orderIndex)
+        )
+    }
+    
+    // MARK: - Session Operations
+    
+    func saveSession(_ session: AttendanceSession, records: [AttendanceRecord]) {
+        // Create session entity
+        let sessionEntity = AttendanceSessionEntity(context: context)
+        sessionEntity.id = session.id
+        sessionEntity.sessionType = session.sessionType.rawValue
+        sessionEntity.createdDate = session.createdDate
+        
+        // Link to list
+        let listRequest: NSFetchRequest<AttendeeListEntity> = AttendeeListEntity.fetchRequest()
+        listRequest.predicate = NSPredicate(format: "id == %@", session.listId as CVarArg)
+        
+        do {
+            if let listEntity = try context.fetch(listRequest).first {
+                sessionEntity.list = listEntity
+                
+                // Create record entities
+                for record in records {
+                    let recordEntity = AttendanceRecordEntity(context: context)
+                    recordEntity.id = record.id
+                    recordEntity.status = record.status.rawValue
+                    recordEntity.timestamp = record.timestamp
+                    recordEntity.session = sessionEntity
+                    
+                    // Link to attendee
+                    let attendeeRequest: NSFetchRequest<AttendeeEntity> = AttendeeEntity.fetchRequest()
+                    attendeeRequest.predicate = NSPredicate(format: "id == %@", record.attendeeId as CVarArg)
+                    
+                    if let attendeeEntity = try context.fetch(attendeeRequest).first {
+                        recordEntity.attendee = attendeeEntity
+                    }
+                }
+                
+                save()
+            }
+        } catch {
+            print("Failed to save session: \(error)")
+        }
+    }
+    
+    func fetchRecentSession(for list: AttendeeList, type: SessionType) -> AttendanceSession? {
+        let request: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "list.id == %@ AND sessionType == %@", list.id as CVarArg, type.rawValue)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \AttendanceSessionEntity.createdDate, ascending: false)]
+        request.fetchLimit = 1
+        
+        do {
+            if let entity = try context.fetch(request).first {
+                return convertToAttendanceSession(entity)
+            }
+        } catch {
+            print("Failed to fetch recent session: \(error)")
+        }
+        
+        return nil
+    }
+    
+    func fetchSessions(for list: AttendeeList) -> [AttendanceSession] {
+        let request: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "list.id == %@", list.id as CVarArg)
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \AttendanceSessionEntity.createdDate, ascending: false)]
+        
+        do {
+            let entities = try context.fetch(request)
+            return entities.map { convertToAttendanceSession($0) }
+        } catch {
+            print("Failed to fetch sessions: \(error)")
+            return []
+        }
+    }
+    
+    // MARK: - Conversion Helpers (Sessions)
+    
+    private func convertToAttendanceSession(_ entity: AttendanceSessionEntity) -> AttendanceSession {
+        let records = (entity.records?.allObjects as? [AttendanceRecordEntity] ?? [])
+            .map { convertToAttendanceRecord($0) }
+        
+        return AttendanceSession(
+            id: entity.id ?? UUID(),
+            listId: entity.list?.id ?? UUID(),
+            sessionType: SessionType(rawValue: entity.sessionType ?? "pickup") ?? .pickup,
+            createdDate: entity.createdDate ?? Date(),
+            records: records
+        )
+    }
+    
+    private func convertToAttendanceRecord(_ entity: AttendanceRecordEntity) -> AttendanceRecord {
+        return AttendanceRecord(
+            id: entity.id ?? UUID(),
+            attendeeId: entity.attendee?.id ?? UUID(),
+            status: AttendanceStatus(rawValue: entity.status ?? "absent") ?? .absent,
+            timestamp: entity.timestamp
         )
     }
     

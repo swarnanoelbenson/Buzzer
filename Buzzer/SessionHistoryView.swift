@@ -45,6 +45,7 @@ struct SessionHistoryView: View {
     
     private var filterBar: some View {
         VStack(spacing: 12) {
+            
             // Session type filter
             Picker("Filter", selection: $filterType) {
                 ForEach(SessionFilterType.allCases, id: \.self) { type in
@@ -160,6 +161,7 @@ struct SessionHistoryView: View {
     
     private var filteredSessions: [AttendanceSession] {
         sessions.filter { session in
+            
             // Filter by type
             let typeMatches = filterType == .all || 
                              (filterType == .pickup && session.sessionType == .pickup) ||

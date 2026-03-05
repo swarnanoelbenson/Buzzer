@@ -44,7 +44,18 @@ struct ListDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                EditButton()
+                HStack(spacing: 12) {
+                    // Play button (start session)
+                    if let currentList = currentList, !currentList.attendees.isEmpty {
+                        NavigationLink(destination: SessionSelectionView(list: currentList, dataManager: dataManager)) {
+                            Image(systemName: "play.circle.fill")
+                                .imageScale(.large)
+                        }
+                    }
+                    
+                    // Edit button
+                    EditButton()
+                }
             }
         }
         .environment(\.editMode, $isEditMode)

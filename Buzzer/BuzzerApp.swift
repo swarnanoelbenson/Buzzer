@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct BuzzerApp: App {
+    @StateObject private var dataManager = DataManager(persistenceController: .shared)
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ListsView()
+                .environmentObject(dataManager)
         }
     }
 }

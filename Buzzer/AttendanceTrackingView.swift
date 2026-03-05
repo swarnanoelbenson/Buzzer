@@ -65,9 +65,9 @@ struct AttendanceTrackingView: View {
         }
         .sheet(isPresented: $showSessionReview) {
             SessionReviewView(
+                sessionManager: sessionManager,
                 list: list,
-                sessionType: sessionType,
-                sessionManager: sessionManager
+                sessionType: sessionType
             )
         }
     }
@@ -308,13 +308,13 @@ struct AttendanceTrackingView: View {
 #Preview {
     NavigationView {
         AttendanceTrackingView(
+            sessionManager: SessionManager(dataManager: DataManager()),
             list: AttendeeList(name: "Morning Route", attendees: [
                 Attendee(name: "John Doe", orderIndex: 0),
                 Attendee(name: "Jane Smith", orderIndex: 1),
                 Attendee(name: "Bob Johnson", orderIndex: 2)
             ]),
-            sessionType: .pickup,
-            sessionManager: SessionManager(dataManager: DataManager())
+            sessionType: .pickup
         )
     }
 }
