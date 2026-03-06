@@ -4,6 +4,7 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="status" optional="YES" attributeType="String"/>
         <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="userId" optional="YES" attributeType="String"/>
         <relationship name="attendee" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeEntity" inverseName="records" inverseEntity="AttendeeEntity"/>
         <relationship name="session" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendanceSessionEntity" inverseName="records" inverseEntity="AttendanceSessionEntity"/>
     </entity>
@@ -12,6 +13,7 @@
         <attribute name="finalCheckTimestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="sessionType" optional="YES" attributeType="String"/>
+        <attribute name="userId" optional="YES" attributeType="String"/>
         <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeListEntity" inverseName="sessions" inverseEntity="AttendeeListEntity"/>
         <relationship name="records" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceRecordEntity" inverseName="session" inverseEntity="AttendanceRecordEntity"/>
     </entity>
@@ -19,6 +21,7 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="orderIndex" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="userId" optional="YES" attributeType="String"/>
         <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeListEntity" inverseName="attendees" inverseEntity="AttendeeListEntity"/>
         <relationship name="records" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceRecordEntity" inverseName="attendee" inverseEntity="AttendanceRecordEntity"/>
     </entity>
@@ -26,6 +29,7 @@
         <attribute name="createdDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="userId" optional="YES" attributeType="String"/>
         <relationship name="attendees" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendeeEntity" inverseName="list" inverseEntity="AttendeeEntity"/>
         <relationship name="sessions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceSessionEntity" inverseName="list" inverseEntity="AttendanceSessionEntity"/>
     </entity>
