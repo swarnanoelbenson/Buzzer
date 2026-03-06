@@ -247,7 +247,7 @@ struct CSVGenerator {
         let endDateStr = TimestampFormatter.formatDate(weekEndDate)
         let listName = sanitizeFilename(list.name)
         
-        return "Manifest_\(listName)_\(startDateStr)_to_\(endDateStr).csv"
+        return "\(listName)_\(startDateStr)_to_\(endDateStr).csv"
     }
     
     // MARK: - Helpers
