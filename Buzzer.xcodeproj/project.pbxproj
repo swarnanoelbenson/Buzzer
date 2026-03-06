@@ -21,6 +21,7 @@
 		593A3DF02F594E11004B6282 /* BuzzerLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */; };
 		593A3DF22F594E1B004B6282 /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DF12F594E1B004B6282 /* SplashScreenView.swift */; };
 		593A3E862F5982C0004B6282 /* FinalCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3E852F5982C0004B6282 /* FinalCheckView.swift */; };
+		59BFEEAB2F5A793B00FD8389 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -39,6 +40,7 @@
 		593A3DF12F594E1B004B6282 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		593A3E852F5982C0004B6282 /* FinalCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinalCheckView.swift; sourceTree = "<group>"; };
 		595DE1CF2F5849D00031EAC7 /* Buzzer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Buzzer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -79,6 +81,7 @@
 				593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */,
 				593A3DF12F594E1B004B6282 /* SplashScreenView.swift */,
 				593A3E852F5982C0004B6282 /* FinalCheckView.swift */,
+				59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -171,6 +174,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				593A3DE42F5936BF004B6282 /* ReportGenerationView.swift in Sources */,
+				59BFEEAB2F5A793B00FD8389 /* StringExtensions.swift in Sources */,
 				593A3E862F5982C0004B6282 /* FinalCheckView.swift in Sources */,
 				593A3DF22F594E1B004B6282 /* SplashScreenView.swift in Sources */,
 				593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */,

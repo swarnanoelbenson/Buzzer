@@ -19,10 +19,27 @@ struct SignInView: View {
     @State private var showForgotPassword = false
     @State private var isLoading = false
     
+    // Validation states
+    @State private var emailError: String?
+    @State private var phoneError: String?
+    @State private var busRegoError: String?
+    
     @FocusState private var focusedField: Field?
     
     enum Field {
         case email, password, phone, busRegistration
+    }
+    
+    // Check if all fields are valid for sign up
+    private var isSignUpFormValid: Bool {
+        guard isSignUp else { return true }
+        return email.isValidEmail && 
+               phone.isValidAustralianPhone && 
+               busRegistration.isValidBusRego &&
+               !password.isEmpty &&
+               emailError == nil &&
+               phoneError == nil &&
+               busRegoError == nil
     }
     
     var body: some View {
@@ -72,6 +89,24 @@ struct SignInView: View {
                                 .focused($focusedField, equals: .email)
                                 .accessibilityLabel("Email address")
                                 .accessibilityHint("Enter your email address")
+                                .onChange(of: email) { newValue in
+                                    if isSignUp && !newValue.isEmpty {
+                                        if !newValue.isValidEmail {
+                                            emailError = "Invalid email format"
+                                        } else {
+                                            emailError = nil
+                                        }
+                                    } else {
+                                        emailError = nil
+                                    }
+                                }
+                            
+                            if let emailError = emailError {
+                                Text(emailError)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.red)
+                                    .accessibilityLabel("Email error: \(emailError)")
+                            }
                         }
                         
                         // Password field
@@ -95,13 +130,54 @@ struct SignInView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .accessibilityHidden(true)
                                 
-                                TextField("0400 899 877", text: $phone)
-                                    .textFieldStyle(AccessibleTextFieldStyle())
-                                    .textContentType(.telephoneNumber)
-                                    .keyboardType(.phonePad)
-                                    .focused($focusedField, equals: .phone)
-                                    .accessibilityLabel("Phone number")
-                                    .accessibilityHint("Enter your phone number")
+                                HStack(spacing: 8) {
+                                    Text("04-")
+                                        .font(.system(size: 18))
+                                        .padding(.leading, 16)
+                                        .foregroundColor(.primary)
+                                    
+                                    TextField("123456789", text: $phone)
+                                        .font(.system(size: 18))
+                                        .padding(.vertical)
+                                        .keyboardType(.numberPad)
+                                        .focused($focusedField, equals: .phone)
+                                        .accessibilityLabel("Phone number")
+                                        .accessibilityHint("Enter 9 digits for your phone number")
+                                        .onChange(of: phone) { newValue in
+                                            // Limit to 9 digits
+                                            let filtered = newValue.filter { $0.isNumber }
+                                            if filtered.count > 9 {
+                                                phone = String(filtered.prefix(9))
+                                            } else {
+                                                phone = filtered
+                                            }
+                                            
+                                            // Validate
+                                            if !phone.isEmpty {
+                                                if !phone.isValidAustralianPhone {
+                                                    phoneError = "Must be exactly 9 digits"
+                                                } else {
+                                                    phoneError = nil
+                                                }
+                                            } else {
+                                                phoneError = nil
+                                            }
+                                        }
+                                }
+                                .frame(height: 60)
+                                .background(Color(uiColor: .secondarySystemBackground))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                                )
+                                
+                                if let phoneError = phoneError {
+                                    Text(phoneError)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.red)
+                                        .accessibilityLabel("Phone error: \(phoneError)")
+                                }
                             }
                         }
                         
@@ -112,12 +188,36 @@ struct SignInView: View {
                                     .font(.system(size: 18, weight: .semibold))
                                     .accessibilityHidden(true)
                                 
-                                TextField("BS08-CA", text: $busRegistration)
+                                TextField("BS08CA", text: $busRegistration)
                                     .textFieldStyle(AccessibleTextFieldStyle())
                                     .autocapitalization(.allCharacters)
                                     .focused($focusedField, equals: .busRegistration)
                                     .accessibilityLabel("Bus registration")
-                                    .accessibilityHint("Enter your bus registration number")
+                                    .accessibilityHint("Enter 6 alphanumeric characters for your bus registration")
+                                    .onChange(of: busRegistration) { newValue in
+                                        // Limit to 6 characters
+                                        if newValue.count > 6 {
+                                            busRegistration = String(newValue.prefix(6))
+                                        }
+                                        
+                                        // Validate
+                                        if !busRegistration.isEmpty {
+                                            if !busRegistration.isValidBusRego {
+                                                busRegoError = "Must be exactly 6 alphanumeric characters"
+                                            } else {
+                                                busRegoError = nil
+                                            }
+                                        } else {
+                                            busRegoError = nil
+                                        }
+                                    }
+                                
+                                if let busRegoError = busRegoError {
+                                    Text(busRegoError)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.red)
+                                        .accessibilityLabel("Bus registration error: \(busRegoError)")
+                                }
                             }
                         }
                         
@@ -153,7 +253,7 @@ struct SignInView: View {
                             .foregroundColor(.white)
                             .cornerRadius(16)
                         }
-                        .disabled(isLoading || email.isEmpty || password.isEmpty)
+                        .disabled(isLoading || email.isEmpty || password.isEmpty || (isSignUp && !isSignUpFormValid))
                         .accessibilityLabel(isSignUp ? "Sign up" : "Sign in")
                         .accessibilityHint(isSignUp ? "Create a new account" : "Sign in to your account")
                         
@@ -162,6 +262,10 @@ struct SignInView: View {
                             withAnimation {
                                 isSignUp.toggle()
                                 authManager.authError = nil
+                                // Clear validation errors
+                                emailError = nil
+                                phoneError = nil
+                                busRegoError = nil
                             }
                         } label: {
                             HStack(spacing: 4) {
