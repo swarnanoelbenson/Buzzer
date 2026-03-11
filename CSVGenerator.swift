@@ -16,7 +16,7 @@ struct CSVGenerator {
         for sessions: [AttendanceSession],
         list: AttendeeList,
         weekStartDate: Date,
-        currentUser: User?
+        driverDetails: DriverDetails?
     ) -> String {
         var csv = ""
         
@@ -32,10 +32,10 @@ struct CSVGenerator {
         csv += "MANIFEST - \(TimestampFormatter.formatDateLong(weekStartDate))\n"
         csv += "\n"
         csv += "ROUTE:,\(list.name)\n"
-        csv += "REGISTRATION:,\(currentUser?.busRegistration ?? "N/A")\n"
-        csv += "DRIVER:,\(currentUser?.displayName ?? "N/A")\n"
-        csv += "PHONE:,\(currentUser?.phone ?? "N/A")\n"
-        csv += "EMAIL:,\(currentUser?.email ?? "N/A")\n"
+        csv += "REGISTRATION:,\(driverDetails?.busRego ?? "N/A")\n"
+        csv += "DRIVER:,\(driverDetails?.name ?? "N/A")\n"
+        csv += "PHONE:,\(driverDetails?.phoneNo ?? "N/A")\n"
+        csv += "EMAIL:,\(driverDetails?.email ?? "N/A")\n"
         csv += "\n"
         
         // ATTENDANCE TABLE HEADERS

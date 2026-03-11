@@ -12,7 +12,7 @@ import MessageUI
 struct ReportGenerationView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var dataManager: DataManager
-    @EnvironmentObject var authManager: FirebaseAuthManager
+    @EnvironmentObject var driverManager: DriverManager
     
     let list: AttendeeList
     
@@ -65,7 +65,7 @@ struct ReportGenerationView: View {
             }
             .sheet(isPresented: $showMailComposer) {
                 MailComposeView(
-                    recipientEmail: authManager.currentUser?.email ?? "",
+                    recipientEmail: driverManager.driverDetails?.email ?? "",
                     subject: "Bus Manifest Report - \(list.name) - Week of \(TimestampFormatter.formatDateShort(mondayDate))",
                     body: "Please find the weekly attendance report attached.",
                     attachmentData: mailAttachmentData,
@@ -255,7 +255,7 @@ struct ReportGenerationView: View {
                 for: sessionsToExport,
                 list: list,
                 weekStartDate: mondayDate,
-                currentUser: authManager.currentUser
+                driverDetails: driverManager.driverDetails
             )
             
             // Validate CSV content
@@ -294,8 +294,8 @@ struct ReportGenerationView: View {
     // MARK: - Email Report
     
     private func emailReport() {
-        guard let driverEmail = authManager.currentUser?.email, !driverEmail.isEmpty else {
-            errorMessage = "Driver email not found. Please ensure you're logged in."
+        guard let driverEmail = driverManager.driverDetails?.email, !driverEmail.isEmpty else {
+            errorMessage = "Driver email not found. Please complete driver setup first."
             showErrorAlert = true
             return
         }
@@ -314,7 +314,7 @@ struct ReportGenerationView: View {
                 for: sessionsToExport,
                 list: list,
                 weekStartDate: mondayDate,
-                currentUser: authManager.currentUser
+                driverDetails: driverManager.driverDetails
             )
             
             // Validate CSV content
@@ -438,5 +438,5 @@ struct CSVDocument: FileDocument {
         Attendee(name: "Jane Smith", orderIndex: 1)
     ]))
     .environmentObject(DataManager())
-    .environmentObject(FirebaseAuthManager.shared)
+    .environmentObject(DriverManager.shared)
 }

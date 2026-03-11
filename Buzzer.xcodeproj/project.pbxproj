@@ -8,44 +8,50 @@
 
 /* Begin PBXBuildFile section */
 		593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */; };
-		593A3DDC2F5934AC004B6282 /* PHASE3_COMPLETE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DDB2F5934AC004B6282 /* PHASE3_COMPLETE.md */; };
-		593A3DDE2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DDD2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md */; };
-		593A3DE02F593513004B6282 /* PHASE3_IMPLEMENTATION.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DDF2F593513004B6282 /* PHASE3_IMPLEMENTATION.md */; };
 		593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DE12F593685004B6282 /* CSVGenerator.swift */; };
 		593A3DE42F5936BF004B6282 /* ReportGenerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */; };
-		593A3DE62F593719004B6282 /* PHASE4_COMPLETE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */; };
-		593A3DE82F593764004B6282 /* PHASE4_TESTING_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */; };
-		593A3DEA2F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md in Resources */ = {isa = PBXBuildFile; fileRef = 593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */; };
-		593A3DEC2F594DE0004B6282 /* FirebaseAuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DEB2F594DE0004B6282 /* FirebaseAuthManager.swift */; };
-		593A3DEE2F594E04004B6282 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DED2F594E04004B6282 /* SignInView.swift */; };
 		593A3DF02F594E11004B6282 /* BuzzerLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */; };
 		593A3DF22F594E1B004B6282 /* SplashScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DF12F594E1B004B6282 /* SplashScreenView.swift */; };
 		593A3E862F5982C0004B6282 /* FinalCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3E852F5982C0004B6282 /* FinalCheckView.swift */; };
+		59633ECF2F616D1200D79E5D /* DriverDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59633ECE2F616D1200D79E5D /* DriverDetails.swift */; };
+		59633ED12F616D1D00D79E5D /* DriverManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59633ED02F616D1D00D79E5D /* DriverManager.swift */; };
+		59633ED32F616D3800D79E5D /* DriverSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59633ED22F616D3800D79E5D /* DriverSetupView.swift */; };
+		59633EDD2F616E6100D79E5D /* DriverDetailsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59633EDC2F616E6100D79E5D /* DriverDetailsSettingsView.swift */; };
 		59BFEEAB2F5A793B00FD8389 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		593A3DD32F58EC30004B6282 /* Buzzer.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Buzzer.xcdatamodel; sourceTree = "<group>"; };
-		593A3DDB2F5934AC004B6282 /* PHASE3_COMPLETE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE3_COMPLETE.md; sourceTree = "<group>"; };
-		593A3DDD2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE3_TESTING_GUIDE.md; sourceTree = "<group>"; };
-		593A3DDF2F593513004B6282 /* PHASE3_IMPLEMENTATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE3_IMPLEMENTATION.md; sourceTree = "<group>"; };
 		593A3DE12F593685004B6282 /* CSVGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVGenerator.swift; sourceTree = "<group>"; };
 		593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportGenerationView.swift; sourceTree = "<group>"; };
-		593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_COMPLETE.md; sourceTree = "<group>"; };
-		593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_TESTING_GUIDE.md; sourceTree = "<group>"; };
-		593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PHASE4_IMPLEMENTATION.md; sourceTree = "<group>"; };
-		593A3DEB2F594DE0004B6282 /* FirebaseAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthManager.swift; sourceTree = "<group>"; };
-		593A3DED2F594E04004B6282 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuzzerLogo.swift; sourceTree = "<group>"; };
 		593A3DF12F594E1B004B6282 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		593A3E852F5982C0004B6282 /* FinalCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinalCheckView.swift; sourceTree = "<group>"; };
 		595DE1CF2F5849D00031EAC7 /* Buzzer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Buzzer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		59633ECE2F616D1200D79E5D /* DriverDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverDetails.swift; sourceTree = "<group>"; };
+		59633ED02F616D1D00D79E5D /* DriverManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverManager.swift; sourceTree = "<group>"; };
+		59633ED22F616D3800D79E5D /* DriverSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSetupView.swift; sourceTree = "<group>"; };
+		59633EDC2F616E6100D79E5D /* DriverDetailsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverDetailsSettingsView.swift; sourceTree = "<group>"; };
 		59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		59633EE82F6177BC00D79E5D /* Exceptions for "Buzzer" folder in "Buzzer" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				IMPLEMENTATION_NOTES.md,
+				QUICKSTART.md,
+			);
+			target = 595DE1CE2F5849D00031EAC7 /* Buzzer */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		595DE1D12F5849D00031EAC7 /* Buzzer */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				59633EE82F6177BC00D79E5D /* Exceptions for "Buzzer" folder in "Buzzer" target */,
+			);
 			path = Buzzer;
 			sourceTree = "<group>";
 		};
@@ -68,20 +74,16 @@
 				593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */,
 				595DE1D12F5849D00031EAC7 /* Buzzer */,
 				595DE1D02F5849D00031EAC7 /* Products */,
-				593A3DDB2F5934AC004B6282 /* PHASE3_COMPLETE.md */,
-				593A3DDD2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md */,
-				593A3DDF2F593513004B6282 /* PHASE3_IMPLEMENTATION.md */,
 				593A3DE12F593685004B6282 /* CSVGenerator.swift */,
 				593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */,
-				593A3DE52F593719004B6282 /* PHASE4_COMPLETE.md */,
-				593A3DE72F593764004B6282 /* PHASE4_TESTING_GUIDE.md */,
-				593A3DE92F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md */,
-				593A3DEB2F594DE0004B6282 /* FirebaseAuthManager.swift */,
-				593A3DED2F594E04004B6282 /* SignInView.swift */,
 				593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */,
 				593A3DF12F594E1B004B6282 /* SplashScreenView.swift */,
 				593A3E852F5982C0004B6282 /* FinalCheckView.swift */,
 				59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */,
+				59633ECE2F616D1200D79E5D /* DriverDetails.swift */,
+				59633ED02F616D1D00D79E5D /* DriverManager.swift */,
+				59633ED22F616D3800D79E5D /* DriverSetupView.swift */,
+				59633EDC2F616E6100D79E5D /* DriverDetailsSettingsView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -157,12 +159,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				593A3DDE2F5934E0004B6282 /* PHASE3_TESTING_GUIDE.md in Resources */,
-				593A3DE82F593764004B6282 /* PHASE4_TESTING_GUIDE.md in Resources */,
-				593A3DEA2F5937A8004B6282 /* PHASE4_IMPLEMENTATION.md in Resources */,
-				593A3DE02F593513004B6282 /* PHASE3_IMPLEMENTATION.md in Resources */,
-				593A3DDC2F5934AC004B6282 /* PHASE3_COMPLETE.md in Resources */,
-				593A3DE62F593719004B6282 /* PHASE4_COMPLETE.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -178,10 +174,12 @@
 				593A3E862F5982C0004B6282 /* FinalCheckView.swift in Sources */,
 				593A3DF22F594E1B004B6282 /* SplashScreenView.swift in Sources */,
 				593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */,
-				593A3DEE2F594E04004B6282 /* SignInView.swift in Sources */,
+				59633ED32F616D3800D79E5D /* DriverSetupView.swift in Sources */,
+				59633ED12F616D1D00D79E5D /* DriverManager.swift in Sources */,
 				593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */,
+				59633EDD2F616E6100D79E5D /* DriverDetailsSettingsView.swift in Sources */,
 				593A3DF02F594E11004B6282 /* BuzzerLogo.swift in Sources */,
-				593A3DEC2F594DE0004B6282 /* FirebaseAuthManager.swift in Sources */,
+				59633ECF2F616D1200D79E5D /* DriverDetails.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

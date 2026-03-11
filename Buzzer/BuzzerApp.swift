@@ -10,7 +10,7 @@ import SwiftUI
 @main
 struct BuzzerApp: App {
     @StateObject private var dataManager = DataManager(persistenceController: .shared)
-    @StateObject private var authManager = FirebaseAuthManager.shared
+    @StateObject private var driverManager = DriverManager.shared
     
     @State private var showSplash = true
     
@@ -22,15 +22,15 @@ struct BuzzerApp: App {
                         showSplash = false
                     }
                 } else {
-                    if authManager.isAuthenticated {
+                    if driverManager.isSetupComplete {
                         // Main app
                         ListsView()
                             .environmentObject(dataManager)
-                            .environmentObject(authManager)
+                            .environmentObject(driverManager)
                     } else {
-                        // Sign in screen
-                        SignInView()
-                            .environmentObject(authManager)
+                        // Driver setup screen (first-time use)
+                        DriverSetupView()
+                            .environmentObject(driverManager)
                     }
                 }
             }

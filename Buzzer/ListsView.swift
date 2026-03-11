@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ListsView: View {
     @EnvironmentObject var dataManager: DataManager
-    @EnvironmentObject var authManager: FirebaseAuthManager
+    @EnvironmentObject var driverManager: DriverManager
     @State private var showingCreateList = false
     @State private var showingProfile = false
     @State private var listToDelete: AttendeeList?

@@ -3,15 +3,16 @@
 //  Buzzer
 //
 //  Created by Noel Benson on 5/3/2026.
+//  Updated by Assistant on 11/3/2026.
 //
 
 import SwiftUI
 
 struct ProfileView: View {
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var authManager: FirebaseAuthManager
+    @EnvironmentObject var driverManager: DriverManager
     
-    @State private var showSignOutConfirmation = false
+    @State private var showResetConfirmation = false
     
     var body: some View {
         NavigationView {
@@ -39,7 +40,7 @@ struct ProfileView: View {
                         .accessibilityLabel("Profile picture")
                         
                         // Driver Name
-                        Text(authManager.currentUser?.displayName ?? "Driver")
+                        Text(driverManager.driverDetails?.name ?? "Driver")
                             .font(.system(size: 28, weight: .bold))
                             .accessibilityAddTraits(.isHeader)
                         
@@ -51,49 +52,41 @@ struct ProfileView: View {
                     .padding(.bottom, 10)
                     
                     // Profile Details Card
-                    VStack(spacing: 0) {
-                        // Email
-                        ProfileDetailRow(
-                            icon: "envelope.fill",
-                            title: "Email",
-                            value: authManager.currentUser?.email ?? "N/A",
-                            isFirst: true
-                        )
-                        
-                        Divider()
-                            .padding(.leading, 60)
-                        
-                        // Phone
-                        ProfileDetailRow(
-                            icon: "phone.fill",
-                            title: "Phone",
-                            value: {
-                                if let phone = authManager.currentUser?.phone, !phone.isEmpty {
-                                    return phone
-                                }
-                                return "Not provided"
-                            }()
-                        )
-                        
-                        Divider()
-                            .padding(.leading, 60)
-                        
-                        // Bus Registration
-                        ProfileDetailRow(
-                            icon: "bus.fill",
-                            title: "Bus Registration",
-                            value: {
-                                if let busReg = authManager.currentUser?.busRegistration, !busReg.isEmpty {
-                                    return busReg
-                                }
-                                return "Not provided"
-                            }(),
-                            isLast: true
-                        )
+                    if let driver = driverManager.driverDetails {
+                        VStack(spacing: 0) {
+                            // Email
+                            ProfileDetailRow(
+                                icon: "envelope.fill",
+                                title: "Email",
+                                value: driver.email,
+                                isFirst: true
+                            )
+                            
+                            Divider()
+                                .padding(.leading, 60)
+                            
+                            // Phone
+                            ProfileDetailRow(
+                                icon: "phone.fill",
+                                title: "Phone",
+                                value: driver.phoneNo
+                            )
+                            
+                            Divider()
+                                .padding(.leading, 60)
+                            
+                            // Bus Registration
+                            ProfileDetailRow(
+                                icon: "bus.fill",
+                                title: "Bus Registration",
+                                value: driver.busRego,
+                                isLast: true
+                            )
+                        }
+                        .background(Color(uiColor: .secondarySystemBackground))
+                        .cornerRadius(16)
+                        .padding(.horizontal, 20)
                     }
-                    .background(Color(uiColor: .secondarySystemBackground))
-                    .cornerRadius(16)
-                    .padding(.horizontal, 20)
                     
                     // App Information
                     VStack(spacing: 12) {
@@ -112,15 +105,15 @@ struct ProfileView: View {
                     
                     Spacer(minLength: 30)
                     
-                    // Sign Out Button
+                    // Reset Driver Details Button
                     Button {
-                        showSignOutConfirmation = true
+                        showResetConfirmation = true
                     } label: {
                         HStack {
-                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                            Image(systemName: "arrow.counterclockwise")
                                 .font(.system(size: 18, weight: .semibold))
                             
-                            Text("Sign Out")
+                            Text("Reset Driver Details")
                                 .font(.system(size: 18, weight: .semibold))
                         }
                         .frame(maxWidth: .infinity)
@@ -131,7 +124,7 @@ struct ProfileView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
-                    .accessibilityLabel("Sign out of account")
+                    .accessibilityLabel("Reset driver details")
                 }
             }
             .navigationTitle("Profile")
@@ -146,14 +139,14 @@ struct ProfileView: View {
                     }
                 }
             }
-            .alert("Sign Out", isPresented: $showSignOutConfirmation) {
+            .alert("Reset Driver Details?", isPresented: $showResetConfirmation) {
                 Button("Cancel", role: .cancel) { }
-                Button("Sign Out", role: .destructive) {
-                    authManager.signOut()
+                Button("Reset", role: .destructive) {
+                    driverManager.clearDriverDetails()
                     dismiss()
                 }
             } message: {
-                Text("Are you sure you want to sign out?")
+                Text("This will clear your driver information. You'll need to enter it again when you restart the app.")
             }
         }
     }
@@ -206,5 +199,5 @@ struct ProfileDetailRow: View {
 
 #Preview {
     ProfileView()
-        .environmentObject(FirebaseAuthManager.shared)
+        .environmentObject(DriverManager.shared)
 }
