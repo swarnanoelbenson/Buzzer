@@ -54,6 +54,43 @@ struct CSVGenerator {
         // Get current date for comparison
         let today = Date()
         
+        // JOURNEY START TIME ROW
+        csv += "Journey Start Time,"
+        csv += ""  // Empty for Grade column
+        
+        for dayOffset in 0..<5 {
+            let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDate) ?? weekStartDate
+            
+            // Get pickup session for this day
+            let pickupSession = sessions.first { 
+                $0.sessionType == .pickup && 
+                calendar.isDate($0.createdDate, inSameDayAs: dayDate)
+            }
+            
+            // Pickup session start time
+            csv += ","
+            if let pickupStart = pickupSession?.sessionStartTimestamp {
+                csv += TimestampFormatter.formatTimeShort12Hour(pickupStart)
+            } else {
+                csv += ""
+            }
+            
+            // Get dropoff session for this day
+            let dropoffSession = sessions.first { 
+                $0.sessionType == .dropoff && 
+                calendar.isDate($0.createdDate, inSameDayAs: dayDate)
+            }
+            
+            // Dropoff session start time
+            csv += ","
+            if let dropoffStart = dropoffSession?.sessionStartTimestamp {
+                csv += TimestampFormatter.formatTimeShort12Hour(dropoffStart)
+            } else {
+                csv += ""
+            }
+        }
+        csv += "\n"
+        
         // DATA ROWS - One row per student
         for attendee in sortedAttendees {
             csv += escapeCSV(attendee.name)

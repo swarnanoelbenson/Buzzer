@@ -17,6 +17,7 @@ extension AttendanceSessionEntity {
     @NSManaged public var id: UUID?
     @NSManaged public var sessionType: String?
     @NSManaged public var createdDate: Date?
+    @NSManaged public var sessionStartTimestamp: Date?
     @NSManaged public var finalCheckTimestamp: Date?
     @NSManaged public var list: AttendeeListEntity?
     @NSManaged public var records: NSSet?

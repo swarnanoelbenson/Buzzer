@@ -182,6 +182,7 @@ class DataManager: ObservableObject {
         sessionEntity.id = session.id
         sessionEntity.sessionType = session.sessionType.rawValue
         sessionEntity.createdDate = session.createdDate
+        sessionEntity.sessionStartTimestamp = session.sessionStartTimestamp
         sessionEntity.finalCheckTimestamp = finalCheckTimestamp
         
         // Link to list
@@ -258,6 +259,7 @@ class DataManager: ObservableObject {
             sessionType: SessionType(rawValue: entity.sessionType ?? "pickup") ?? .pickup,
             createdDate: entity.createdDate ?? Date(),
             records: records,
+            sessionStartTimestamp: entity.sessionStartTimestamp,
             finalCheckTimestamp: entity.finalCheckTimestamp
         )
     }

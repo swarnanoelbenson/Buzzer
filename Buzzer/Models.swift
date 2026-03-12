@@ -62,14 +62,16 @@ struct AttendanceSession: Identifiable {
     var sessionType: SessionType
     var createdDate: Date
     var records: [AttendanceRecord]
+    var sessionStartTimestamp: Date?
     var finalCheckTimestamp: Date?
     
-    init(id: UUID = UUID(), listId: UUID, sessionType: SessionType, createdDate: Date = Date(), records: [AttendanceRecord] = [], finalCheckTimestamp: Date? = nil) {
+    init(id: UUID = UUID(), listId: UUID, sessionType: SessionType, createdDate: Date = Date(), records: [AttendanceRecord] = [], sessionStartTimestamp: Date? = nil, finalCheckTimestamp: Date? = nil) {
         self.id = id
         self.listId = listId
         self.sessionType = sessionType
         self.createdDate = createdDate
         self.records = records
+        self.sessionStartTimestamp = sessionStartTimestamp
         self.finalCheckTimestamp = finalCheckTimestamp
     }
 }

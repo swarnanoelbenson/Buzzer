@@ -11,6 +11,7 @@
         <attribute name="createdDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="finalCheckTimestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="sessionStartTimestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="sessionType" optional="YES" attributeType="String"/>
         <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeListEntity" inverseName="sessions" inverseEntity="AttendeeListEntity"/>
         <relationship name="records" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceRecordEntity" inverseName="session" inverseEntity="AttendanceRecordEntity"/>

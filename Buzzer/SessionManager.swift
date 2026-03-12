@@ -24,11 +24,13 @@ class SessionManager: ObservableObject {
     // MARK: - Session Control
     
     func startSession(for list: AttendeeList, type: SessionType) {
+        let now = Date()
         let session = AttendanceSession(
             listId: list.id,
             sessionType: type,
-            createdDate: Date(),
-            records: []
+            createdDate: now,
+            records: [],
+            sessionStartTimestamp: now
         )
         
         currentSession = session
