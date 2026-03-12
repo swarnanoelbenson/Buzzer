@@ -29,7 +29,7 @@ struct CSVGenerator {
         let finalCheckTimestamp = dropoffSessions.last?.finalCheckTimestamp
         
         // HEADER SECTION
-        csv += "MANIFEST - \(TimestampFormatter.formatDateLong(weekStartDate))\n"
+        csv += "WEEKLY REPORT - \(TimestampFormatter.formatDateLong(weekStartDate))\n"
         csv += "\n"
         csv += "ROUTE:,\(list.name)\n"
         csv += "REGISTRATION:,\(driverDetails?.busRego ?? "N/A")\n"
@@ -39,7 +39,7 @@ struct CSVGenerator {
         csv += "\n"
         
         // ATTENDANCE TABLE HEADERS
-        csv += "Name,Grade"
+        csv += "Name,"
         
         // Add weekday columns with Pickup/Dropoff sub-columns (Mon-Fri)
         let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]

@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import Security
 
 class DriverManager: ObservableObject {
     static let shared = DriverManager()
@@ -14,9 +15,9 @@ class DriverManager: ObservableObject {
     @Published private(set) var driverDetails: DriverDetails?
     @Published private(set) var isSetupComplete: Bool = false
     
-    private let userDefaults = UserDefaults.standard
     private let driverDetailsKey = "driverDetails"
     private let setupCompleteKey = "driverSetupComplete"
+    private let keychainService = "com.buzzer.driverManager"
     
     private init() {
         loadDriverDetails()
@@ -27,9 +28,8 @@ class DriverManager: ObservableObject {
     func saveDriverDetails(_ details: DriverDetails) {
         let encoder = JSONEncoder()
         if let encoded = try? encoder.encode(details) {
-            userDefaults.set(encoded, forKey: driverDetailsKey)
-            userDefaults.set(true, forKey: setupCompleteKey)
-            userDefaults.synchronize()
+            saveToKeychain(data: encoded, key: driverDetailsKey)
+            saveToKeychain(data: Data([1]), key: setupCompleteKey) // Store boolean as data
             
             self.driverDetails = details
             self.isSetupComplete = true
@@ -43,28 +43,87 @@ class DriverManager: ObservableObject {
     }
     
     func loadDriverDetails() {
-        isSetupComplete = userDefaults.bool(forKey: setupCompleteKey)
+        if let setupData = retrieveFromKeychain(key: setupCompleteKey) {
+            isSetupComplete = !setupData.isEmpty
+        }
         
-        if let savedData = userDefaults.data(forKey: driverDetailsKey) {
+        if let savedData = retrieveFromKeychain(key: driverDetailsKey) {
             let decoder = JSONDecoder()
             if let loadedDetails = try? decoder.decode(DriverDetails.self, from: savedData) {
                 self.driverDetails = loadedDetails
                 print("✅ Driver details loaded successfully")
             }
         } else {
-            print("ℹ️ No driver details found in UserDefaults")
+            print("ℹ️ No driver details found in Keychain")
         }
     }
     
     func clearDriverDetails() {
-        userDefaults.removeObject(forKey: driverDetailsKey)
-        userDefaults.removeObject(forKey: setupCompleteKey)
-        userDefaults.synchronize()
+        deleteFromKeychain(key: driverDetailsKey)
+        deleteFromKeychain(key: setupCompleteKey)
         
         self.driverDetails = nil
         self.isSetupComplete = false
         
         print("🗑️ Driver details cleared")
+    }
+    
+    // MARK: - Keychain Methods
+    
+    private func saveToKeychain(data: Data, key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: data
+        ]
+        
+        // Delete any existing item
+        SecItemDelete(query as CFDictionary)
+        
+        // Add new item
+        let status = SecItemAdd(query as CFDictionary, nil)
+        
+        if status == errSecSuccess {
+            print("✅ Saved \(key) to Keychain")
+        } else {
+            print("❌ Failed to save \(key) to Keychain: \(status)")
+        }
+    }
+    
+    private func retrieveFromKeychain(key: String) -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var dataTypeRef: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+        
+        if status == errSecSuccess {
+            return dataTypeRef as? Data
+        } else {
+            return nil
+        }
+    }
+    
+    private func deleteFromKeychain(key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: keychainService,
+            kSecAttrAccount as String: key
+        ]
+        
+        let status = SecItemDelete(query as CFDictionary)
+        
+        if status == errSecSuccess || status == errSecItemNotFound {
+            print("✅ Deleted \(key) from Keychain")
+        } else {
+            print("❌ Failed to delete \(key) from Keychain: \(status)")
+        }
     }
     
     // MARK: - Validation Helpers

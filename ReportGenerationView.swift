@@ -7,7 +7,6 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
-import MessageUI
 
 struct ReportGenerationView: View {
     @Environment(\.dismiss) var dismiss
@@ -23,8 +22,6 @@ struct ReportGenerationView: View {
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
     @State private var isGenerating = false
-    @State private var showMailComposer = false
-    @State private var mailAttachmentData: Data?
     
     var body: some View {
         NavigationView {
@@ -62,15 +59,6 @@ struct ReportGenerationView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(errorMessage)
-            }
-            .sheet(isPresented: $showMailComposer) {
-                MailComposeView(
-                    recipientEmail: driverManager.driverDetails?.email ?? "",
-                    subject: "Bus Manifest Report - \(list.name) - Week of \(TimestampFormatter.formatDateShort(mondayDate))",
-                    body: "Please find the weekly attendance report attached.",
-                    attachmentData: mailAttachmentData,
-                    attachmentFilename: filename
-                )
             }
         }
     }
@@ -168,26 +156,6 @@ struct ReportGenerationView: View {
                 .padding(.vertical, 12)
             }
             .listRowBackground(Color.accentColor)
-            .disabled(isGenerating)
-            
-            // EMAIL REPORT Button
-            Button(action: emailReport) {
-                VStack(spacing: 8) {
-                    HStack {
-                        Image(systemName: "envelope.fill")
-                            .font(.title2)
-                        Text("EMAIL REPORT")
-                            .font(.headline)
-                    }
-                    Text("Send report to email")
-                        .font(.caption)
-                        .opacity(0.9)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 70)
-            }
-            .listRowBackground(Color(red: 76/255, green: 0/255, blue: 176/255))
             .disabled(isGenerating)
         }
     }
@@ -288,118 +256,6 @@ struct ReportGenerationView: View {
             errorMessage = "Failed to save manifest: \(error.localizedDescription)"
             showErrorAlert = true
             print("❌ Manifest export failed: \(error)")
-        }
-    }
-    
-    // MARK: - Email Report
-    
-    private func emailReport() {
-        guard let driverEmail = driverManager.driverDetails?.email, !driverEmail.isEmpty else {
-            errorMessage = "Driver email not found. Please complete driver setup first."
-            showErrorAlert = true
-            return
-        }
-        
-        guard MFMailComposeViewController.canSendMail() else {
-            errorMessage = "Mail services are not available on this device. Please configure the Mail app first."
-            showErrorAlert = true
-            return
-        }
-        
-        isGenerating = true
-        
-        // Generate the CSV content
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            let csvContent = CSVGenerator.generateWeeklyManifest(
-                for: sessionsToExport,
-                list: list,
-                weekStartDate: mondayDate,
-                driverDetails: driverManager.driverDetails
-            )
-            
-            // Validate CSV content
-            guard !csvContent.isEmpty else {
-                errorMessage = "Failed to generate manifest content."
-                showErrorAlert = true
-                isGenerating = false
-                return
-            }
-            
-            // Convert to Data
-            guard let csvData = csvContent.data(using: .utf8) else {
-                errorMessage = "Failed to prepare email attachment."
-                showErrorAlert = true
-                isGenerating = false
-                return
-            }
-            
-            // Set attachment data and show mail composer
-            mailAttachmentData = csvData
-            isGenerating = false
-            showMailComposer = true
-            
-            print("✅ Email report prepared successfully")
-            print("✅ Recipient: \(driverEmail)")
-            print("✅ File size: \(csvData.count) bytes")
-        }
-    }
-}
-
-// MARK: - Mail Compose View (UIKit Wrapper)
-
-struct MailComposeView: UIViewControllerRepresentable {
-    @Environment(\.dismiss) var dismiss
-    
-    let recipientEmail: String
-    let subject: String
-    let body: String
-    let attachmentData: Data?
-    let attachmentFilename: String
-    
-    func makeUIViewController(context: Context) -> MFMailComposeViewController {
-        let composer = MFMailComposeViewController()
-        composer.mailComposeDelegate = context.coordinator
-        composer.setToRecipients([recipientEmail])
-        composer.setSubject(subject)
-        composer.setMessageBody(body, isHTML: false)
-        
-        // Attach CSV file
-        if let data = attachmentData {
-            composer.addAttachmentData(data, mimeType: "text/csv", fileName: attachmentFilename)
-        }
-        
-        return composer
-    }
-    
-    func updateUIViewController(_ uiViewController: MFMailComposeViewController, context: Context) {
-        // No updates needed
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
-        let parent: MailComposeView
-        
-        init(_ parent: MailComposeView) {
-            self.parent = parent
-        }
-        
-        func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
-            switch result {
-            case .sent:
-                print("✅ Email sent successfully")
-            case .saved:
-                print("📝 Email saved as draft")
-            case .cancelled:
-                print("❌ Email cancelled")
-            case .failed:
-                print("❌ Email failed: \(error?.localizedDescription ?? "Unknown error")")
-            @unknown default:
-                break
-            }
-            parent.dismiss()
         }
     }
 }
