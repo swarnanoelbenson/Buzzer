@@ -38,6 +38,7 @@ struct CSVGenerator {
         csv += "EMAIL:,\(driverDetails?.email ?? "N/A")\n"
         csv += "\n"
         
+
         // ATTENDANCE TABLE HEADERS
         csv += "Name,"
         
@@ -54,42 +55,7 @@ struct CSVGenerator {
         // Get current date for comparison
         let today = Date()
         
-        // JOURNEY START TIME ROW
-        csv += "Journey Start Time,"
-        csv += ""  // Empty for Grade column
         
-        for dayOffset in 0..<5 {
-            let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDate) ?? weekStartDate
-            
-            // Get pickup session for this day
-            let pickupSession = sessions.first { 
-                $0.sessionType == .pickup && 
-                calendar.isDate($0.createdDate, inSameDayAs: dayDate)
-            }
-            
-            // Pickup session start time
-            csv += ","
-            if let pickupStart = pickupSession?.sessionStartTimestamp {
-                csv += TimestampFormatter.formatTimeShort12Hour(pickupStart)
-            } else {
-                csv += ""
-            }
-            
-            // Get dropoff session for this day
-            let dropoffSession = sessions.first { 
-                $0.sessionType == .dropoff && 
-                calendar.isDate($0.createdDate, inSameDayAs: dayDate)
-            }
-            
-            // Dropoff session start time
-            csv += ","
-            if let dropoffStart = dropoffSession?.sessionStartTimestamp {
-                csv += TimestampFormatter.formatTimeShort12Hour(dropoffStart)
-            } else {
-                csv += ""
-            }
-        }
-        csv += "\n"
         
         // DATA ROWS - One row per student
         for attendee in sortedAttendees {
@@ -137,12 +103,91 @@ struct CSVGenerator {
         
         csv += "\n"
         
+        // JOURNEY START TIME ROW
+        csv += "Journey Start Time,"
+        csv += ""  // Empty for Grade column
+        
+        for dayOffset in 0..<5 {
+            let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDate) ?? weekStartDate
+            
+            // Get pickup session for this day
+            let pickupSession = sessions.first {
+                $0.sessionType == .pickup &&
+                calendar.isDate($0.createdDate, inSameDayAs: dayDate)
+            }
+            
+            // Pickup session start time
+            csv += ","
+            if let pickupStart = pickupSession?.sessionStartTimestamp {
+                csv += TimestampFormatter.formatTimeShort12Hour(pickupStart)
+            } else {
+                csv += ""
+            }
+            
+            // Get dropoff session for this day
+            let dropoffSession = sessions.first {
+                $0.sessionType == .dropoff &&
+                calendar.isDate($0.createdDate, inSameDayAs: dayDate)
+            }
+            
+            // Dropoff session start time
+            csv += ","
+            if let dropoffStart = dropoffSession?.sessionStartTimestamp {
+                csv += TimestampFormatter.formatTimeShort12Hour(dropoffStart)
+            } else {
+                csv += ""
+            }
+        }
+        csv += "\n"
+        
         // FINAL CHECK ROW
         csv += "No Child Left On Bus,"
-        if let finalCheck = finalCheckTimestamp {
-            csv += TimestampFormatter.formatTime12Hour(finalCheck)
-        } else {
-            csv += "N/A"
+        csv += ""  // Empty for Grade column
+        
+        // Add final check timestamp for each day (pickup and dropoff columns)
+        for dayOffset in 0..<5 {
+            let dayDate = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDate) ?? weekStartDate
+            
+            // Check if this day is in the future
+            let isDayInFuture = calendar.compare(dayDate, to: today, toGranularity: .day) == .orderedDescending
+            
+            // Pickup column - show final check timestamp
+            csv += ","
+            if isDayInFuture {
+                // Leave blank for future dates
+                csv += ""
+            } else {
+                // Get pickup session for this day
+                let pickupSession = sessions.first { 
+                    $0.sessionType == .pickup && 
+                    calendar.isDate($0.createdDate, inSameDayAs: dayDate)
+                }
+                
+                if let finalCheck = pickupSession?.finalCheckTimestamp {
+                    csv += TimestampFormatter.formatTimeShort12Hour(finalCheck)
+                } else {
+                    csv += ""
+                }
+            }
+            
+            // Dropoff column - show final check timestamp
+            csv += ","
+            if isDayInFuture {
+                // Leave blank for future dates
+                csv += ""
+            } else {
+                // Get dropoff session for this day
+                let dropoffSession = sessions.first { 
+                    $0.sessionType == .dropoff && 
+                    calendar.isDate($0.createdDate, inSameDayAs: dayDate)
+                }
+                
+                if let finalCheck = dropoffSession?.finalCheckTimestamp {
+                    csv += TimestampFormatter.formatTimeShort12Hour(finalCheck)
+                } else {
+                    csv += ""
+                }
+            }
         }
         csv += "\n"
         csv += "\n"
