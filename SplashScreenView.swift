@@ -36,7 +36,7 @@ struct SplashScreenView: View {
                 // App name
                 if showContent {
                     VStack(spacing: 8) {
-                        Text("Buzzer")
+                        Text("BusMate")
                             .font(.system(size: 42, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                         

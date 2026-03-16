@@ -24,7 +24,7 @@ struct ListsView: View {
                     listContent
                 }
             }
-            .navigationTitle("Buzzer")
+            .navigationTitle("BusMate")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button {
