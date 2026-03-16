@@ -20,13 +20,13 @@ struct CSVGenerator {
     ) -> String {
         var csv = ""
         
-        // Get week end date
+        // Get week end date (unused but kept for potential future use)
         let calendar = Calendar.current
-        let weekEndDate = calendar.date(byAdding: .day, value: 6, to: weekStartDate) ?? weekStartDate
+        _ = calendar.date(byAdding: .day, value: 6, to: weekStartDate) ?? weekStartDate
         
-        // Get final check timestamp from the most recent dropoff session
+        // Get final check timestamp from the most recent dropoff session (unused but kept for potential future use)
         let dropoffSessions = sessions.filter { $0.sessionType == .dropoff }
-        let finalCheckTimestamp = dropoffSessions.last?.finalCheckTimestamp
+        _ = dropoffSessions.last?.finalCheckTimestamp
         
         // HEADER SECTION
         csv += "WEEKLY REPORT - \(TimestampFormatter.formatDateLong(weekStartDate))\n"

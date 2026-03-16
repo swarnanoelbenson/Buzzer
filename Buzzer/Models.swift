@@ -23,7 +23,7 @@ struct AttendeeList: Identifiable, Equatable {
 }
 
 // MARK: - Attendee
-struct Attendee: Identifiable, Equatable {
+struct Attendee: Identifiable, Equatable, Sendable {
     let id: UUID
     var name: String
     var orderIndex: Int

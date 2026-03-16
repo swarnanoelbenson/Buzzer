@@ -4,4 +4,16 @@
    <FileRef
       location = "self:">
    </FileRef>
+   <FileRef
+      location = "group:ValidationTests.swift">
+   </FileRef>
+   <FileRef
+      location = "group:DataModelTests.swift">
+   </FileRef>
+   <FileRef
+      location = "group:FIX_XCTEST_ERROR.md">
+   </FileRef>
+   <FileRef
+      location = "group:SimpleValidationTests.swift">
+   </FileRef>
 </Workspace>
