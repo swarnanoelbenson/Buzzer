@@ -24,6 +24,7 @@
 		597BA84B2F677AE50049CFB0 /* DataModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 597BA83D2F677A940049CFB0 /* DataModelTests.swift */; };
 		597BA84C2F677AE90049CFB0 /* SimpleValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 597BA83E2F677A940049CFB0 /* SimpleValidationTests.swift */; };
 		59BFEEAB2F5A793B00FD8389 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */; };
+		59F3E9D82F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md in Resources */ = {isa = PBXBuildFile; fileRef = 59F3E9D72F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,27 +58,28 @@
 		593A3DEF2F594E11004B6282 /* BuzzerLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuzzerLogo.swift; sourceTree = "<group>"; };
 		593A3DF12F594E1B004B6282 /* SplashScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashScreenView.swift; sourceTree = "<group>"; };
 		593A3E852F5982C0004B6282 /* FinalCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinalCheckView.swift; sourceTree = "<group>"; };
-		595DE1CF2F5849D00031EAC7 /* Buzzer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Buzzer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		595DE1CF2F5849D00031EAC7 /* BusMate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BusMate.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		59633ECE2F616D1200D79E5D /* DriverDetails.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverDetails.swift; sourceTree = "<group>"; };
 		59633ED02F616D1D00D79E5D /* DriverManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverManager.swift; sourceTree = "<group>"; };
 		59633ED22F616D3800D79E5D /* DriverSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverSetupView.swift; sourceTree = "<group>"; };
 		59633EDC2F616E6100D79E5D /* DriverDetailsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverDetailsSettingsView.swift; sourceTree = "<group>"; };
 		597BA8142F6777120049CFB0 /* BuzzerTestsREADME.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = BuzzerTestsREADME.md; sourceTree = "<group>"; };
-		597BA8262F6778860049CFB0 /* BuzzerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BuzzerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		597BA8262F6778860049CFB0 /* BusMateTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BusMateTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		597BA8302F6779340049CFB0 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneOS.platform/Developer/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		597BA83C2F677A940049CFB0 /* ValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValidationTests.swift; sourceTree = "<group>"; };
 		597BA83D2F677A940049CFB0 /* DataModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModelTests.swift; sourceTree = "<group>"; };
 		597BA83E2F677A940049CFB0 /* SimpleValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleValidationTests.swift; sourceTree = "<group>"; };
 		59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
+		59F3E9D72F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DELETE_AND_RESET_IMPLEMENTATION.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		59633EE82F6177BC00D79E5D /* Exceptions for "Buzzer" folder in "Buzzer" target */ = {
+		59633EE82F6177BC00D79E5D /* Exceptions for "Buzzer" folder in "BusMate" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				IMPLEMENTATION_NOTES.md,
 			);
-			target = 595DE1CE2F5849D00031EAC7 /* Buzzer */;
+			target = 595DE1CE2F5849D00031EAC7 /* BusMate */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -85,7 +87,7 @@
 		595DE1D12F5849D00031EAC7 /* Buzzer */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				59633EE82F6177BC00D79E5D /* Exceptions for "Buzzer" folder in "Buzzer" target */,
+				59633EE82F6177BC00D79E5D /* Exceptions for "Buzzer" folder in "BusMate" target */,
 			);
 			path = Buzzer;
 			sourceTree = "<group>";
@@ -138,14 +140,15 @@
 				597BA83E2F677A940049CFB0 /* SimpleValidationTests.swift */,
 				597BA8142F6777120049CFB0 /* BuzzerTestsREADME.md */,
 				597BA82F2F6779340049CFB0 /* Frameworks */,
+				59F3E9D72F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md */,
 			);
 			sourceTree = "<group>";
 		};
 		595DE1D02F5849D00031EAC7 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				595DE1CF2F5849D00031EAC7 /* Buzzer.app */,
-				597BA8262F6778860049CFB0 /* BuzzerTests.xctest */,
+				595DE1CF2F5849D00031EAC7 /* BusMate.app */,
+				597BA8262F6778860049CFB0 /* BusMateTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -161,9 +164,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		595DE1CE2F5849D00031EAC7 /* Buzzer */ = {
+		595DE1CE2F5849D00031EAC7 /* BusMate */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 595DE1DA2F5849D10031EAC7 /* Build configuration list for PBXNativeTarget "Buzzer" */;
+			buildConfigurationList = 595DE1DA2F5849D10031EAC7 /* Build configuration list for PBXNativeTarget "BusMate" */;
 			buildPhases = (
 				595DE1CB2F5849D00031EAC7 /* Sources */,
 				595DE1CC2F5849D00031EAC7 /* Frameworks */,
@@ -176,16 +179,16 @@
 			fileSystemSynchronizedGroups = (
 				595DE1D12F5849D00031EAC7 /* Buzzer */,
 			);
-			name = Buzzer;
+			name = BusMate;
 			packageProductDependencies = (
 			);
 			productName = Buzzer;
-			productReference = 595DE1CF2F5849D00031EAC7 /* Buzzer.app */;
+			productReference = 595DE1CF2F5849D00031EAC7 /* BusMate.app */;
 			productType = "com.apple.product-type.application";
 		};
-		597BA8252F6778860049CFB0 /* BuzzerTests */ = {
+		597BA8252F6778860049CFB0 /* BusMateTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 597BA82C2F6778860049CFB0 /* Build configuration list for PBXNativeTarget "BuzzerTests" */;
+			buildConfigurationList = 597BA82C2F6778860049CFB0 /* Build configuration list for PBXNativeTarget "BusMateTests" */;
 			buildPhases = (
 				597BA8222F6778860049CFB0 /* Sources */,
 				597BA8232F6778860049CFB0 /* Frameworks */,
@@ -200,11 +203,11 @@
 			fileSystemSynchronizedGroups = (
 				597BA8272F6778860049CFB0 /* BuzzerTests */,
 			);
-			name = BuzzerTests;
+			name = BusMateTests;
 			packageProductDependencies = (
 			);
 			productName = BuzzerTests;
-			productReference = 597BA8262F6778860049CFB0 /* BuzzerTests.xctest */;
+			productReference = 597BA8262F6778860049CFB0 /* BusMateTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -240,8 +243,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				595DE1CE2F5849D00031EAC7 /* Buzzer */,
-				597BA8252F6778860049CFB0 /* BuzzerTests */,
+				595DE1CE2F5849D00031EAC7 /* BusMate */,
+				597BA8252F6778860049CFB0 /* BusMateTests */,
 			);
 		};
 /* End PBXProject section */
@@ -251,6 +254,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				59F3E9D82F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md in Resources */,
 				597BA8152F6777120049CFB0 /* BuzzerTestsREADME.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -298,7 +302,7 @@
 /* Begin PBXTargetDependency section */
 		597BA82B2F6778860049CFB0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 595DE1CE2F5849D00031EAC7 /* Buzzer */;
+			target = 595DE1CE2F5849D00031EAC7 /* BusMate */;
 			targetProxy = 597BA82A2F6778860049CFB0 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -561,7 +565,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		595DE1DA2F5849D10031EAC7 /* Build configuration list for PBXNativeTarget "Buzzer" */ = {
+		595DE1DA2F5849D10031EAC7 /* Build configuration list for PBXNativeTarget "BusMate" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				595DE1DB2F5849D10031EAC7 /* Debug */,
@@ -570,7 +574,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		597BA82C2F6778860049CFB0 /* Build configuration list for PBXNativeTarget "BuzzerTests" */ = {
+		597BA82C2F6778860049CFB0 /* Build configuration list for PBXNativeTarget "BusMateTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				597BA82D2F6778860049CFB0 /* Debug */,

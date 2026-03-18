@@ -16,8 +16,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "595DE1CE2F5849D00031EAC7"
-               BuildableName = "Buzzer.app"
-               BlueprintName = "Buzzer"
+               BuildableName = "BusMate.app"
+               BlueprintName = "BusMate"
                ReferencedContainer = "container:Buzzer.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -36,8 +36,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "597BA8252F6778860049CFB0"
-               BuildableName = "BuzzerTests.xctest"
-               BlueprintName = "BuzzerTests"
+               BuildableName = "BusMateTests.xctest"
+               BlueprintName = "BusMateTests"
                ReferencedContainer = "container:Buzzer.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -58,8 +58,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "595DE1CE2F5849D00031EAC7"
-            BuildableName = "Buzzer.app"
-            BlueprintName = "Buzzer"
+            BuildableName = "BusMate.app"
+            BlueprintName = "BusMate"
             ReferencedContainer = "container:Buzzer.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -75,8 +75,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "595DE1CE2F5849D00031EAC7"
-            BuildableName = "Buzzer.app"
-            BlueprintName = "Buzzer"
+            BuildableName = "BusMate.app"
+            BlueprintName = "BusMate"
             ReferencedContainer = "container:Buzzer.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

@@ -273,6 +273,64 @@ class DataManager: ObservableObject {
         )
     }
     
+    // MARK: - Delete All Data
+    
+    func deleteAllData() {
+        // Delete all sessions
+        let sessionsRequest: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
+        do {
+            let sessions = try context.fetch(sessionsRequest)
+            for session in sessions {
+                context.delete(session)
+            }
+            print("🗑️ Deleted \(sessions.count) attendance sessions")
+        } catch {
+            print("❌ Failed to delete sessions: \(error)")
+        }
+        
+        // Delete all records (should cascade from sessions, but just in case)
+        let recordsRequest: NSFetchRequest<AttendanceRecordEntity> = AttendanceRecordEntity.fetchRequest()
+        do {
+            let records = try context.fetch(recordsRequest)
+            for record in records {
+                context.delete(record)
+            }
+            print("🗑️ Deleted \(records.count) attendance records")
+        } catch {
+            print("❌ Failed to delete records: \(error)")
+        }
+        
+        // Delete all attendees
+        let attendeesRequest: NSFetchRequest<AttendeeEntity> = AttendeeEntity.fetchRequest()
+        do {
+            let attendees = try context.fetch(attendeesRequest)
+            for attendee in attendees {
+                context.delete(attendee)
+            }
+            print("🗑️ Deleted \(attendees.count) attendees")
+        } catch {
+            print("❌ Failed to delete attendees: \(error)")
+        }
+        
+        // Delete all lists
+        let listsRequest: NSFetchRequest<AttendeeListEntity> = AttendeeListEntity.fetchRequest()
+        do {
+            let listEntities = try context.fetch(listsRequest)
+            for list in listEntities {
+                context.delete(list)
+            }
+            print("🗑️ Deleted \(listEntities.count) attendee lists")
+        } catch {
+            print("❌ Failed to delete lists: \(error)")
+        }
+        
+        // Save and refresh
+        save()
+        fetchLists()
+        
+        print("✅ All data deleted successfully")
+    }
+    
     // MARK: - Save
     
     private func save() {

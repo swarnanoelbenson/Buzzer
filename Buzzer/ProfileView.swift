@@ -11,8 +11,9 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var driverManager: DriverManager
+    @EnvironmentObject var dataManager: DataManager
     
-    @State private var showResetConfirmation = false
+    @State private var showDeleteConfirmation = false
     
     var body: some View {
         NavigationView {
@@ -105,15 +106,15 @@ struct ProfileView: View {
                     
                     Spacer(minLength: 30)
                     
-                    // Reset Driver Details Button
+                    // Delete & Reset Button
                     Button {
-                        showResetConfirmation = true
+                        showDeleteConfirmation = true
                     } label: {
                         HStack {
-                            Image(systemName: "arrow.counterclockwise")
+                            Image(systemName: "trash.fill")
                                 .font(.system(size: 18, weight: .semibold))
                             
-                            Text("Reset Driver Details")
+                            Text("Delete & Reset")
                                 .font(.system(size: 18, weight: .semibold))
                         }
                         .frame(maxWidth: .infinity)
@@ -124,7 +125,7 @@ struct ProfileView: View {
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
-                    .accessibilityLabel("Reset driver details")
+                    .accessibilityLabel("Delete all data and reset app")
                 }
             }
             .navigationTitle("Profile")
@@ -139,16 +140,33 @@ struct ProfileView: View {
                     }
                 }
             }
-            .alert("Reset Driver Details?", isPresented: $showResetConfirmation) {
+            .alert("Delete All Data?", isPresented: $showDeleteConfirmation) {
                 Button("Cancel", role: .cancel) { }
-                Button("Reset", role: .destructive) {
-                    driverManager.clearDriverDetails()
-                    dismiss()
+                Button("Delete & Reset", role: .destructive) {
+                    performFullReset()
                 }
             } message: {
-                Text("This will clear your driver information. You'll need to enter it again when you restart the app.")
+                Text("This will delete all driver details, all lists, and all attendance records. This action cannot be undone.")
             }
         }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func performFullReset() {
+        print("🗑️ Starting full app reset...")
+        
+        // Delete all Core Data records (lists, attendees, sessions, records)
+        dataManager.deleteAllData()
+        
+        // Delete driver details from Keychain
+        driverManager.clearDriverDetails()
+        
+        print("✅ Full reset completed - app will return to setup screen")
+        
+        // Dismiss will automatically trigger return to DriverSetupView
+        // because driverManager.isSetupComplete is now false
+        dismiss()
     }
 }
 
@@ -200,4 +218,5 @@ struct ProfileDetailRow: View {
 #Preview {
     ProfileView()
         .environmentObject(DriverManager.shared)
+        .environmentObject(DataManager(persistenceController: .shared))
 }

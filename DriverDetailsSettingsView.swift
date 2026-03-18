@@ -11,7 +11,8 @@ import SwiftUI
 /// Add this to your settings/profile screen if you want users to view or reset their driver information
 struct DriverDetailsSettingsView: View {
     @EnvironmentObject var driverManager: DriverManager
-    @State private var showResetConfirmation = false
+    @EnvironmentObject var dataManager: DataManager
+    @State private var showDeleteConfirmation = false
     
     var body: some View {
         List {
@@ -24,17 +25,13 @@ struct DriverDetailsSettingsView: View {
         }
         .navigationTitle("Driver Details")
         .navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog(
-            "Reset Driver Details?",
-            isPresented: $showResetConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Reset and Re-enter Details", role: .destructive) {
-                driverManager.clearDriverDetails()
-            }
+        .alert("Delete All Data?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) { }
+            Button("Delete & Reset", role: .destructive) {
+                performFullReset()
+            }
         } message: {
-            Text("This will clear your driver information. You'll need to enter it again when you restart the app.")
+            Text("This will delete all driver details, all lists, and all attendance records. This action cannot be undone.")
         }
     }
     
@@ -85,16 +82,16 @@ struct DriverDetailsSettingsView: View {
     private var resetSection: some View {
         Section {
             Button(role: .destructive) {
-                showResetConfirmation = true
+                showDeleteConfirmation = true
             } label: {
                 HStack {
                     Spacer()
-                    Label("Reset Driver Details", systemImage: "arrow.counterclockwise")
+                    Label("Delete & Reset", systemImage: "trash.fill")
                     Spacer()
                 }
             }
         } footer: {
-            Text("Resetting will clear your saved driver information. You'll be asked to enter it again when you restart the app.")
+            Text("This will delete all driver details, all attendee lists, and all attendance records. This action cannot be undone.")
                 .font(.caption)
         }
     }
@@ -118,6 +115,20 @@ struct DriverDetailsSettingsView: View {
             .padding(.vertical, 32)
         }
     }
+    
+    // MARK: - Helper Methods
+    
+    private func performFullReset() {
+        print("🗑️ Starting full app reset...")
+        
+        // Delete all Core Data records (lists, attendees, sessions, records)
+        dataManager.deleteAllData()
+        
+        // Delete driver details from Keychain
+        driverManager.clearDriverDetails()
+        
+        print("✅ Full reset completed - app will return to setup screen")
+    }
 }
 
 #Preview {
@@ -134,6 +145,7 @@ struct DriverDetailsSettingsView: View {
                 ))
                 return manager
             }())
+            .environmentObject(DataManager(persistenceController: .shared))
     }
 }
 
@@ -145,5 +157,6 @@ struct DriverDetailsSettingsView: View {
                 manager.clearDriverDetails()
                 return manager
             }())
+            .environmentObject(DataManager(persistenceController: .shared))
     }
 }
