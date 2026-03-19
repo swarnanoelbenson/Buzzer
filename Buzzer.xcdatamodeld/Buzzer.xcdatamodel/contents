@@ -17,9 +17,14 @@
         <relationship name="records" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceRecordEntity" inverseName="session" inverseEntity="AttendanceRecordEntity"/>
     </entity>
     <entity name="AttendeeEntity" representedClassName="AttendeeEntity" syncable="YES">
+        <attribute name="address" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="orderIndex" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="primaryPhone" optional="YES" attributeType="String"/>
+        <attribute name="primaryPhoneTag" optional="YES" attributeType="String"/>
+        <attribute name="secondaryPhone" optional="YES" attributeType="String"/>
+        <attribute name="secondaryPhoneTag" optional="YES" attributeType="String"/>
         <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeListEntity" inverseName="attendees" inverseEntity="AttendeeListEntity"/>
         <relationship name="records" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceRecordEntity" inverseName="attendee" inverseEntity="AttendanceRecordEntity"/>
     </entity>

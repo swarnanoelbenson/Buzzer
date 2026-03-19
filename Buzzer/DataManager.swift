@@ -78,7 +78,15 @@ class DataManager: ObservableObject {
     
     // MARK: - Attendee Operations
     
-    func addAttendee(to list: AttendeeList, name: String) {
+    func addAttendee(
+        to list: AttendeeList,
+        name: String,
+        address: String,
+        primaryPhone: String,
+        primaryPhoneTag: PhoneTag,
+        secondaryPhone: String = "",
+        secondaryPhoneTag: PhoneTag = .mother
+    ) {
         let request: NSFetchRequest<AttendeeListEntity> = AttendeeListEntity.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", list.id as CVarArg)
         
@@ -89,6 +97,11 @@ class DataManager: ObservableObject {
                 attendeeEntity.name = name
                 attendeeEntity.orderIndex = Int16(listEntity.attendees?.count ?? 0)
                 attendeeEntity.list = listEntity
+                attendeeEntity.address = address
+                attendeeEntity.primaryPhone = primaryPhone
+                attendeeEntity.primaryPhoneTag = primaryPhoneTag.rawValue
+                attendeeEntity.secondaryPhone = secondaryPhone.isEmpty ? nil : secondaryPhone
+                attendeeEntity.secondaryPhoneTag = secondaryPhone.isEmpty ? nil : secondaryPhoneTag.rawValue
                 
                 save()
                 fetchLists()
@@ -106,6 +119,11 @@ class DataManager: ObservableObject {
             if let entity = try context.fetch(request).first {
                 entity.name = attendee.name
                 entity.orderIndex = Int16(attendee.orderIndex)
+                entity.address = attendee.address
+                entity.primaryPhone = attendee.primaryPhone
+                entity.primaryPhoneTag = attendee.primaryPhoneTag.rawValue
+                entity.secondaryPhone = attendee.secondaryPhone.isEmpty ? nil : attendee.secondaryPhone
+                entity.secondaryPhoneTag = attendee.secondaryPhone.isEmpty ? nil : attendee.secondaryPhoneTag.rawValue
                 save()
                 fetchLists()
             }
@@ -170,7 +188,12 @@ class DataManager: ObservableObject {
         return Attendee(
             id: entity.id ?? UUID(),
             name: entity.name ?? "",
-            orderIndex: Int(entity.orderIndex)
+            orderIndex: Int(entity.orderIndex),
+            address: entity.address,
+            primaryPhone: entity.primaryPhone,
+            primaryPhoneTag: PhoneTag(rawValue: entity.primaryPhoneTag) ?? .mother,
+            secondaryPhone: entity.secondaryPhone ?? "",
+            secondaryPhoneTag: PhoneTag(rawValue: entity.secondaryPhoneTag ?? "") ?? .mother
         )
     }
     

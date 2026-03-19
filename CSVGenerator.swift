@@ -41,13 +41,17 @@ struct CSVGenerator {
         
 
         // ATTENDANCE TABLE HEADERS
+        // Columns: Name | Grade | Mon Pickup | Mon Dropoff | ... | Fri Pickup | Fri Dropoff | Address | Primary Contact | Primary Tag | Secondary Contact | Secondary Tag
         csv += "Name,"
-        
+
         // Add weekday columns with Pickup/Dropoff sub-columns (Mon-Fri)
         let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
         for day in weekdays {
             csv += ",\(day) Pickup,\(day) Dropoff"
         }
+
+        // Contact detail columns
+        csv += ",Address,Primary Phone,Primary Contact,Secondary Phone,Secondary Contact"
         csv += "\n"
         
         // Sort attendees by original list order
@@ -99,11 +103,22 @@ struct CSVGenerator {
                     }
                 }
             }
+            // Contact detail columns
+            csv += ","
+            csv += escapeCSV(attendee.address)
+            csv += ","
+            csv += escapeCSV(attendee.primaryPhone)
+            csv += ","
+            csv += escapeCSV(attendee.primaryPhoneTag.rawValue)
+            csv += ","
+            csv += escapeCSV(attendee.secondaryPhone)
+            csv += ","
+            csv += escapeCSV(attendee.secondaryPhoneTag.rawValue.isEmpty || attendee.secondaryPhone.isEmpty ? "" : attendee.secondaryPhoneTag.rawValue)
             csv += "\n"
         }
-        
+
         csv += "\n"
-        
+
         // JOURNEY START TIME ROW
         csv += "Journey Start Time,"
         csv += ""  // Empty for Grade column
@@ -193,15 +208,20 @@ struct CSVGenerator {
         csv += "\n"
         csv += "\n"
         
+        // Total columns = 1 (Name) + 1 (Grade) + 10 (5 days x 2) + 5 (contact details) = 17
+        // To span a value across all columns, write it in col 0 then pad with 16 empty commas.
+        let columnSpan = String(repeating: ",", count: 16)
+
         // TRAVEL NOTES SECTION
-        csv += "TRAVEL NOTES\n"
-        csv += "Student Name,Notes\n"
-        
+        csv += "TRAVEL NOTES\(columnSpan)\n"
+        csv += "Student Name,Notes\(String(repeating: ",", count: 15))\n"
+
         for attendee in sortedAttendees {
             if !attendee.notes.isEmpty {
                 csv += escapeCSV(attendee.name)
                 csv += ","
                 csv += escapeCSV(attendee.notes)
+                csv += String(repeating: ",", count: 15)
                 csv += "\n"
             }
         }
@@ -209,7 +229,7 @@ struct CSVGenerator {
         // PASSENGER NOTES SECTION
         if !passengerNotes.isEmpty {
             csv += "\n"
-            csv += "PASSENGER NOTES\n"
+            csv += "PASSENGER NOTES\(columnSpan)\n"
             let sortedNotes = passengerNotes.sorted {
                 if $0.attendeeName != $1.attendeeName {
                     return $0.attendeeName < $1.attendeeName
@@ -221,6 +241,7 @@ struct CSVGenerator {
                 let toStr = formatDateLong(note.toDate)
                 let line = "\(note.attendeeName): \(fromStr) to \(toStr) \(note.noteText)"
                 csv += escapeCSV(line)
+                csv += columnSpan
                 csv += "\n"
             }
         }

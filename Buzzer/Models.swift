@@ -22,6 +22,13 @@ struct AttendeeList: Identifiable, Equatable {
     }
 }
 
+// MARK: - Phone Tag
+enum PhoneTag: String, CaseIterable {
+    case mother = "Mother"
+    case father = "Father"
+    case other = "Other"
+}
+
 // MARK: - Attendee
 struct Attendee: Identifiable, Equatable, Sendable {
     let id: UUID
@@ -31,8 +38,26 @@ struct Attendee: Identifiable, Equatable, Sendable {
     var scheduledAM: Bool
     var scheduledPM: Bool
     var notes: String
-    
-    init(id: UUID = UUID(), name: String, orderIndex: Int = 0, grade: String = "", scheduledAM: Bool = true, scheduledPM: Bool = true, notes: String = "") {
+    var address: String
+    var primaryPhone: String
+    var primaryPhoneTag: PhoneTag
+    var secondaryPhone: String
+    var secondaryPhoneTag: PhoneTag
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        orderIndex: Int = 0,
+        grade: String = "",
+        scheduledAM: Bool = true,
+        scheduledPM: Bool = true,
+        notes: String = "",
+        address: String = "",
+        primaryPhone: String = "",
+        primaryPhoneTag: PhoneTag = .mother,
+        secondaryPhone: String = "",
+        secondaryPhoneTag: PhoneTag = .mother
+    ) {
         self.id = id
         self.name = name
         self.orderIndex = orderIndex
@@ -40,6 +65,11 @@ struct Attendee: Identifiable, Equatable, Sendable {
         self.scheduledAM = scheduledAM
         self.scheduledPM = scheduledPM
         self.notes = notes
+        self.address = address
+        self.primaryPhone = primaryPhone
+        self.primaryPhoneTag = primaryPhoneTag
+        self.secondaryPhone = secondaryPhone
+        self.secondaryPhoneTag = secondaryPhoneTag
     }
 }
 

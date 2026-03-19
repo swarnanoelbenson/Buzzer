@@ -219,7 +219,8 @@ struct ReportGenerationView: View {
         
         // Small delay to show loading state
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            let allNotes = PassengerNoteManager.shared.getAllNotes()
+            let attendeeIDs = list.attendees.map { $0.id }
+            let allNotes = PassengerNoteManager.shared.getNotes(for: attendeeIDs)
             let csvContent = CSVGenerator.generateWeeklyManifest(
                 for: sessionsToExport,
                 list: list,

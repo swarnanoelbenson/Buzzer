@@ -96,6 +96,25 @@ class PassengerNoteManager {
         }
     }
 
+    /// Returns only notes belonging to the given set of attendee IDs (i.e. a single route).
+    func getNotes(for attendeeIDs: [UUID]) -> [PassengerNote] {
+        guard !attendeeIDs.isEmpty else { return [] }
+        let request: NSFetchRequest<PassengerNoteEntity> = PassengerNoteEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "attendeeID IN %@", attendeeIDs as CVarArg)
+        request.sortDescriptors = [
+            NSSortDescriptor(keyPath: \PassengerNoteEntity.attendeeName, ascending: true),
+            NSSortDescriptor(keyPath: \PassengerNoteEntity.fromDate, ascending: true)
+        ]
+
+        do {
+            let entities = try context.fetch(request)
+            return entities.compactMap { convertToNote($0) }
+        } catch {
+            print("Failed to fetch notes for route: \(error)")
+            return []
+        }
+    }
+
     // MARK: - Update Note
 
     func updateNote(id: UUID, fromDate: Date, toDate: Date, noteText: String) {
