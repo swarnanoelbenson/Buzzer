@@ -1,0 +1,15 @@
+{
+  "originHash" : "c3c6f43810eeafb7e206de2556a5c09b59e2cb0ea3619d2ce763f96a20fc6fa2",
+  "pins" : [
+    {
+      "identity" : "libxlsxwriter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jmcnamara/libxlsxwriter.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "2894634d65cee6021901a165bfc2bb0fad6da193"
+      }
+    }
+  ],
+  "version" : 3
+}

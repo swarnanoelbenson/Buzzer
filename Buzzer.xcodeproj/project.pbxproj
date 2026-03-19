@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		590DBA602F6B8A4C0067745F /* XLSXGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 590DBA5F2F6B8A4C0067745F /* XLSXGenerator.swift */; };
+		590DBA622F6B8C5B0067745F /* libxlsxwriter in Frameworks */ = {isa = PBXBuildFile; productRef = 590DBA612F6B8C5B0067745F /* libxlsxwriter */; };
 		593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */; };
 		593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DE12F593685004B6282 /* CSVGenerator.swift */; };
 		593A3DE42F5936BF004B6282 /* ReportGenerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */; };
@@ -52,6 +54,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		590DBA5F2F6B8A4C0067745F /* XLSXGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XLSXGenerator.swift; sourceTree = "<group>"; };
 		593A3DD32F58EC30004B6282 /* Buzzer.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Buzzer.xcdatamodel; sourceTree = "<group>"; };
 		593A3DE12F593685004B6282 /* CSVGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVGenerator.swift; sourceTree = "<group>"; };
 		593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportGenerationView.swift; sourceTree = "<group>"; };
@@ -104,6 +107,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				590DBA622F6B8C5B0067745F /* libxlsxwriter in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -141,6 +145,7 @@
 				597BA8142F6777120049CFB0 /* BuzzerTestsREADME.md */,
 				597BA82F2F6779340049CFB0 /* Frameworks */,
 				59F3E9D72F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md */,
+				590DBA5F2F6B8A4C0067745F /* XLSXGenerator.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -181,6 +186,7 @@
 			);
 			name = BusMate;
 			packageProductDependencies = (
+				590DBA612F6B8C5B0067745F /* libxlsxwriter */,
 			);
 			productName = Buzzer;
 			productReference = 595DE1CF2F5849D00031EAC7 /* BusMate.app */;
@@ -238,6 +244,9 @@
 			);
 			mainGroup = 595DE1C62F5849D00031EAC7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				590DBA5E2F6B89340067745F /* XCRemoteSwiftPackageReference "libxlsxwriter" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 595DE1D02F5849D00031EAC7 /* Products */;
 			projectDirPath = "";
@@ -284,6 +293,7 @@
 				59633EDD2F616E6100D79E5D /* DriverDetailsSettingsView.swift in Sources */,
 				593A3DF02F594E11004B6282 /* BuzzerLogo.swift in Sources */,
 				59633ECF2F616D1200D79E5D /* DriverDetails.swift in Sources */,
+				590DBA602F6B8A4C0067745F /* XLSXGenerator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -584,6 +594,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		590DBA5E2F6B89340067745F /* XCRemoteSwiftPackageReference "libxlsxwriter" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jmcnamara/libxlsxwriter.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		590DBA612F6B8C5B0067745F /* libxlsxwriter */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 590DBA5E2F6B89340067745F /* XCRemoteSwiftPackageReference "libxlsxwriter" */;
+			productName = libxlsxwriter;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
 		593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */ = {
