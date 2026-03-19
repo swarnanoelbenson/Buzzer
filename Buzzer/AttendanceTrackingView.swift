@@ -23,7 +23,7 @@ struct AttendanceTrackingView: View {
     var body: some View {
         ZStack {
             // Background color based on session type
-            (sessionType == .pickup ? Color.green.opacity(0.05) : Color.orange.opacity(0.05))
+            (sessionType == .pickup ? Color.green.opacity(0.12) : Color.orange.opacity(0.12))
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -39,8 +39,8 @@ struct AttendanceTrackingView: View {
                 }
             }
         }
-        .navigationTitle(sessionType == .pickup ? "Pick-Up" : "Drop-Off")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(sessionType == .pickup ? "PICK-UP" : "DROP-OFF")
+        .navigationBarTitleDisplayMode(.large)
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -136,21 +136,7 @@ struct AttendanceTrackingView: View {
                             .lineLimit(2)
 
                         // Active notes for today's session date
-                        let sessionDate = sessionManager.currentSession?.createdDate ?? Date()
-                        let activeNotes = PassengerNoteManager.shared.getActiveNotes(for: currentAttendee.id, on: sessionDate)
-                        if !activeNotes.isEmpty {
-                            VStack(spacing: 4) {
-                                ForEach(activeNotes) { note in
-                                    Text(note.noteText)
-                                        .font(.subheadline)
-                                        .italic()
-                                        .foregroundColor(.secondary)
-                                        .multilineTextAlignment(.center)
-                                        .lineLimit(3)
-                                        .padding(.horizontal, 32)
-                                }
-                            }
-                        }
+                        activeNotesView(for: currentAttendee)
 
                         // Status indicator if already recorded
                         if let record = sessionManager.getRecord(for: currentAttendee) {
@@ -234,6 +220,62 @@ struct AttendanceTrackingView: View {
         }
     }
     
+    // MARK: - Note View
+
+    // Each note container is ~90pt tall (14 vertical padding × 2 + ~62pt text).
+    // Show 2 notes (180pt) + a little of the third (20pt) so it's obvious there's more to scroll.
+    private let noteContainerHeight: CGFloat = 90
+    private let visibleNoteCount: CGFloat = 2
+
+    @ViewBuilder
+    private func activeNotesView(for attendee: Attendee) -> some View {
+        let sessionDate = sessionManager.currentSession?.createdDate ?? Date()
+        let activeNotes = PassengerNoteManager.shared.getActiveNotes(for: attendee.id, on: sessionDate)
+        let accentColor: Color = sessionType == .pickup ? .green : .orange
+
+        if !activeNotes.isEmpty {
+            let scrollHeight = activeNotes.count > Int(visibleNoteCount)
+                ? noteContainerHeight * visibleNoteCount + 20   // peek at third note
+                : noteContainerHeight * CGFloat(activeNotes.count)
+
+            ScrollView(.vertical, showsIndicators: activeNotes.count > Int(visibleNoteCount)) {
+                VStack(spacing: 10) {
+                    ForEach(activeNotes) { note in
+                        noteContainer(text: note.noteText, accentColor: accentColor)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .frame(height: scrollHeight)
+        }
+    }
+
+    private func noteContainer(text: String, accentColor: Color) -> some View {
+        HStack(spacing: 0) {
+            Text("NOTE: ")
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundColor(accentColor)
+            Text(text)
+                .font(.system(size: 28, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
+        }
+        .multilineTextAlignment(.center)
+        .lineLimit(3)
+        .minimumScaleFactor(0.6)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(accentColor.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(accentColor.opacity(0.4), lineWidth: 1.5)
+                )
+        )
+        .padding(.horizontal, 24)
+    }
+
     // MARK: - Completed View
     
     private var completedView: some View {
