@@ -19,7 +19,6 @@ struct ListDetailView: View {
     @State private var attendeeToEdit: Attendee?
     @State private var showEditAttendee = false
     @State private var attendeeForNotes: Attendee?
-    @State private var showPassengerNotes = false
     
     // Get the current list from dataManager
     private var currentList: AttendeeList? {
@@ -91,16 +90,14 @@ struct ListDetailView: View {
         .sheet(item: $attendeeToEdit) { attendee in
             EditAttendeeView(list: list, attendee: attendee)
         }
-        .sheet(isPresented: $showPassengerNotes) {
-            if let attendee = attendeeForNotes {
-                NavigationView {
-                    PassengerNotesListView(attendee: attendee)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button("Done") { showPassengerNotes = false }
-                            }
+        .sheet(item: $attendeeForNotes) { attendee in
+            NavigationView {
+                PassengerNotesListView(attendee: attendee)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Done") { attendeeForNotes = nil }
                         }
-                }
+                    }
             }
         }
         .alert("Remove Attendee", isPresented: $showDeleteConfirmation, presenting: attendeeToDelete) { attendee in
@@ -153,7 +150,6 @@ struct ListDetailView: View {
                         HStack(spacing: 12) {
                             Button {
                                 attendeeForNotes = attendee
-                                showPassengerNotes = true
                             } label: {
                                 Image(systemName: "note.text")
                                     .foregroundColor(.orange)
