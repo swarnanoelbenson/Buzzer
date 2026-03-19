@@ -28,4 +28,14 @@
         <relationship name="attendees" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendeeEntity" inverseName="list" inverseEntity="AttendeeEntity"/>
         <relationship name="sessions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceSessionEntity" inverseName="list" inverseEntity="AttendanceSessionEntity"/>
     </entity>
+    <entity name="PassengerNoteEntity" representedClassName="PassengerNoteEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="attendeeID" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="attendeeName" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fromDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="noteID" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="noteText" attributeType="String"/>
+        <attribute name="toDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
 </model>

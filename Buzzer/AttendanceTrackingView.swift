@@ -134,7 +134,24 @@ struct AttendanceTrackingView: View {
                             .padding(.horizontal, 32)
                             .minimumScaleFactor(0.5)
                             .lineLimit(2)
-                        
+
+                        // Active notes for today's session date
+                        let sessionDate = sessionManager.currentSession?.createdDate ?? Date()
+                        let activeNotes = PassengerNoteManager.shared.getActiveNotes(for: currentAttendee.id, on: sessionDate)
+                        if !activeNotes.isEmpty {
+                            VStack(spacing: 4) {
+                                ForEach(activeNotes) { note in
+                                    Text(note.noteText)
+                                        .font(.subheadline)
+                                        .italic()
+                                        .foregroundColor(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .lineLimit(3)
+                                        .padding(.horizontal, 32)
+                                }
+                            }
+                        }
+
                         // Status indicator if already recorded
                         if let record = sessionManager.getRecord(for: currentAttendee) {
                             HStack(spacing: 8) {

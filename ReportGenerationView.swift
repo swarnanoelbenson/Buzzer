@@ -219,11 +219,13 @@ struct ReportGenerationView: View {
         
         // Small delay to show loading state
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            let allNotes = PassengerNoteManager.shared.getAllNotes()
             let csvContent = CSVGenerator.generateWeeklyManifest(
                 for: sessionsToExport,
                 list: list,
                 weekStartDate: mondayDate,
-                driverDetails: driverManager.driverDetails
+                driverDetails: driverManager.driverDetails,
+                passengerNotes: allNotes
             )
             
             // Validate CSV content

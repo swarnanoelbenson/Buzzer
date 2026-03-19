@@ -16,7 +16,8 @@ struct CSVGenerator {
         for sessions: [AttendanceSession],
         list: AttendeeList,
         weekStartDate: Date,
-        driverDetails: DriverDetails?
+        driverDetails: DriverDetails?,
+        passengerNotes: [PassengerNote] = []
     ) -> String {
         var csv = ""
         
@@ -204,8 +205,35 @@ struct CSVGenerator {
                 csv += "\n"
             }
         }
-        
+
+        // PASSENGER NOTES SECTION
+        if !passengerNotes.isEmpty {
+            csv += "\n"
+            csv += "PASSENGER NOTES\n"
+            let sortedNotes = passengerNotes.sorted {
+                if $0.attendeeName != $1.attendeeName {
+                    return $0.attendeeName < $1.attendeeName
+                }
+                return $0.fromDate < $1.fromDate
+            }
+            for note in sortedNotes {
+                let fromStr = formatDateLong(note.fromDate)
+                let toStr = formatDateLong(note.toDate)
+                let line = "\(note.attendeeName): \(fromStr) to \(toStr) \(note.noteText)"
+                csv += escapeCSV(line)
+                csv += "\n"
+            }
+        }
+
         return csv
+    }
+
+    // MARK: - Date Formatting Helper
+
+    private static func formatDateLong(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMMM yyyy"
+        return formatter.string(from: date)
     }
     
     // MARK: - Manifest Helper Functions

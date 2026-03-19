@@ -18,6 +18,8 @@ struct ListDetailView: View {
     @State private var isEditMode: EditMode = .inactive
     @State private var attendeeToEdit: Attendee?
     @State private var showEditAttendee = false
+    @State private var attendeeForNotes: Attendee?
+    @State private var showPassengerNotes = false
     
     // Get the current list from dataManager
     private var currentList: AttendeeList? {
@@ -89,6 +91,18 @@ struct ListDetailView: View {
         .sheet(item: $attendeeToEdit) { attendee in
             EditAttendeeView(list: list, attendee: attendee)
         }
+        .sheet(isPresented: $showPassengerNotes) {
+            if let attendee = attendeeForNotes {
+                NavigationView {
+                    PassengerNotesListView(attendee: attendee)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Done") { showPassengerNotes = false }
+                            }
+                        }
+                }
+            }
+        }
         .alert("Remove Attendee", isPresented: $showDeleteConfirmation, presenting: attendeeToDelete) { attendee in
             Button("Cancel", role: .cancel) {
                 attendeeToDelete = nil
@@ -136,14 +150,26 @@ struct ListDetailView: View {
                     Spacer()
                     
                     if isEditMode == .inactive {
-                        Button {
-                            attendeeToEdit = attendee
-                        } label: {
-                            Image(systemName: "pencil.circle")
-                                .foregroundColor(.accentColor)
-                                .imageScale(.large)
+                        HStack(spacing: 12) {
+                            Button {
+                                attendeeForNotes = attendee
+                                showPassengerNotes = true
+                            } label: {
+                                Image(systemName: "note.text")
+                                    .foregroundColor(.orange)
+                                    .imageScale(.large)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                attendeeToEdit = attendee
+                            } label: {
+                                Image(systemName: "pencil.circle")
+                                    .foregroundColor(.accentColor)
+                                    .imageScale(.large)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.vertical, 4)
