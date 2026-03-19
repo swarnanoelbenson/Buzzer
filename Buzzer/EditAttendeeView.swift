@@ -13,6 +13,7 @@ struct EditAttendeeView: View {
     let attendee: Attendee
 
     @State private var attendeeName: String
+    @State private var grade: String
     @State private var address: String
     @State private var primaryPhone: String
     @State private var primaryPhoneTag: PhoneTag
@@ -25,13 +26,14 @@ struct EditAttendeeView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field {
-        case name, address, primaryPhone, secondaryPhone
+        case name, grade, address, primaryPhone, secondaryPhone
     }
 
     init(list: AttendeeList, attendee: Attendee) {
         self.list = list
         self.attendee = attendee
         _attendeeName = State(initialValue: attendee.name)
+        _grade = State(initialValue: attendee.grade)
         _address = State(initialValue: attendee.address)
         _primaryPhone = State(initialValue: attendee.primaryPhone)
         _primaryPhoneTag = State(initialValue: attendee.primaryPhoneTag)
@@ -50,14 +52,20 @@ struct EditAttendeeView: View {
                     Text("Student Name")
                 }
 
+                // MARK: Grade
+                Section {
+                    TextField("e.g. Year 5", text: $grade)
+                        .focused($focusedField, equals: .grade)
+                } header: {
+                    Text("Grade")
+                }
+
                 // MARK: Address
                 Section {
                     TextField("e.g. 12 Oak Street, Springfield", text: $address)
                         .focused($focusedField, equals: .address)
                 } header: {
                     Text("Home Address")
-                } footer: {
-                    Text("Optional")
                 }
 
                 // MARK: Primary Phone
@@ -89,7 +97,7 @@ struct EditAttendeeView: View {
                 } header: {
                     Text("Primary Contact Phone")
                 } footer: {
-                    Text("Must start with 04 and be 10 digits")
+                    Text("10 digits — mobile (04xx/05xx) or landline (02/03/07/08)")
                 }
 
                 // MARK: Secondary Phone
@@ -121,7 +129,7 @@ struct EditAttendeeView: View {
                 } header: {
                     Text("Secondary Contact Phone")
                 } footer: {
-                    Text("Optional — must start with 04 and be 10 digits if entered")
+                    Text("Optional — 10 digits, mobile (04xx/05xx) or landline (02/03/07/08)")
                 }
             }
             .navigationTitle("Edit Student")
@@ -146,21 +154,23 @@ struct EditAttendeeView: View {
 
     private var canSave: Bool {
         let nameOK = !attendeeName.trimmingCharacters(in: .whitespaces).isEmpty
+        let gradeOK = !grade.trimmingCharacters(in: .whitespaces).isEmpty
         let primaryOK = validatePhone(primaryPhone, required: true) == nil
         let secondaryOK = validatePhone(secondaryPhone, required: false) == nil
-        return nameOK && primaryOK && secondaryOK
+        return nameOK && gradeOK && primaryOK && secondaryOK
     }
 
     /// Returns an error string if invalid, nil if valid.
     private func validatePhone(_ value: String, required: Bool) -> String? {
         if value.isEmpty {
-            return required ? "Primary phone number is required" : nil
+            return required ? "Phone number is required" : nil
         }
         if value.count != 10 {
             return "Must be exactly 10 digits"
         }
-        if !value.hasPrefix("04") {
-            return "Must start with 04"
+        let validPrefixes = ["04", "05", "02", "03", "07", "08"]
+        if !validPrefixes.contains(where: { value.hasPrefix($0) }) {
+            return "Must start with 04, 05, 02, 03, 07, or 08"
         }
         return nil
     }
@@ -179,6 +189,7 @@ struct EditAttendeeView: View {
 
         var updated = attendee
         updated.name = trimmedName
+        updated.grade = grade.trimmingCharacters(in: .whitespaces)
         updated.address = address.trimmingCharacters(in: .whitespaces)
         updated.primaryPhone = primaryPhone
         updated.primaryPhoneTag = primaryPhoneTag

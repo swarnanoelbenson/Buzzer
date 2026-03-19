@@ -85,21 +85,22 @@ struct XLSXGenerator {
         }
 
         // ── Column widths ───────────────────────────────────────────────────
-        worksheet_set_column(ws, 0, 0, 22, nil)
-        worksheet_set_column(ws, 1, 1, 8, nil)
+        worksheet_set_column(ws, 0,  0,  25, nil)   // Name
+        worksheet_set_column(ws, 1,  1,  10, nil)   // Grade
         for col in stride(from: lxw_col_t(2), through: lxw_col_t(11), by: 1) {
-            worksheet_set_column(ws, col, col, 13, nil)
+            worksheet_set_column(ws, col, col, 17, nil) // Day Pickup/Dropoff ("Wednesday Pickup")
         }
-        worksheet_set_column(ws, 12, 12, 28, nil)
-        worksheet_set_column(ws, 13, 13, 14, nil)
-        worksheet_set_column(ws, 14, 14, 12, nil)
-        worksheet_set_column(ws, 15, 15, 14, nil)
-        worksheet_set_column(ws, 16, 16, 12, nil)
+        worksheet_set_column(ws, 12, 12, 35, nil)   // Address
+        worksheet_set_column(ws, 13, 13, 16, nil)   // Primary Phone
+        worksheet_set_column(ws, 14, 14, 14, nil)   // Primary Contact
+        worksheet_set_column(ws, 15, 15, 16, nil)   // Secondary Phone
+        worksheet_set_column(ws, 16, 16, 14, nil)   // Secondary Contact
 
         // ── Track current row ────────────────────────────────────────────────
         var row: lxw_row_t = 0
 
         // ── Report title ─────────────────────────────────────────────────────
+        worksheet_set_row(ws, row, 24, nil)
         worksheet_merge_range(ws, row, 0, row, lastCol,
                               "WEEKLY REPORT - \(TimestampFormatter.formatDateLong(weekStartDate))", fTitle)
         row += 1; row += 1
@@ -112,6 +113,7 @@ struct XLSXGenerator {
             ("PHONE",        driverDetails?.phoneNo ?? "N/A"),
             ("EMAIL",        driverDetails?.email   ?? "N/A")
         ] {
+            worksheet_set_row(ws, row, 16, nil)
             writeStr(ws, row, 0, label, fMeta)
             writeStr(ws, row, 1, value, nil)
             row += 1
@@ -119,6 +121,7 @@ struct XLSXGenerator {
         row += 1
 
         // ── Column headers ───────────────────────────────────────────────────
+        worksheet_set_row(ws, row, 22, nil)
         writeStr(ws, row, 0, "Name",  fHeader)
         writeStr(ws, row, 1, "Grade", fHeader)
 
@@ -142,6 +145,7 @@ struct XLSXGenerator {
         let sortedAttendees = list.attendees.sorted { $0.orderIndex < $1.orderIndex }
 
         for attendee in sortedAttendees {
+            worksheet_set_row(ws, row, 18, nil)
             writeStr(ws, row, 0, attendee.name,  fCellLeft)
             writeStr(ws, row, 1, attendee.grade, fCell)
 
@@ -178,6 +182,7 @@ struct XLSXGenerator {
         row += 1
 
         // ── Journey start time row ────────────────────────────────────────────
+        worksheet_set_row(ws, row, 18, nil)
         writeStr(ws, row, 0, "Journey Start Time", fMeta)
         for dayOffset in 0..<5 {
             let dayDate    = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDate) ?? weekStartDate
@@ -193,6 +198,7 @@ struct XLSXGenerator {
         row += 1
 
         // ── No child left on bus row ──────────────────────────────────────────
+        worksheet_set_row(ws, row, 18, nil)
         writeStr(ws, row, 0, "No Child Left On Bus", fMeta)
         for dayOffset in 0..<5 {
             let dayDate    = calendar.date(byAdding: .day, value: dayOffset, to: weekStartDate) ?? weekStartDate
@@ -213,11 +219,13 @@ struct XLSXGenerator {
         // ── Travel notes section ──────────────────────────────────────────────
         let travelNotes = sortedAttendees.filter { !$0.notes.isEmpty }
         if !travelNotes.isEmpty {
+            worksheet_set_row(ws, row, 22, nil)
             worksheet_merge_range(ws, row, 0, row, lastCol, "TRAVEL NOTES", fSectionHeader)
             row += 1
             for attendee in travelNotes {
-                writeStr(ws, row, 0, attendee.name, fCellLeft)
-                worksheet_merge_range(ws, row, 1, row, lastCol, attendee.notes, fNoteMerged)
+                worksheet_set_row(ws, row, 36, nil)
+                let travelNoteText = "\(attendee.name): \(attendee.notes)"
+                worksheet_merge_range(ws, row, 0, row, lastCol, travelNoteText, fNoteMerged)
                 row += 1
             }
             row += 1
@@ -225,6 +233,7 @@ struct XLSXGenerator {
 
         // ── Passenger notes section ───────────────────────────────────────────
         if !passengerNotes.isEmpty {
+            worksheet_set_row(ws, row, 22, nil)
             worksheet_merge_range(ws, row, 0, row, lastCol, "PASSENGER NOTES", fSectionHeader)
             row += 1
 
@@ -232,9 +241,9 @@ struct XLSXGenerator {
                 $0.attendeeName == $1.attendeeName ? $0.fromDate < $1.fromDate : $0.attendeeName < $1.attendeeName
             }
             for note in sortedNotes {
-                let label = "\(note.attendeeName): \(formatDateLong(note.fromDate)) to \(formatDateLong(note.toDate))"
-                writeStr(ws, row, 0, label, fCellLeft)
-                worksheet_merge_range(ws, row, 1, row, lastCol, note.noteText, fNoteMerged)
+                worksheet_set_row(ws, row, 36, nil)
+                let noteText = "\(note.attendeeName): \(formatDateLong(note.fromDate)) to \(formatDateLong(note.toDate)) — \(note.noteText)"
+                worksheet_merge_range(ws, row, 0, row, lastCol, noteText, fNoteMerged)
                 row += 1
             }
         }

@@ -12,6 +12,7 @@ struct AddAttendeeView: View {
     let list: AttendeeList
 
     @State private var attendeeName = ""
+    @State private var grade = ""
     @State private var address = ""
     @State private var primaryPhone = ""
     @State private var primaryPhoneTag: PhoneTag = .mother
@@ -24,7 +25,7 @@ struct AddAttendeeView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field {
-        case name, address, primaryPhone, secondaryPhone
+        case name, grade, address, primaryPhone, secondaryPhone
     }
 
     var body: some View {
@@ -36,6 +37,14 @@ struct AddAttendeeView: View {
                         .focused($focusedField, equals: .name)
                 } header: {
                     Text("Student Name")
+                }
+
+                // MARK: Grade (required)
+                Section {
+                    TextField("e.g. Year 5", text: $grade)
+                        .focused($focusedField, equals: .grade)
+                } header: {
+                    Text("Grade")
                 }
 
                 // MARK: Address (required)
@@ -75,7 +84,7 @@ struct AddAttendeeView: View {
                 } header: {
                     Text("Primary Contact Phone")
                 } footer: {
-                    Text("Must start with 04 and be 10 digits")
+                    Text("10 digits — mobile (04xx/05xx) or landline (02/03/07/08)")
                 }
 
                 // MARK: Secondary Phone (optional)
@@ -107,7 +116,7 @@ struct AddAttendeeView: View {
                 } header: {
                     Text("Secondary Contact Phone")
                 } footer: {
-                    Text("Optional — must start with 04 and be 10 digits if entered")
+                    Text("Optional — 10 digits, mobile (04xx/05xx) or landline (02/03/07/08)")
                 }
             }
             .navigationTitle("Add Student")
@@ -132,22 +141,24 @@ struct AddAttendeeView: View {
 
     private var canSave: Bool {
         let nameOK = !attendeeName.trimmingCharacters(in: .whitespaces).isEmpty
+        let gradeOK = !grade.trimmingCharacters(in: .whitespaces).isEmpty
         let addressOK = !address.trimmingCharacters(in: .whitespaces).isEmpty
         let primaryOK = validatePhone(primaryPhone, required: true) == nil
         let secondaryOK = validatePhone(secondaryPhone, required: false) == nil
-        return nameOK && addressOK && primaryOK && secondaryOK
+        return nameOK && gradeOK && addressOK && primaryOK && secondaryOK
     }
 
     /// Returns an error string if invalid, nil if valid.
     private func validatePhone(_ value: String, required: Bool) -> String? {
         if value.isEmpty {
-            return required ? "Primary phone number is required" : nil
+            return required ? "Phone number is required" : nil
         }
         if value.count != 10 {
             return "Must be exactly 10 digits"
         }
-        if !value.hasPrefix("04") {
-            return "Must start with 04"
+        let validPrefixes = ["04", "05", "02", "03", "07", "08"]
+        if !validPrefixes.contains(where: { value.hasPrefix($0) }) {
+            return "Must start with 04, 05, 02, 03, 07, or 08"
         }
         return nil
     }
@@ -162,12 +173,14 @@ struct AddAttendeeView: View {
 
     private func addAttendee() {
         let trimmedName = attendeeName.trimmingCharacters(in: .whitespaces)
+        let trimmedGrade = grade.trimmingCharacters(in: .whitespaces)
         let trimmedAddress = address.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty, !trimmedAddress.isEmpty else { return }
+        guard !trimmedName.isEmpty, !trimmedGrade.isEmpty, !trimmedAddress.isEmpty else { return }
 
         dataManager.addAttendee(
             to: list,
             name: trimmedName,
+            grade: trimmedGrade,
             address: trimmedAddress,
             primaryPhone: primaryPhone,
             primaryPhoneTag: primaryPhoneTag,

@@ -128,22 +128,18 @@ struct DriverSetupView: View {
                     .foregroundColor(.green)
                     .frame(width: 100, alignment: .leading)
                 
-                TextField("123456789", text: $phoneNo)
+                TextField("04xx xxx xxx", text: $phoneNo)
                     .focused($focusedField, equals: .phoneNo)
                     .textContentType(.telephoneNumber)
                     .keyboardType(.numberPad)
                     .onChange(of: phoneNo) { newValue in
-                        // Filter to digits only and limit to 9
+                        // Filter to digits only and limit to 10
                         let filtered = newValue.filter { $0.isNumber }
-                        if filtered.count > 9 {
-                            phoneNo = String(filtered.prefix(9))
-                        } else {
-                            phoneNo = filtered
-                        }
+                        phoneNo = String(filtered.prefix(10))
                     }
             }
         } footer: {
-            Text("9 digits only (no spaces or dashes)")
+            Text("10 digits — mobile (04xx/05xx) or landline (02/03/07/08 + 8 digits)")
                 .font(.caption)
         }
     }
@@ -218,7 +214,7 @@ struct DriverSetupView: View {
         }
         
         if !DriverManager.isValidPhoneNumber(phoneNo) {
-            validationMessages.append("Phone number must be exactly 9 digits")
+            validationMessages.append("Phone must be 10 digits starting with 04, 05, 02, 03, 07, or 08")
         }
         
         if !DriverManager.isValidEmail(email) {

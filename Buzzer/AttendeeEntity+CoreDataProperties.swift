@@ -17,6 +17,7 @@ extension AttendeeEntity {
     @NSManaged public var id: UUID?
     @NSManaged public var name: String?
     @NSManaged public var orderIndex: Int16
+    @NSManaged public var grade: String
     @NSManaged public var address: String
     @NSManaged public var primaryPhone: String
     @NSManaged public var primaryPhoneTag: String

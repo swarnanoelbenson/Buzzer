@@ -81,6 +81,7 @@ class DataManager: ObservableObject {
     func addAttendee(
         to list: AttendeeList,
         name: String,
+        grade: String,
         address: String,
         primaryPhone: String,
         primaryPhoneTag: PhoneTag,
@@ -95,6 +96,7 @@ class DataManager: ObservableObject {
                 let attendeeEntity = AttendeeEntity(context: context)
                 attendeeEntity.id = UUID()
                 attendeeEntity.name = name
+                attendeeEntity.grade = grade
                 attendeeEntity.orderIndex = Int16(listEntity.attendees?.count ?? 0)
                 attendeeEntity.list = listEntity
                 attendeeEntity.address = address
@@ -118,6 +120,7 @@ class DataManager: ObservableObject {
         do {
             if let entity = try context.fetch(request).first {
                 entity.name = attendee.name
+                entity.grade = attendee.grade
                 entity.orderIndex = Int16(attendee.orderIndex)
                 entity.address = attendee.address
                 entity.primaryPhone = attendee.primaryPhone
@@ -189,6 +192,7 @@ class DataManager: ObservableObject {
             id: entity.id ?? UUID(),
             name: entity.name ?? "",
             orderIndex: Int(entity.orderIndex),
+            grade: entity.grade,
             address: entity.address,
             primaryPhone: entity.primaryPhone,
             primaryPhoneTag: PhoneTag(rawValue: entity.primaryPhoneTag) ?? .mother,

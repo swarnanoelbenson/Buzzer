@@ -135,8 +135,10 @@ class DriverManager: ObservableObject {
     }
     
     static func isValidPhoneNumber(_ phone: String) -> Bool {
-        // Must be exactly 9 digits
-        let phoneRegex = "^[0-9]{9}$"
+        // Must be 10 digits and start with a valid Australian prefix:
+        // Mobile:   04xx or 05xx
+        // Landline: 02, 03, 07, 08 (NSW/ACT, VIC/TAS, QLD, WA/SA/NT)
+        let phoneRegex = "^(04|05|02|03|07|08)[0-9]{8}$"
         let phonePredicate = NSPredicate(format: "SELF MATCHES %@", phoneRegex)
         return phonePredicate.evaluate(with: phone)
     }
