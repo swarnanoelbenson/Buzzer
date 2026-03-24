@@ -20,6 +20,11 @@ struct AttendanceTrackingView: View {
     @State private var showFinalCheck = false
     @State private var canSwipeBack = false
     
+    // Returns attendees in dropoff-reversed order so the last pickup stop is first to drop off
+    private var orderedAttendees: [Attendee] {
+        sessionType == .dropoff ? list.attendees.reversed() : list.attendees
+    }
+
     var body: some View {
         ZStack {
             // Background color based on session type
@@ -123,8 +128,8 @@ struct AttendanceTrackingView: View {
                 Spacer()
                 
                 // Current attendee
-                if sessionManager.currentAttendeeIndex < list.attendees.count {
-                    let currentAttendee = list.attendees[sessionManager.currentAttendeeIndex]
+                if sessionManager.currentAttendeeIndex < orderedAttendees.count {
+                    let currentAttendee = orderedAttendees[sessionManager.currentAttendeeIndex]
                     
                     VStack(spacing: 24) {
                         // Attendee name
@@ -349,9 +354,9 @@ struct AttendanceTrackingView: View {
     // MARK: - Actions
     
     private func markAttendance(status: AttendanceStatus) {
-        guard sessionManager.currentAttendeeIndex < list.attendees.count else { return }
+        guard sessionManager.currentAttendeeIndex < orderedAttendees.count else { return }
         
-        let currentAttendee = list.attendees[sessionManager.currentAttendeeIndex]
+        let currentAttendee = orderedAttendees[sessionManager.currentAttendeeIndex]
         
         // Add haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
