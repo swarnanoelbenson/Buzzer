@@ -124,13 +124,54 @@ struct AttendanceTrackingView: View {
     
     private var attendanceView: some View {
         GeometryReader { geometry in
+            // Each action button width = (totalWidth - 24*2 padding - 20 spacing) / 2
+            let actionButtonWidth = (geometry.size.width - 48 - 20) / 2
+
             VStack(spacing: 0) {
-                Spacer()
-                
-                // Current attendee
+                // Navigation arrows — above the attendee name
+                HStack(spacing: 20) {
+                    // Left arrow
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            sessionManager.goToPrevious()
+                        }
+                    } label: {
+                        Text("Previous")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(width: actionButtonWidth, height: 80)
+                            .background(Color(red: 0, green: 0.588, blue: 0.714))
+                            .cornerRadius(16)
+                    }
+                    .disabled(sessionManager.currentAttendeeIndex == 0)
+                    .opacity(sessionManager.currentAttendeeIndex == 0 ? 0.35 : 1.0)
+
+                    // Right arrow
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            sessionManager.advanceToNext()
+                        }
+                    } label: {
+                        Text("Next")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(width: actionButtonWidth, height: 80)
+                            .background(Color(red: 0, green: 0.588, blue: 0.714))
+                            .cornerRadius(16)
+                    }
+                    .disabled(sessionManager.currentAttendeeIndex >= orderedAttendees.count - 1)
+                    .opacity(sessionManager.currentAttendeeIndex >= orderedAttendees.count - 1 ? 0.35 : 1.0)
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 16)
+
+                // Current attendee info
                 if sessionManager.currentAttendeeIndex < orderedAttendees.count {
                     let currentAttendee = orderedAttendees[sessionManager.currentAttendeeIndex]
-                    
+
                     VStack(spacing: 24) {
                         // Attendee name
                         Text(currentAttendee.name)
@@ -148,10 +189,10 @@ struct AttendanceTrackingView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: record.status == .present ? "checkmark.circle.fill" : "xmark.circle.fill")
                                     .foregroundColor(record.status == .present ? .green : .red)
-                                
+
                                 Text(record.status == .present ? "Marked Present" : "Marked Absent")
                                     .fontWeight(.medium)
-                                
+
                                 if let timestamp = record.timestamp {
                                     Text("at \(timestamp, style: .time)")
                                         .foregroundColor(.secondary)
@@ -167,7 +208,6 @@ struct AttendanceTrackingView: View {
                     .gesture(
                         DragGesture(minimumDistance: 50)
                             .onEnded { gesture in
-                                // Right swipe to undo
                                 if gesture.translation.width > 100 && sessionManager.currentAttendeeIndex > 0 {
                                     withAnimation {
                                         sessionManager.goToPrevious()
@@ -176,10 +216,10 @@ struct AttendanceTrackingView: View {
                             }
                     )
                 }
-                
+
                 Spacer()
-                
-                // Action buttons
+
+                // Present / Absent buttons at the bottom
                 HStack(spacing: 20) {
                     // Absent button
                     Button {
@@ -188,7 +228,7 @@ struct AttendanceTrackingView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 50))
-                            
+
                             Text("Absent")
                                 .font(.title2)
                                 .fontWeight(.bold)
@@ -199,7 +239,7 @@ struct AttendanceTrackingView: View {
                         .foregroundColor(.white)
                         .cornerRadius(20)
                     }
-                    
+
                     // Present button
                     Button {
                         markAttendance(status: .present)
@@ -207,7 +247,7 @@ struct AttendanceTrackingView: View {
                         VStack(spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 50))
-                            
+
                             Text("Present")
                                 .font(.title2)
                                 .fontWeight(.bold)
@@ -258,10 +298,10 @@ struct AttendanceTrackingView: View {
     private func noteContainer(text: String, accentColor: Color) -> some View {
         HStack(spacing: 0) {
             Text("NOTE: ")
-                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .font(.system(size: 21, weight: .bold, design: .rounded))
                 .foregroundColor(accentColor)
             Text(text)
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
+                .font(.system(size: 21, weight: .semibold, design: .rounded))
                 .foregroundColor(.primary)
         }
         .multilineTextAlignment(.center)
