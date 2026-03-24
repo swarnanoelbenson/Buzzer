@@ -31,6 +31,7 @@ struct BuzzerApp: App {
                         // Driver setup screen (first-time use)
                         DriverSetupView()
                             .environmentObject(driverManager)
+                            .environmentObject(dataManager)
                     }
                 }
             }

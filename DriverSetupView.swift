@@ -9,21 +9,23 @@ import SwiftUI
 
 struct DriverSetupView: View {
     @EnvironmentObject var driverManager: DriverManager
-    
+    @EnvironmentObject var dataManager: DataManager
+
     @State private var name: String = ""
     @State private var busRego: String = ""
     @State private var phoneNo: String = ""
     @State private var email: String = ""
-    
+
     @State private var showValidationErrors: Bool = false
     @State private var validationMessages: [String] = []
-    
+    @State private var showDemoConfirmation: Bool = false
+
     @FocusState private var focusedField: Field?
-    
+
     enum Field: Hashable {
         case name, busRego, phoneNo, email
     }
-    
+
     var body: some View {
         NavigationView {
             Form {
@@ -32,12 +34,13 @@ struct DriverSetupView: View {
                 busRegoSection
                 phoneSection
                 emailSection
-                
+
                 if showValidationErrors && !validationMessages.isEmpty {
                     validationErrorSection
                 }
-                
+
                 submitButtonSection
+                demoModeSection
             }
             .navigationTitle("Driver Setup")
             .navigationBarTitleDisplayMode(.large)
@@ -48,6 +51,14 @@ struct DriverSetupView: View {
                         focusedField = nil
                     }
                 }
+            }
+            .alert("Enter Demo Mode?", isPresented: $showDemoConfirmation) {
+                Button("Enter Demo Mode", role: .none) {
+                    DemoModeManager.shared.enableDemoMode(dataManager: dataManager)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Demo Mode pre-loads sample driver details, 10 passengers, attendance records, and passenger notes so you can explore all features immediately. All data can be cleared from Settings.")
             }
         }
     }
@@ -193,6 +204,35 @@ struct DriverSetupView: View {
                 .padding(.vertical, 12)
             }
             .listRowBackground(Color.accentColor)
+        }
+    }
+
+    private var demoModeSection: some View {
+        Section {
+            Button(action: { showDemoConfirmation = true }) {
+                HStack {
+                    Image(systemName: "play.circle.fill")
+                        .foregroundColor(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Enter Demo Mode")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                        Text("Pre-loads sample data for app review")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.vertical, 4)
+            }
+        } header: {
+            Text("App Review")
+        } footer: {
+            Text("Demo Mode loads a driver, 10 passengers, this week's attendance sessions, and sample notes so reviewers can explore all features without manual data entry.")
+                .font(.caption)
         }
     }
     

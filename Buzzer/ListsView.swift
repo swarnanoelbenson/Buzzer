@@ -10,11 +10,13 @@ import SwiftUI
 struct ListsView: View {
     @EnvironmentObject var dataManager: DataManager
     @EnvironmentObject var driverManager: DriverManager
+    @ObservedObject private var demoModeManager = DemoModeManager.shared
     @State private var showingCreateList = false
     @State private var showingProfile = false
     @State private var listToDelete: AttendeeList?
     @State private var showDeleteConfirmation = false
-    
+    @State private var showExitDemoConfirmation = false
+
     var body: some View {
         NavigationView {
             ZStack {
@@ -51,6 +53,14 @@ struct ListsView: View {
             }
             .sheet(isPresented: $showingProfile) {
                 ProfileView()
+            }
+            .alert("Exit Demo Mode?", isPresented: $showExitDemoConfirmation) {
+                Button("Exit & Clear Data", role: .destructive) {
+                    demoModeManager.disableDemoMode(dataManager: dataManager)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This will delete all demo data and driver details, returning the app to its initial state.")
             }
             .alert("Delete List", isPresented: $showDeleteConfirmation, presenting: listToDelete) { list in
                 Button("Cancel", role: .cancel) {
@@ -98,8 +108,38 @@ struct ListsView: View {
         }
     }
     
+    private var demoBanner: some View {
+        Section {
+            HStack(spacing: 12) {
+                Image(systemName: "play.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Demo Mode Active")
+                        .font(.headline)
+                        .foregroundColor(.orange)
+                    Text("Sample data is pre-loaded for review")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Button("Exit") {
+                    showExitDemoConfirmation = true
+                }
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.orange)
+            }
+            .padding(.vertical, 4)
+        }
+        .listSectionSeparator(.hidden)
+    }
+
     private var listContent: some View {
         List {
+            if demoModeManager.isDemoMode {
+                demoBanner
+            }
             ForEach(dataManager.lists) { list in
                 NavigationLink(destination: ListDetailView(list: list)) {
                     ListRowView(list: list)
