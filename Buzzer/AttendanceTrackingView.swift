@@ -19,6 +19,7 @@ struct AttendanceTrackingView: View {
     @State private var showSessionReview = false
     @State private var showFinalCheck = false
     @State private var canSwipeBack = false
+    @State private var showUnmarkedReview = false
     
     // Returns attendees in dropoff-reversed order so the last pickup stop is first to drop off
     private var orderedAttendees: [Attendee] {
@@ -60,6 +61,8 @@ struct AttendanceTrackingView: View {
                     .foregroundColor(.red)
                 }
             }
+            
+
         }
         .alert("Stop Session?", isPresented: $showStopConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -68,6 +71,15 @@ struct AttendanceTrackingView: View {
             }
         } message: {
             Text("This will save all recorded attendance and end the session.")
+        }
+        .sheet(isPresented: $showUnmarkedReview) {
+            UnmarkedReviewView(
+                sessionManager: sessionManager,
+                unmarkedAttendees: orderedAttendees.filter { sessionManager.getRecord(for: $0) == nil },
+                sessionType: sessionType
+            ) {
+                showFinalCheck = true
+            }
         }
         .sheet(isPresented: $showSessionReview) {
             SessionReviewView(
@@ -198,7 +210,7 @@ struct AttendanceTrackingView: View {
                                         .foregroundColor(.secondary)
                                 }
                             }
-                            .font(.headline)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
                             .padding(.horizontal, 20)
                             .padding(.vertical, 12)
                             .background(Color(uiColor: .secondarySystemBackground))
@@ -375,7 +387,11 @@ struct AttendanceTrackingView: View {
                 }
                 
                 Button {
-                    showFinalCheck = true
+                    if sessionManager.unmarkedCount(for: list) > 0 {
+                        showUnmarkedReview = true
+                    } else {
+                        showFinalCheck = true
+                    }
                 } label: {
                     Text("Final Check")
                         .font(.headline)

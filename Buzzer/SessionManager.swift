@@ -116,4 +116,16 @@ class SessionManager: ObservableObject {
         let absent = recordedStatuses.values.filter { $0.status == .absent }.count
         return (present, absent)
     }
+    
+    func unmarkedCount(for list: AttendeeList) -> Int {
+        let orderedAttendees = list.attendees
+        return orderedAttendees.filter { recordedStatuses[$0.id] == nil }.count
+    }
+    
+    /// Navigates to the first attendee in `orderedAttendees` that has no attendance record yet.
+    func navigateToNextUnmarked(in orderedAttendees: [Attendee]) {
+        if let index = orderedAttendees.firstIndex(where: { recordedStatuses[$0.id] == nil }) {
+            currentAttendeeIndex = index
+        }
+    }
 }
