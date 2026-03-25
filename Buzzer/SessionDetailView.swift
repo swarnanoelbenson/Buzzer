@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SessionDetailView: View {
     let session: AttendanceSession
@@ -184,30 +185,38 @@ struct AttendeeDetailRow: View {
 
 struct ExportOptionsSheet: View {
     @Environment(\.dismiss) var dismiss
-    
+
     let session: AttendanceSession
     let list: AttendeeList
-    
-    @State private var showShareSheet = false
-    @State private var csvFileURL: URL?
+
+    @State private var showFileExporter = false
+    @State private var csvDocument: CSVDocument?
     @State private var showSuccessAlert = false
     @State private var showErrorAlert = false
-    
+    @State private var isGenerating = false
+
     var body: some View {
         NavigationView {
             List {
                 Section {
                     Button {
-                        exportCSV()
+                        generateManifest()
                     } label: {
-                        Label("Export as CSV", systemImage: "doc.text")
+                        HStack {
+                            Label("Export as CSV", systemImage: "doc.text")
+                            Spacer()
+                            if isGenerating {
+                                ProgressView().progressViewStyle(.circular)
+                            }
+                        }
                     }
+                    .disabled(isGenerating)
                 } header: {
                     Text("Export Options")
                 } footer: {
-                    Text("Export this session as a CSV file. You can save it to Files, share via email, or send to other apps.")
+                    Text("Export this session as a CSV manifest. You can save it to Files, share via email, or send to other apps.")
                 }
-                
+
                 Section {
                     HStack {
                         Label("Session Type", systemImage: session.sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
@@ -216,7 +225,7 @@ struct ExportOptionsSheet: View {
                         Text(session.sessionType == .pickup ? "Pick-Up" : "Drop-Off")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Label("Date", systemImage: "calendar")
                             .foregroundColor(.blue)
@@ -224,7 +233,7 @@ struct ExportOptionsSheet: View {
                         Text(TimestampFormatter.formatDate(session.createdDate))
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Label("Time", systemImage: "clock")
                             .foregroundColor(.purple)
@@ -232,7 +241,7 @@ struct ExportOptionsSheet: View {
                         Text(TimestampFormatter.formatTime(session.createdDate))
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Label("Attendees", systemImage: "person.2")
                             .foregroundColor(.orange)
@@ -240,7 +249,7 @@ struct ExportOptionsSheet: View {
                         Text("\(session.records.count)")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Label("Present", systemImage: "checkmark.circle.fill")
                             .foregroundColor(.green)
@@ -248,7 +257,7 @@ struct ExportOptionsSheet: View {
                         Text("\(presentCount)")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Label("Absent", systemImage: "xmark.circle.fill")
                             .foregroundColor(.red)
@@ -271,63 +280,98 @@ struct ExportOptionsSheet: View {
                     .fontWeight(.semibold)
                 }
             }
-            .sheet(isPresented: $showShareSheet) {
-                if let url = csvFileURL {
-                    ShareSheet(items: [url])
-                }
-            }
+            .fileExporter(
+                isPresented: $showFileExporter,
+                document: csvDocument,
+                contentType: .commaSeparatedText,
+                defaultFilename: csvDocument?.filename ?? "session.csv",
+                onCompletion: handleExport
+            )
             .alert("Export Successful", isPresented: $showSuccessAlert) {
-                Button("OK", role: .cancel) { }
+                Button("OK", role: .cancel) { dismiss() }
             } message: {
-                Text("CSV file has been created and is ready to share.")
+                Text("Session manifest has been saved successfully.")
             }
             .alert("Export Failed", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) { }
             } message: {
-                Text("Failed to create CSV file. Please try again.")
+                Text("Failed to generate CSV file. Please try again.")
             }
         }
     }
-    
+
     // MARK: - Computed Properties
-    
+
     private var presentCount: Int {
         session.records.filter { $0.status == .present }.count
     }
-    
+
     private var absentCount: Int {
         session.records.filter { $0.status == .absent }.count
     }
-    
-    // MARK: - Export Functions
-    
-    private func exportCSV() {
-        // Generate CSV content
-        let csvContent = CSVGenerator.generateCSV(for: session, list: list)
-        let filename = CSVGenerator.generateFilename(for: session, list: list)
-        
-        // Save to temporary file
-        if let fileURL = CSVGenerator.saveToTemporaryFile(csvContent: csvContent, filename: filename) {
-            csvFileURL = fileURL
-            showShareSheet = true
-        } else {
+
+    // MARK: - Generate Manifest
+
+    private func generateManifest() {
+        isGenerating = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            let attendeeIDs = list.attendees.map { $0.id }
+            let notes = PassengerNoteManager.shared.getNotes(for: attendeeIDs)
+            let driverDetails = DriverManager.shared.driverDetails
+
+            let csvContent = CSVGenerator.generateSingleSessionManifest(
+                for: session,
+                list: list,
+                driverDetails: driverDetails,
+                passengerNotes: notes
+            )
+            let filename = CSVGenerator.generateFilename(for: session, list: list)
+
+            csvDocument = CSVDocument(content: csvContent, filename: filename)
+            isGenerating = false
+            showFileExporter = true
+        }
+    }
+
+    // MARK: - Export Handler
+
+    private func handleExport(_ result: Result<URL, Error>) {
+        switch result {
+        case .success:
+            showSuccessAlert = true
+        case .failure(let error):
+            print("Export failed: \(error.localizedDescription)")
             showErrorAlert = true
         }
     }
 }
 
-// MARK: - Share Sheet
+// MARK: - CSV Document (for fileExporter)
 
-struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        return controller
+struct CSVDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.commaSeparatedText] }
+
+    let content: String
+    let filename: String
+
+    init(content: String, filename: String) {
+        self.content = content
+        self.filename = filename
     }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
-        // No update needed
+
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents,
+              let str = String(data: data, encoding: .utf8) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        self.content = str
+        self.filename = "session.csv"
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        let data = content.data(using: .utf8) ?? Data()
+        return FileWrapper(regularFileWithContents: data)
     }
 }
 

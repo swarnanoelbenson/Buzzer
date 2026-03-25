@@ -300,58 +300,144 @@ struct CSVGenerator {
     }
     
     // MARK: - Single Session Export
-    
-    /// Generates CSV content for a single attendance session
-    static func generateCSV(for session: AttendanceSession, list: AttendeeList) -> String {
+
+    /// Generates a manifest-style CSV for a single session, mirroring the weekly report format
+    static func generateSingleSessionManifest(
+        for session: AttendanceSession,
+        list: AttendeeList,
+        driverDetails: DriverDetails?,
+        passengerNotes: [PassengerNote] = []
+    ) -> String {
         var csv = ""
-        
-        // HEADER SECTION
+
         let sessionTypeName = session.sessionType == .pickup ? "Pick-Up" : "Drop-Off"
-        csv += "ATTENDANCE SESSION - \(sessionTypeName)\n"
+        let sessionDate = TimestampFormatter.formatDateLong(session.createdDate)
+
+        // HEADER SECTION
+        csv += "SESSION REPORT - \(sessionTypeName) - \(sessionDate)\n"
         csv += "\n"
-        csv += "List:,\(list.name)\n"
-        csv += "Date:,\(TimestampFormatter.formatDateLong(session.createdDate))\n"
-        csv += "Time:,\(TimestampFormatter.formatTime(session.createdDate))\n"
-        csv += "Session Type:,\(sessionTypeName)\n"
+        csv += "ROUTE:,\(list.name)\n"
+        csv += "REGISTRATION:,\(driverDetails?.busRego ?? "N/A")\n"
+        csv += "DRIVER:,\(driverDetails?.name ?? "N/A")\n"
+        csv += "PHONE:,\(driverDetails?.phoneNo ?? "N/A")\n"
+        csv += "EMAIL:,\(driverDetails?.email ?? "N/A")\n"
         csv += "\n"
-        
+
         // ATTENDANCE TABLE HEADERS
-        csv += "Name,Status,Timestamp\n"
-        
-        // Sort records by attendee order in the list
-        let sortedRecords = session.records.sorted { record1, record2 in
-            let index1 = list.attendees.firstIndex { $0.id == record1.attendeeId } ?? 999
-            let index2 = list.attendees.firstIndex { $0.id == record2.attendeeId } ?? 999
-            return index1 < index2
-        }
-        
-        // DATA ROWS - One row per attendee
-        for record in sortedRecords {
-            let attendeeName = list.attendees.first { $0.id == record.attendeeId }?.name ?? "Unknown"
-            let statusText = record.status == .present ? "Present" : "Absent"
-            let timestampText = record.timestamp != nil ? TimestampFormatter.formatTime(record.timestamp!) : "N/A"
-            
-            csv += escapeCSV(attendeeName)
+        // Columns: Name | [Date] Pickup | [Date] Dropoff | Address | Primary Phone | Primary Contact | Secondary Phone | Secondary Contact
+        let shortDate = TimestampFormatter.formatDate(session.createdDate)
+        csv += "Name"
+        csv += ",\(shortDate) Pickup,\(shortDate) Dropoff"
+        csv += ",Address,Primary Phone,Primary Contact,Secondary Phone,Secondary Contact"
+        csv += "\n"
+
+        let sortedAttendees = list.attendees.sorted { $0.orderIndex < $1.orderIndex }
+
+        // DATA ROWS
+        for attendee in sortedAttendees {
+            csv += escapeCSV(attendee.name)
+
+            // Pickup column
             csv += ","
-            csv += statusText
+            if session.sessionType == .pickup {
+                if let record = session.records.first(where: { $0.attendeeId == attendee.id }) {
+                    if record.status == .present, let ts = record.timestamp {
+                        csv += TimestampFormatter.formatTimeShort12Hour(ts)
+                    } else {
+                        csv += "Absent"
+                    }
+                } else {
+                    csv += "Absent"
+                }
+            }
+            // else leave blank — this is a dropoff-only session
+
+            // Dropoff column
             csv += ","
-            csv += timestampText
+            if session.sessionType == .dropoff {
+                if let record = session.records.first(where: { $0.attendeeId == attendee.id }) {
+                    if record.status == .present, let ts = record.timestamp {
+                        csv += TimestampFormatter.formatTimeShort12Hour(ts)
+                    } else {
+                        csv += "Absent"
+                    }
+                } else {
+                    csv += "Absent"
+                }
+            }
+            // else leave blank — this is a pickup-only session
+
+            // Contact detail columns
+            csv += ","
+            csv += escapeCSV(attendee.address)
+            csv += ","
+            csv += escapeCSV(attendee.primaryPhone)
+            csv += ","
+            csv += escapeCSV(attendee.primaryPhoneTag.rawValue)
+            csv += ","
+            csv += escapeCSV(attendee.secondaryPhone)
+            csv += ","
+            csv += escapeCSV(attendee.secondaryPhone.isEmpty ? "" : attendee.secondaryPhoneTag.rawValue)
             csv += "\n"
         }
-        
+
         csv += "\n"
-        
-        // SUMMARY SECTION
-        let presentCount = session.records.filter { $0.status == .present }.count
-        let absentCount = session.records.filter { $0.status == .absent }.count
-        let attendanceRate = session.records.count > 0 ? Int((Double(presentCount) / Double(session.records.count)) * 100) : 0
-        
-        csv += "SUMMARY\n"
-        csv += "Total Attendees:,\(session.records.count)\n"
-        csv += "Present:,\(presentCount)\n"
-        csv += "Absent:,\(absentCount)\n"
-        csv += "Attendance Rate:,\(attendanceRate)%\n"
-        
+
+        // JOURNEY START TIME ROW
+        csv += "Journey Start Time"
+        csv += ","
+        if session.sessionType == .pickup, let start = session.sessionStartTimestamp {
+            csv += TimestampFormatter.formatTimeShort12Hour(start)
+        }
+        csv += ","
+        if session.sessionType == .dropoff, let start = session.sessionStartTimestamp {
+            csv += TimestampFormatter.formatTimeShort12Hour(start)
+        }
+        csv += "\n"
+
+        // FINAL CHECK ROW
+        csv += "No Child Left On Bus"
+        csv += ","
+        if session.sessionType == .pickup, let fc = session.finalCheckTimestamp {
+            csv += TimestampFormatter.formatTimeShort12Hour(fc)
+        }
+        csv += ","
+        if session.sessionType == .dropoff, let fc = session.finalCheckTimestamp {
+            csv += TimestampFormatter.formatTimeShort12Hour(fc)
+        }
+        csv += "\n\n"
+
+        // Total columns = 1 (Name) + 2 (Pickup/Dropoff) + 5 (contact details) = 8
+        let columnSpan = String(repeating: ",", count: 7)
+
+        // TRAVEL NOTES SECTION
+        csv += "TRAVEL NOTES\(columnSpan)\n"
+        csv += "Student Name,Notes\(String(repeating: ",", count: 6))\n"
+        for attendee in sortedAttendees where !attendee.notes.isEmpty {
+            csv += escapeCSV(attendee.name)
+            csv += ","
+            csv += escapeCSV(attendee.notes)
+            csv += String(repeating: ",", count: 6)
+            csv += "\n"
+        }
+
+        // PASSENGER NOTES SECTION
+        if !passengerNotes.isEmpty {
+            csv += "\n"
+            csv += "PASSENGER NOTES\(columnSpan)\n"
+            let sortedNotes = passengerNotes.sorted {
+                $0.attendeeName != $1.attendeeName ? $0.attendeeName < $1.attendeeName : $0.fromDate < $1.fromDate
+            }
+            for note in sortedNotes {
+                let fromStr = formatDateLong(note.fromDate)
+                let toStr = formatDateLong(note.toDate)
+                let line = "\(note.attendeeName): \(fromStr) to \(toStr) \(note.noteText)"
+                csv += escapeCSV(line)
+                csv += columnSpan
+                csv += "\n"
+            }
+        }
+
         return csv
     }
     
