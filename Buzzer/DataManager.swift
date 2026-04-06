@@ -61,6 +61,50 @@ class DataManager: ObservableObject {
         }
     }
     
+    func duplicateList(_ list: AttendeeList, newName: String) {
+        let request: NSFetchRequest<AttendeeListEntity> = AttendeeListEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", list.id as CVarArg)
+
+        do {
+            guard let sourceEntity = try context.fetch(request).first else { return }
+
+            // Create new list entity
+            let newListEntity = AttendeeListEntity(context: context)
+            newListEntity.id = UUID()
+            newListEntity.name = newName
+            newListEntity.createdDate = Date()
+
+            // Copy all attendees (new IDs, no sessions)
+            let sourceAttendees = (sourceEntity.attendees?.allObjects as? [AttendeeEntity] ?? [])
+                .sorted { $0.orderIndex < $1.orderIndex }
+
+            for source in sourceAttendees {
+                let newAttendee = AttendeeEntity(context: context)
+                newAttendee.id = UUID()
+                newAttendee.name = source.name
+                newAttendee.grade = source.grade
+                newAttendee.orderIndex = source.orderIndex
+                newAttendee.address = source.address
+                newAttendee.primaryPhone = source.primaryPhone
+                newAttendee.primaryPhoneTag = source.primaryPhoneTag
+                newAttendee.secondaryPhone = source.secondaryPhone
+                newAttendee.secondaryPhoneTag = source.secondaryPhoneTag
+                newAttendee.studentPhone = source.studentPhone
+                newAttendee.studentPhoneTag = source.studentPhoneTag
+                newAttendee.motherName = source.motherName
+                newAttendee.fatherName = source.fatherName
+                newAttendee.pickupTime = source.pickupTime
+                newAttendee.dropoffTime = source.dropoffTime
+                newAttendee.list = newListEntity
+            }
+
+            save()
+            fetchLists()
+        } catch {
+            print("Failed to duplicate list: \(error)")
+        }
+    }
+
     func deleteList(_ list: AttendeeList) {
         let request: NSFetchRequest<AttendeeListEntity> = AttendeeListEntity.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", list.id as CVarArg)

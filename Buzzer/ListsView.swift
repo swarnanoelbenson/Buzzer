@@ -16,6 +16,9 @@ struct ListsView: View {
     @State private var listToDelete: AttendeeList?
     @State private var showDeleteConfirmation = false
     @State private var showExitDemoConfirmation = false
+    @State private var listToDuplicate: AttendeeList?
+    @State private var duplicateName = ""
+    @State private var showDuplicateAlert = false
 
     var body: some View {
         NavigationView {
@@ -72,6 +75,21 @@ struct ListsView: View {
                 }
             } message: { list in
                 Text("Are you sure you want to delete \"\(list.name)\"? This will remove all students and attendance records.")
+            }
+            .alert("Duplicate Route", isPresented: $showDuplicateAlert) {
+                TextField("New route name", text: $duplicateName)
+                Button("Cancel", role: .cancel) {
+                    listToDuplicate = nil
+                }
+                Button("Duplicate") {
+                    let trimmed = duplicateName.trimmingCharacters(in: .whitespaces)
+                    if !trimmed.isEmpty, let source = listToDuplicate {
+                        dataManager.duplicateList(source, newName: trimmed)
+                    }
+                    listToDuplicate = nil
+                }
+            } message: {
+                Text("Enter a name for the duplicated route. All students will be copied — attendance history will not.")
             }
         }
         .navigationViewStyle(.stack)
@@ -151,6 +169,16 @@ struct ListsView: View {
                     } label: {
                         Label("Delete", systemImage: "trash")
                     }
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    Button {
+                        listToDuplicate = list
+                        duplicateName = "\(list.name) Copy"
+                        showDuplicateAlert = true
+                    } label: {
+                        Label("Duplicate", systemImage: "doc.on.doc")
+                    }
+                    .tint(.blue)
                 }
             }
         }

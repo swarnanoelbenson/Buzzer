@@ -19,6 +19,7 @@ struct ListDetailView: View {
     @State private var attendeeToEdit: Attendee?
     @State private var showEditAttendee = false
     @State private var attendeeForNotes: Attendee?
+    @State private var attendeeForProfile: Attendee?
     @State private var showRenameRoute = false
     @State private var pendingRouteName = ""
     
@@ -116,6 +117,9 @@ struct ListDetailView: View {
         .sheet(item: $attendeeToEdit) { attendee in
             EditAttendeeView(list: list, attendee: attendee)
         }
+        .sheet(item: $attendeeForProfile) { attendee in
+            AttendeeProfileView(attendee: attendee)
+        }
         .sheet(item: $attendeeForNotes) { attendee in
             NavigationView {
                 PassengerNotesListView(attendee: attendee)
@@ -166,29 +170,52 @@ struct ListDetailView: View {
     private func attendeeList(currentList: AttendeeList) -> some View {
         List {
             ForEach(currentList.attendees) { attendee in
-                HStack {
-                    Text(attendee.name)
-                        .font(.body)
-                    
-                    Spacer()
-                    
+                HStack(spacing: 0) {
+                    // Tappable name area — fills all remaining space
+                    Button {
+                        attendeeForProfile = attendee
+                    } label: {
+                        Text(attendee.name)
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
                     if isEditMode == .inactive {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             Button {
                                 attendeeForNotes = attendee
                             } label: {
-                                Image(systemName: "note.text")
-                                    .foregroundColor(.orange)
-                                    .imageScale(.large)
+                                VStack(spacing: 3) {
+                                    Image(systemName: "note.text")
+                                        .font(.system(size: 18))
+                                    Text("Note")
+                                        .font(.caption2)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundColor(.orange)
+                                .frame(width: 56, height: 44)
+                                .background(Color.orange.opacity(0.1))
+                                .cornerRadius(10)
                             }
                             .buttonStyle(.plain)
 
                             Button {
                                 attendeeToEdit = attendee
                             } label: {
-                                Image(systemName: "pencil.circle")
-                                    .foregroundColor(.accentColor)
-                                    .imageScale(.large)
+                                VStack(spacing: 3) {
+                                    Image(systemName: "pencil.circle")
+                                        .font(.system(size: 18))
+                                    Text("Edit")
+                                        .font(.caption2)
+                                        .fontWeight(.medium)
+                                }
+                                .foregroundColor(.accentColor)
+                                .frame(width: 56, height: 44)
+                                .background(Color.accentColor.opacity(0.1))
+                                .cornerRadius(10)
                             }
                             .buttonStyle(.plain)
                         }
