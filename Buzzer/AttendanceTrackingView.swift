@@ -104,11 +104,12 @@ struct AttendanceTrackingView: View {
             let progress = sessionManager.getProgress(for: list)
             
             HStack {
+                Spacer()
                 Text("\(progress.current) of \(progress.total)")
                     .font(.headline)
                     .foregroundColor(.primary)
                 
-                Spacer()
+                
                 
                 let summary = sessionManager.getSummary()
                 HStack(spacing: 12) {
@@ -179,7 +180,9 @@ struct AttendanceTrackingView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .padding(.bottom, 16)
-
+                
+                Spacer()
+                
                 // Current attendee info
                 if sessionManager.currentAttendeeIndex < orderedAttendees.count {
                     let currentAttendee = orderedAttendees[sessionManager.currentAttendeeIndex]

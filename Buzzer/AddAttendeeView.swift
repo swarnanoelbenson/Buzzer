@@ -49,10 +49,10 @@ struct AddAttendeeView: View {
 
                 // MARK: Address (required)
                 Section {
-                    TextField("e.g. 12 Oak Street, Springfield", text: $address)
+                    TextField("e.g. Oak Street, Springfield", text: $address)
                         .focused($focusedField, equals: .address)
                 } header: {
-                    Text("Home Address")
+                    Text("Stop Address")
                 }
 
                 // MARK: Primary Phone (required)

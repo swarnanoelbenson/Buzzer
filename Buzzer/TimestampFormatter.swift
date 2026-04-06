@@ -14,7 +14,7 @@ struct TimestampFormatter {
     /// Formats a date as HH:MM:SS (24-hour format)
     static func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
+        formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }
     

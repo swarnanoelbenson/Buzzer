@@ -18,10 +18,14 @@
     </entity>
     <entity name="AttendeeEntity" representedClassName="AttendeeEntity" syncable="YES">
         <attribute name="address" optional="YES" attributeType="String"/>
+        <attribute name="dropoffTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="fatherName" optional="YES" attributeType="String"/>
         <attribute name="grade" attributeType="String" defaultValueString=""/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="motherName" optional="YES" attributeType="String"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="orderIndex" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="pickupTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="primaryPhone" optional="YES" attributeType="String"/>
         <attribute name="primaryPhoneTag" optional="YES" attributeType="String"/>
         <attribute name="secondaryPhone" optional="YES" attributeType="String"/>

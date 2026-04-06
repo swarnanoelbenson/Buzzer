@@ -39,6 +39,7 @@ struct EditAttendeeView: View {
         _primaryPhoneTag = State(initialValue: attendee.primaryPhoneTag)
         _secondaryPhone = State(initialValue: attendee.secondaryPhone)
         _secondaryPhoneTag = State(initialValue: attendee.secondaryPhoneTag)
+        
     }
 
     var body: some View {
@@ -65,7 +66,7 @@ struct EditAttendeeView: View {
                     TextField("e.g. 12 Oak Street, Springfield", text: $address)
                         .focused($focusedField, equals: .address)
                 } header: {
-                    Text("Home Address")
+                    Text("Stop Address")
                 }
 
                 // MARK: Primary Phone
