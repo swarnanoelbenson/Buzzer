@@ -11,27 +11,42 @@ struct AddAttendeeView: View {
 
     let list: AttendeeList
 
+    // MARK: - Student info
     @State private var attendeeName = ""
     @State private var grade = ""
     @State private var address = ""
-    @State private var primaryPhone = ""
-    @State private var primaryPhoneTag: PhoneTag = .mother
-    @State private var secondaryPhone = ""
-    @State private var secondaryPhoneTag: PhoneTag = .mother
 
+    // MARK: - Guardian info
+    @State private var motherName = ""
+    @State private var fatherName = ""
+
+    // MARK: - Phone fields
+    @State private var primaryPhone = ""                    // Mother's phone (required)
+    @State private var primaryPhoneTag: PhoneTag = .mother
+    @State private var secondaryPhone = ""                  // Father's phone (optional)
+    @State private var secondaryPhoneTag: PhoneTag = .father
+    @State private var studentPhone = ""                    // Student's phone (optional)
+    @State private var studentPhoneTag: PhoneTag = .student
+
+    // MARK: - Phone validation errors
     @State private var primaryPhoneError: String?
     @State private var secondaryPhoneError: String?
+    @State private var studentPhoneError: String?
+
+    // MARK: - Schedule times
+    @State private var pickupTime: Date = Date()
+    @State private var dropoffTime: Date = Date()
 
     @FocusState private var focusedField: Field?
 
     private enum Field {
-        case name, grade, address, primaryPhone, secondaryPhone
+        case name, grade, address, motherName, fatherName, primaryPhone, secondaryPhone, studentPhone
     }
 
     var body: some View {
         NavigationView {
             Form {
-                // MARK: Name
+                // MARK: Student Name
                 Section {
                     TextField("Full name", text: $attendeeName)
                         .focused($focusedField, equals: .name)
@@ -39,7 +54,7 @@ struct AddAttendeeView: View {
                     Text("Student Name")
                 }
 
-                // MARK: Grade (required)
+                // MARK: Grade
                 Section {
                     TextField("e.g. Year 5", text: $grade)
                         .focused($focusedField, equals: .grade)
@@ -47,7 +62,7 @@ struct AddAttendeeView: View {
                     Text("Grade")
                 }
 
-                // MARK: Address (required)
+                // MARK: Address
                 Section {
                     TextField("e.g. Oak Street, Springfield", text: $address)
                         .focused($focusedField, equals: .address)
@@ -55,7 +70,17 @@ struct AddAttendeeView: View {
                     Text("Stop Address")
                 }
 
-                // MARK: Primary Phone (required)
+                // MARK: Guardian Info
+                Section {
+                    TextField("Mother's full name", text: $motherName)
+                        .focused($focusedField, equals: .motherName)
+                    TextField("Father's full name", text: $fatherName)
+                        .focused($focusedField, equals: .fatherName)
+                } header: {
+                    Text("Guardian Information")
+                }
+
+                // MARK: Mother's Phone (primary, required)
                 Section {
                     HStack(spacing: 12) {
                         Picker("", selection: $primaryPhoneTag) {
@@ -82,12 +107,12 @@ struct AddAttendeeView: View {
                             .foregroundColor(.red)
                     }
                 } header: {
-                    Text("Primary Contact Phone")
+                    Text("Mother's Phone")
                 } footer: {
-                    Text("10 digits — mobile (04xx/05xx) or landline (02/03/07/08)")
+                    Text("Required — 10 digits, mobile (04xx/05xx) or landline (02/03/07/08)")
                 }
 
-                // MARK: Secondary Phone (optional)
+                // MARK: Father's Phone (secondary, optional)
                 Section {
                     HStack(spacing: 12) {
                         Picker("", selection: $secondaryPhoneTag) {
@@ -114,9 +139,49 @@ struct AddAttendeeView: View {
                             .foregroundColor(.red)
                     }
                 } header: {
-                    Text("Secondary Contact Phone")
+                    Text("Father's Phone")
                 } footer: {
                     Text("Optional — 10 digits, mobile (04xx/05xx) or landline (02/03/07/08)")
+                }
+
+                // MARK: Student's Phone (optional)
+                Section {
+                    HStack(spacing: 12) {
+                        Picker("", selection: $studentPhoneTag) {
+                            ForEach(PhoneTag.allCases, id: \.self) { tag in
+                                Text(tag.rawValue).tag(tag)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 90)
+
+                        TextField("04XX XXX XXX", text: $studentPhone)
+                            .keyboardType(.numberPad)
+                            .focused($focusedField, equals: .studentPhone)
+                            .onChange(of: studentPhone) { newValue in
+                                studentPhone = sanitisePhone(newValue)
+                                studentPhoneError = validatePhone(studentPhone, required: false)
+                            }
+                    }
+
+                    if let error = studentPhoneError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                } header: {
+                    Text("Student's Phone")
+                } footer: {
+                    Text("Optional — 10 digits, mobile (04xx/05xx) or landline (02/03/07/08)")
+                }
+
+                // MARK: Schedule Times
+                Section {
+                    DatePicker("Pickup Time", selection: $pickupTime, displayedComponents: .hourAndMinute)
+                    DatePicker("Drop-off Time", selection: $dropoffTime, displayedComponents: .hourAndMinute)
+                } header: {
+                    Text("Schedule")
                 }
             }
             .navigationTitle("Add Student")
@@ -143,9 +208,12 @@ struct AddAttendeeView: View {
         let nameOK = !attendeeName.trimmingCharacters(in: .whitespaces).isEmpty
         let gradeOK = !grade.trimmingCharacters(in: .whitespaces).isEmpty
         let addressOK = !address.trimmingCharacters(in: .whitespaces).isEmpty
+        let motherNameOK = !motherName.trimmingCharacters(in: .whitespaces).isEmpty
+        let fatherNameOK = !fatherName.trimmingCharacters(in: .whitespaces).isEmpty
         let primaryOK = validatePhone(primaryPhone, required: true) == nil
         let secondaryOK = validatePhone(secondaryPhone, required: false) == nil
-        return nameOK && gradeOK && addressOK && primaryOK && secondaryOK
+        let studentOK = validatePhone(studentPhone, required: false) == nil
+        return nameOK && gradeOK && addressOK && motherNameOK && fatherNameOK && primaryOK && secondaryOK && studentOK
     }
 
     /// Returns an error string if invalid, nil if valid.
@@ -175,7 +243,10 @@ struct AddAttendeeView: View {
         let trimmedName = attendeeName.trimmingCharacters(in: .whitespaces)
         let trimmedGrade = grade.trimmingCharacters(in: .whitespaces)
         let trimmedAddress = address.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty, !trimmedGrade.isEmpty, !trimmedAddress.isEmpty else { return }
+        let trimmedMotherName = motherName.trimmingCharacters(in: .whitespaces)
+        let trimmedFatherName = fatherName.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty, !trimmedGrade.isEmpty, !trimmedAddress.isEmpty,
+              !trimmedMotherName.isEmpty, !trimmedFatherName.isEmpty else { return }
 
         dataManager.addAttendee(
             to: list,
@@ -185,7 +256,13 @@ struct AddAttendeeView: View {
             primaryPhone: primaryPhone,
             primaryPhoneTag: primaryPhoneTag,
             secondaryPhone: secondaryPhone,
-            secondaryPhoneTag: secondaryPhoneTag
+            secondaryPhoneTag: secondaryPhoneTag,
+            studentPhone: studentPhone,
+            studentPhoneTag: studentPhoneTag,
+            motherName: trimmedMotherName,
+            fatherName: trimmedFatherName,
+            pickupTime: pickupTime,
+            dropoffTime: dropoffTime
         )
         dismiss()
     }

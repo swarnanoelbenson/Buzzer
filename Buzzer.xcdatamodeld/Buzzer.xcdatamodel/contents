@@ -30,6 +30,8 @@
         <attribute name="primaryPhoneTag" optional="YES" attributeType="String"/>
         <attribute name="secondaryPhone" optional="YES" attributeType="String"/>
         <attribute name="secondaryPhoneTag" optional="YES" attributeType="String"/>
+        <attribute name="studentPhone" optional="YES" attributeType="String"/>
+        <attribute name="studentPhoneTag" optional="YES" attributeType="String"/>
         <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeListEntity" inverseName="attendees" inverseEntity="AttendeeListEntity"/>
         <relationship name="records" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceRecordEntity" inverseName="attendee" inverseEntity="AttendanceRecordEntity"/>
     </entity>

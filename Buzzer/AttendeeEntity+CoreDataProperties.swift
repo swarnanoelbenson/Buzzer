@@ -18,12 +18,18 @@ extension AttendeeEntity {
     @NSManaged public var name: String?
     @NSManaged public var orderIndex: Int16
     @NSManaged public var grade: String
-    @NSManaged public var address: String
-    @NSManaged public var primaryPhone: String
-    @NSManaged public var primaryPhoneTag: String
+    @NSManaged public var address: String?
+    @NSManaged public var primaryPhone: String?
+    @NSManaged public var primaryPhoneTag: String?
 
     @NSManaged public var secondaryPhone: String?
     @NSManaged public var secondaryPhoneTag: String?
+    @NSManaged public var studentPhone: String?
+    @NSManaged public var studentPhoneTag: String?
+    @NSManaged public var motherName: String?
+    @NSManaged public var fatherName: String?
+    @NSManaged public var pickupTime: Date?
+    @NSManaged public var dropoffTime: Date?
     @NSManaged public var list: AttendeeListEntity?
     
 }

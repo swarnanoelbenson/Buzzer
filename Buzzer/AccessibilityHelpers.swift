@@ -259,11 +259,11 @@ struct AccessibleDatePicker: View {
 
 #Preview("Accessible Buttons") {
     VStack(spacing: 20) {
-        AccessibleLargeButton("Start Pick-Up", systemImage: "arrow.up.circle.fill", color: .green) {
+        AccessibleLargeButton("Start AM Pickup", systemImage: "arrow.up.circle.fill", color: .green) {
             print("Tapped")
         }
         
-        AccessibleLargeButton("Start Drop-Off", systemImage: "arrow.down.circle.fill", color: .orange) {
+        AccessibleLargeButton("Start PM Dropoff", systemImage: "arrow.down.circle.fill", color: .orange) {
             print("Tapped")
         }
         

@@ -18,15 +18,15 @@ struct CreateListView: View {
         NavigationView {
             Form {
                 Section {
-                    TextField("List Name", text: $listName)
+                    TextField("Route Name", text: $listName)
                         .focused($isTextFieldFocused)
                 } header: {
-                    Text("Enter List Name")
+                    Text("Enter Route Name")
                 } footer: {
                     Text("Choose a descriptive name like \"Morning Route A\" or \"Bus 42\"")
                 }
             }
-            .navigationTitle("New List")
+            .navigationTitle("New Route")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

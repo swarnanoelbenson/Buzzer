@@ -29,7 +29,7 @@
                         .multilineTextAlignment(.center)
                         .accessibleHeader()
                     
-                    Text("\(currentList?.attendees.count ?? 0) attendees")
+                    Text("\(currentList?.attendees.count ?? 0) student\(currentList?.attendees.count == 1 ? "" : "s")")
                         .font(.system(size: 18)) // Accessible size
                         .foregroundColor(.secondary)
                         .accessibilityLabel("\(currentList?.attendees.count ?? 0) attendees in this list")
@@ -45,20 +45,20 @@
                         startSession(type: .pickup)
                     } label: {
                         sessionButton(
-                            title: "Start Pick-Up",
+                            title: "Start AM Pickup",
                             systemImage: "arrow.up.circle.fill",
                             color: .accessibleGreen
                         )
                     }
                     .disabled(isEmpty)
-                    .accessibilityLabel("Start pick-up session")
-                    .accessibilityHint("Begin recording pick-up attendance")
+                    .accessibilityLabel("Start AM Pickup session")
+                    .accessibilityHint("Begin recording AM Pickup attendance")
                     
                     if let lastPickup = dataManager.fetchRecentSession(for: list, type: .pickup) {
-                        Text("Last pick-up: \(lastPickup.createdDate, style: .relative)")
+                        Text("Last AM Pickup: \(lastPickup.createdDate, style: .relative)")
                             .font(.system(size: 16)) // Accessible font size
                             .foregroundColor(.secondary)
-                            .accessibilityLabel("Last pick-up session was \(lastPickup.createdDate, style: .relative)")
+                            .accessibilityLabel("Last AM Pickup session was \(lastPickup.createdDate, style: .relative)")
                     }
                     
                     AccessibleDivider()
@@ -68,20 +68,20 @@
                         startSession(type: .dropoff)
                     } label: {
                         sessionButton(
-                            title: "Start Drop-Off",
+                            title: "Start PM Dropoff",
                             systemImage: "arrow.down.circle.fill",
                             color: .accessibleOrange
                         )
                     }
                     .disabled(isEmpty)
-                    .accessibilityLabel("Start drop-off session")
-                    .accessibilityHint("Begin recording drop-off attendance")
+                    .accessibilityLabel("Start PM Dropoff session")
+                    .accessibilityHint("Begin recording PM Dropoff attendance")
                     
                     if let lastDropoff = dataManager.fetchRecentSession(for: list, type: .dropoff) {
-                        Text("Last drop-off: \(lastDropoff.createdDate, style: .relative)")
+                        Text("Last PM Dropoff: \(lastDropoff.createdDate, style: .relative)")
                             .font(.system(size: 16)) // Accessible font size
                             .foregroundColor(.secondary)
-                            .accessibilityLabel("Last drop-off session was \(lastDropoff.createdDate, style: .relative)")
+                            .accessibilityLabel("Last PM Dropoff session was \(lastDropoff.createdDate, style: .relative)")
                     }
                 }
                 .padding(.horizontal, 24)

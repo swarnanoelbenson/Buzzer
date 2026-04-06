@@ -44,7 +44,7 @@ struct ListsView: View {
                     } label: {
                         Image(systemName: "plus")
                             .imageScale(.large)
-                            .accessibilityLabel("Create new list")
+                            .accessibilityLabel("Create new route")
                     }
                 }
             }
@@ -62,7 +62,7 @@ struct ListsView: View {
             } message: {
                 Text("This will delete all demo data and driver details, returning the app to its initial state.")
             }
-            .alert("Delete List", isPresented: $showDeleteConfirmation, presenting: listToDelete) { list in
+            .alert("Delete Route", isPresented: $showDeleteConfirmation, presenting: listToDelete) { list in
                 Button("Cancel", role: .cancel) {
                     listToDelete = nil
                 }
@@ -71,7 +71,7 @@ struct ListsView: View {
                     listToDelete = nil
                 }
             } message: { list in
-                Text("Are you sure you want to delete \"\(list.name)\"? This will remove all attendees and attendance records.")
+                Text("Are you sure you want to delete \"\(list.name)\"? This will remove all students and attendance records.")
             }
         }
         .navigationViewStyle(.stack)
@@ -83,11 +83,11 @@ struct ListsView: View {
                 .font(.system(size: 70))
                 .foregroundColor(.secondary)
             
-            Text("No Lists Yet")
+            Text("No Routes Yet")
                 .font(.title2)
                 .fontWeight(.semibold)
             
-            Text("Create your first attendance list to get started")
+            Text("Create your first route to get started")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -96,7 +96,7 @@ struct ListsView: View {
             Button {
                 showingCreateList = true
             } label: {
-                Label("Create List", systemImage: "plus.circle.fill")
+                Label("Create Route", systemImage: "plus.circle.fill")
                     .font(.headline)
                     .foregroundColor(.white)
                     .padding(.horizontal, 30)
@@ -167,7 +167,7 @@ struct ListRowView: View {
                 .font(.headline)
             
             HStack {
-                Label("\(list.attendees.count) attendees", systemImage: "person.2")
+                Label("\(list.attendees.count) student\(list.attendees.count == 1 ? "" : "s")", systemImage: "person.2")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 

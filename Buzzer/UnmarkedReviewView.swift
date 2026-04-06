@@ -44,7 +44,7 @@ struct UnmarkedReviewView: View {
                 // Pinned action buttons
                 actionButtons
             }
-            .navigationTitle("Missed Attendees")
+            .navigationTitle("Missed Students")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -53,14 +53,14 @@ struct UnmarkedReviewView: View {
                     }
                 }
             }
-            .alert("Skip These Attendees?", isPresented: $showIgnoreConfirmation) {
+            .alert("Skip These Students?", isPresented: $showIgnoreConfirmation) {
                 Button("Cancel", role: .cancel) { }
                 Button("Proceed Anyway", role: .destructive) {
                     dismiss()
                     onProceed()
                 }
             } message: {
-                Text("These \(unmarkedAttendees.count) attendee\(unmarkedAttendees.count == 1 ? "'s" : "s'") attendance will be unrecorded in the report.")
+                Text("These \(unmarkedAttendees.count) student\(unmarkedAttendees.count == 1 ? "'s" : "s'") attendance will be unrecorded in the report.")
             }
         }
     }
@@ -71,10 +71,28 @@ struct UnmarkedReviewView: View {
         let notes = PassengerNoteManager.shared.getActiveNotes(for: attendee.id, on: sessionDate)
         let accentColor: Color = sessionType == .pickup ? .green : .orange
 
+        let scheduleTime: Date? = sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime
+        let scheduleLabel = sessionType == .pickup ? "AM Pickup" : "PM Dropoff"
+
         return VStack(alignment: .leading, spacing: 10) {
-            Text(attendee.name)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(.primary)
+            HStack {
+                Text(attendee.name)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                if let time = scheduleTime {
+                    HStack(spacing: 4) {
+                        Image(systemName: sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                            .foregroundColor(accentColor)
+                        Text("\(scheduleLabel): \(time, style: .time)")
+                            .fontWeight(.semibold)
+                            .foregroundColor(.primary)
+                    }
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
+                }
+            }
 
             if !notes.isEmpty {
                 VStack(spacing: 6) {
@@ -171,7 +189,12 @@ struct UnmarkedReviewView: View {
         impactFeedback.impactOccurred()
 
         for attendee in unmarkedAttendees {
-            sessionManager.recordAttendance(for: attendee, status: status)
+            // When marking present, use the student's scheduled time as the timestamp
+            // so the report reflects their expected pickup/dropoff time rather than now.
+            let scheduledTime: Date? = status == .present
+                ? (sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime)
+                : nil
+            sessionManager.recordAttendance(for: attendee, status: status, timestamp: scheduledTime)
         }
 
         dismiss()

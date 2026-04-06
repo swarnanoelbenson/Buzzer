@@ -45,7 +45,7 @@ struct AttendanceTrackingView: View {
                 }
             }
         }
-        .navigationTitle(sessionType == .pickup ? "PICK-UP" : "DROP-OFF")
+        .navigationTitle(sessionType == .pickup ? "AM PICKUP" : "PM DROPOFF")
         .navigationBarTitleDisplayMode(.large)
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -196,6 +196,9 @@ struct AttendanceTrackingView: View {
                             .minimumScaleFactor(0.5)
                             .lineLimit(2)
 
+                        // Scheduled pickup / dropoff time
+                        scheduleTimeRow(for: currentAttendee)
+
                         // Active notes for today's session date
                         activeNotesView(for: currentAttendee)
 
@@ -205,7 +208,9 @@ struct AttendanceTrackingView: View {
                                 Image(systemName: record.status == .present ? "checkmark.circle.fill" : "xmark.circle.fill")
                                     .foregroundColor(record.status == .present ? .green : .red)
 
-                                Text(record.status == .present ? "Marked Present" : "Marked Absent")
+                                Text(record.status == .present
+                                    ? (sessionType == .pickup ? "On Bus" : "Off Bus")
+                                    : "Marked Absent")
                                     .fontWeight(.medium)
 
                                 if let timestamp = record.timestamp {
@@ -255,7 +260,7 @@ struct AttendanceTrackingView: View {
                         .cornerRadius(20)
                     }
 
-                    // Present button
+                    // Present / On Bus / Off Bus button
                     Button {
                         markAttendance(status: .present)
                     } label: {
@@ -263,7 +268,7 @@ struct AttendanceTrackingView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 50))
 
-                            Text("Present")
+                            Text(sessionType == .pickup ? "On Bus" : "Off Bus")
                                 .font(.title2)
                                 .fontWeight(.bold)
                         }
@@ -280,6 +285,32 @@ struct AttendanceTrackingView: View {
         }
     }
     
+    // MARK: - Schedule Time Row
+
+    @ViewBuilder
+    private func scheduleTimeRow(for attendee: Attendee) -> some View {
+        let accentColor: Color = sessionType == .pickup ? .green : .orange
+        let time: Date? = sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime
+        let label = sessionType == .pickup ? "AM Pickup" : "PM Dropoff"
+
+        if let time {
+            HStack(spacing: 6) {
+                Image(systemName: sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                    .foregroundColor(accentColor)
+                Text("\(label): \(time, style: .time)")
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+            }
+            .font(.system(size: 24, weight: .bold, design: .rounded))
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(accentColor.opacity(0.10))
+            )
+        }
+    }
+
     // MARK: - Note View
 
     // Each note container is ~90pt tall (14 vertical padding × 2 + ~62pt text).

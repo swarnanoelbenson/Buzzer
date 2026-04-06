@@ -86,7 +86,13 @@ class DataManager: ObservableObject {
         primaryPhone: String,
         primaryPhoneTag: PhoneTag,
         secondaryPhone: String = "",
-        secondaryPhoneTag: PhoneTag = .mother
+        secondaryPhoneTag: PhoneTag = .father,
+        studentPhone: String = "",
+        studentPhoneTag: PhoneTag = .student,
+        motherName: String = "",
+        fatherName: String = "",
+        pickupTime: Date? = nil,
+        dropoffTime: Date? = nil
     ) {
         let request: NSFetchRequest<AttendeeListEntity> = AttendeeListEntity.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", list.id as CVarArg)
@@ -104,6 +110,12 @@ class DataManager: ObservableObject {
                 attendeeEntity.primaryPhoneTag = primaryPhoneTag.rawValue
                 attendeeEntity.secondaryPhone = secondaryPhone.isEmpty ? nil : secondaryPhone
                 attendeeEntity.secondaryPhoneTag = secondaryPhone.isEmpty ? nil : secondaryPhoneTag.rawValue
+                attendeeEntity.studentPhone = studentPhone.isEmpty ? nil : studentPhone
+                attendeeEntity.studentPhoneTag = studentPhone.isEmpty ? nil : studentPhoneTag.rawValue
+                attendeeEntity.motherName = motherName.isEmpty ? nil : motherName
+                attendeeEntity.fatherName = fatherName.isEmpty ? nil : fatherName
+                attendeeEntity.pickupTime = pickupTime
+                attendeeEntity.dropoffTime = dropoffTime
                 
                 save()
                 fetchLists()
@@ -127,6 +139,12 @@ class DataManager: ObservableObject {
                 entity.primaryPhoneTag = attendee.primaryPhoneTag.rawValue
                 entity.secondaryPhone = attendee.secondaryPhone.isEmpty ? nil : attendee.secondaryPhone
                 entity.secondaryPhoneTag = attendee.secondaryPhone.isEmpty ? nil : attendee.secondaryPhoneTag.rawValue
+                entity.studentPhone = attendee.studentPhone.isEmpty ? nil : attendee.studentPhone
+                entity.studentPhoneTag = attendee.studentPhone.isEmpty ? nil : attendee.studentPhoneTag.rawValue
+                entity.motherName = attendee.motherName.isEmpty ? nil : attendee.motherName
+                entity.fatherName = attendee.fatherName.isEmpty ? nil : attendee.fatherName
+                entity.pickupTime = attendee.pickupTime
+                entity.dropoffTime = attendee.dropoffTime
                 save()
                 fetchLists()
             }
@@ -193,11 +211,17 @@ class DataManager: ObservableObject {
             name: entity.name ?? "",
             orderIndex: Int(entity.orderIndex),
             grade: entity.grade,
-            address: entity.address,
-            primaryPhone: entity.primaryPhone,
-            primaryPhoneTag: PhoneTag(rawValue: entity.primaryPhoneTag) ?? .mother,
+            address: entity.address ?? "",
+            primaryPhone: entity.primaryPhone ?? "",
+            primaryPhoneTag: PhoneTag(rawValue: entity.primaryPhoneTag ?? "") ?? .mother,
             secondaryPhone: entity.secondaryPhone ?? "",
-            secondaryPhoneTag: PhoneTag(rawValue: entity.secondaryPhoneTag ?? "") ?? .mother
+            secondaryPhoneTag: PhoneTag(rawValue: entity.secondaryPhoneTag ?? "") ?? .father,
+            studentPhone: entity.studentPhone ?? "",
+            studentPhoneTag: PhoneTag(rawValue: entity.studentPhoneTag ?? "") ?? .student,
+            motherName: entity.motherName ?? "",
+            fatherName: entity.fatherName ?? "",
+            pickupTime: entity.pickupTime,
+            dropoffTime: entity.dropoffTime
         )
     }
     

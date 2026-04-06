@@ -44,17 +44,27 @@ class DemoModeManager: ObservableObject {
         listEntity.name = "Demo Route"
         listEntity.createdDate = Date()
 
-        let demoAttendeesData: [(name: String, grade: String, phone: String)] = [
-            ("John Smith",     "Grade 6", "0411000001"),
-            ("Sarah Johnson",  "Grade 5", "0411000002"),
-            ("Mike Davis",     "Grade 6", "0411000003"),
-            ("Emily Brown",    "Grade 5", "0411000004"),
-            ("Alex Wilson",    "Grade 7", "0411000005"),
-            ("Jessica Lee",    "Grade 6", "0411000006"),
-            ("Tom Anderson",   "Grade 5", "0411000007"),
-            ("Lisa Martinez",  "Grade 7", "0411000008"),
-            ("David Taylor",   "Grade 6", "0411000009"),
-            ("Sophie White",   "Grade 5", "0411000010"),
+        // Helper to build a Date for a given hour:minute today (used for pickup/dropoff times)
+        func time(hour: Int, minute: Int) -> Date {
+            Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
+        }
+
+        let demoAttendeesData: [(
+            name: String, grade: String, phone: String,
+            motherName: String, fatherName: String,
+            pickupHour: Int, pickupMinute: Int,
+            dropoffHour: Int, dropoffMinute: Int
+        )] = [
+            ("John Smith",    "Grade 6", "0411000001", "Mary Smith",    "Robert Smith",   7, 45, 15, 30),
+            ("Sarah Johnson", "Grade 5", "0411000002", "Linda Johnson", "Mark Johnson",   8,  0, 15, 45),
+            ("Mike Davis",    "Grade 6", "0411000003", "Patricia Davis","James Davis",    7, 50, 15, 30),
+            ("Emily Brown",   "Grade 5", "0411000004", "Barbara Brown", "William Brown",  8,  5, 15, 40),
+            ("Alex Wilson",   "Grade 7", "0411000005", "Susan Wilson",  "Richard Wilson", 7, 55, 15, 35),
+            ("Jessica Lee",   "Grade 6", "0411000006", "Karen Lee",     "Charles Lee",    8, 10, 15, 50),
+            ("Tom Anderson",  "Grade 5", "0411000007", "Nancy Anderson","Joseph Anderson",7, 48, 15, 30),
+            ("Lisa Martinez", "Grade 7", "0411000008", "Betty Martinez","Thomas Martinez",8,  2, 15, 45),
+            ("David Taylor",  "Grade 6", "0411000009", "Dorothy Taylor","Christopher Taylor", 7, 52, 15, 35),
+            ("Sophie White",  "Grade 5", "0411000010", "Sandra White",  "Daniel White",   8,  8, 15, 50),
         ]
 
         var attendeeEntities: [AttendeeEntity] = []
@@ -67,6 +77,10 @@ class DemoModeManager: ObservableObject {
             attendeeEntity.address = "1\(index + 1) Demo Street, Sydney NSW 2000"
             attendeeEntity.primaryPhone = data.phone
             attendeeEntity.primaryPhoneTag = PhoneTag.mother.rawValue
+            attendeeEntity.motherName = data.motherName
+            attendeeEntity.fatherName = data.fatherName
+            attendeeEntity.pickupTime = time(hour: data.pickupHour, minute: data.pickupMinute)
+            attendeeEntity.dropoffTime = time(hour: data.dropoffHour, minute: data.dropoffMinute)
             attendeeEntity.list = listEntity
             attendeeEntities.append(attendeeEntity)
         }

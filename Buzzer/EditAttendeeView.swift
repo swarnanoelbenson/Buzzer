@@ -12,21 +12,36 @@ struct EditAttendeeView: View {
     let list: AttendeeList
     let attendee: Attendee
 
+    // MARK: - Student info
     @State private var attendeeName: String
     @State private var grade: String
     @State private var address: String
-    @State private var primaryPhone: String
-    @State private var primaryPhoneTag: PhoneTag
-    @State private var secondaryPhone: String
-    @State private var secondaryPhoneTag: PhoneTag
 
+    // MARK: - Guardian info
+    @State private var motherName: String
+    @State private var fatherName: String
+
+    // MARK: - Phone fields
+    @State private var primaryPhone: String       // Mother's phone (required)
+    @State private var primaryPhoneTag: PhoneTag
+    @State private var secondaryPhone: String     // Father's phone (optional)
+    @State private var secondaryPhoneTag: PhoneTag
+    @State private var studentPhone: String       // Student's phone (optional)
+    @State private var studentPhoneTag: PhoneTag
+
+    // MARK: - Phone validation errors
     @State private var primaryPhoneError: String?
     @State private var secondaryPhoneError: String?
+    @State private var studentPhoneError: String?
+
+    // MARK: - Schedule times
+    @State private var pickupTime: Date
+    @State private var dropoffTime: Date
 
     @FocusState private var focusedField: Field?
 
     private enum Field {
-        case name, grade, address, primaryPhone, secondaryPhone
+        case name, grade, address, motherName, fatherName, primaryPhone, secondaryPhone, studentPhone
     }
 
     init(list: AttendeeList, attendee: Attendee) {
@@ -35,17 +50,22 @@ struct EditAttendeeView: View {
         _attendeeName = State(initialValue: attendee.name)
         _grade = State(initialValue: attendee.grade)
         _address = State(initialValue: attendee.address)
+        _motherName = State(initialValue: attendee.motherName)
+        _fatherName = State(initialValue: attendee.fatherName)
         _primaryPhone = State(initialValue: attendee.primaryPhone)
         _primaryPhoneTag = State(initialValue: attendee.primaryPhoneTag)
         _secondaryPhone = State(initialValue: attendee.secondaryPhone)
         _secondaryPhoneTag = State(initialValue: attendee.secondaryPhoneTag)
-        
+        _studentPhone = State(initialValue: attendee.studentPhone)
+        _studentPhoneTag = State(initialValue: attendee.studentPhoneTag)
+        _pickupTime = State(initialValue: attendee.pickupTime ?? Date())
+        _dropoffTime = State(initialValue: attendee.dropoffTime ?? Date())
     }
 
     var body: some View {
         NavigationView {
             Form {
-                // MARK: Name
+                // MARK: Student Name
                 Section {
                     TextField("Full name", text: $attendeeName)
                         .focused($focusedField, equals: .name)
@@ -69,7 +89,17 @@ struct EditAttendeeView: View {
                     Text("Stop Address")
                 }
 
-                // MARK: Primary Phone
+                // MARK: Guardian Info
+                Section {
+                    TextField("Mother's full name", text: $motherName)
+                        .focused($focusedField, equals: .motherName)
+                    TextField("Father's full name", text: $fatherName)
+                        .focused($focusedField, equals: .fatherName)
+                } header: {
+                    Text("Guardian Information")
+                }
+
+                // MARK: Mother's Phone (primary, required)
                 Section {
                     HStack(spacing: 12) {
                         Picker("", selection: $primaryPhoneTag) {
@@ -96,12 +126,12 @@ struct EditAttendeeView: View {
                             .foregroundColor(.red)
                     }
                 } header: {
-                    Text("Primary Contact Phone")
+                    Text("Mother's Phone")
                 } footer: {
-                    Text("10 digits — mobile (04xx/05xx) or landline (02/03/07/08)")
+                    Text("Required — 10 digits, mobile (04xx/05xx) or landline (02/03/07/08)")
                 }
 
-                // MARK: Secondary Phone
+                // MARK: Father's Phone (secondary, optional)
                 Section {
                     HStack(spacing: 12) {
                         Picker("", selection: $secondaryPhoneTag) {
@@ -128,9 +158,49 @@ struct EditAttendeeView: View {
                             .foregroundColor(.red)
                     }
                 } header: {
-                    Text("Secondary Contact Phone")
+                    Text("Father's Phone")
                 } footer: {
                     Text("Optional — 10 digits, mobile (04xx/05xx) or landline (02/03/07/08)")
+                }
+
+                // MARK: Student's Phone (optional)
+                Section {
+                    HStack(spacing: 12) {
+                        Picker("", selection: $studentPhoneTag) {
+                            ForEach(PhoneTag.allCases, id: \.self) { tag in
+                                Text(tag.rawValue).tag(tag)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                        .frame(width: 90)
+
+                        TextField("04XX XXX XXX", text: $studentPhone)
+                            .keyboardType(.numberPad)
+                            .focused($focusedField, equals: .studentPhone)
+                            .onChange(of: studentPhone) { newValue in
+                                studentPhone = sanitisePhone(newValue)
+                                studentPhoneError = validatePhone(studentPhone, required: false)
+                            }
+                    }
+
+                    if let error = studentPhoneError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                } header: {
+                    Text("Student's Phone")
+                } footer: {
+                    Text("Optional — 10 digits, mobile (04xx/05xx) or landline (02/03/07/08)")
+                }
+
+                // MARK: Schedule Times
+                Section {
+                    DatePicker("Pickup Time", selection: $pickupTime, displayedComponents: .hourAndMinute)
+                    DatePicker("Drop-off Time", selection: $dropoffTime, displayedComponents: .hourAndMinute)
+                } header: {
+                    Text("Schedule")
                 }
             }
             .navigationTitle("Edit Student")
@@ -156,9 +226,12 @@ struct EditAttendeeView: View {
     private var canSave: Bool {
         let nameOK = !attendeeName.trimmingCharacters(in: .whitespaces).isEmpty
         let gradeOK = !grade.trimmingCharacters(in: .whitespaces).isEmpty
+        let motherNameOK = !motherName.trimmingCharacters(in: .whitespaces).isEmpty
+        let fatherNameOK = !fatherName.trimmingCharacters(in: .whitespaces).isEmpty
         let primaryOK = validatePhone(primaryPhone, required: true) == nil
         let secondaryOK = validatePhone(secondaryPhone, required: false) == nil
-        return nameOK && gradeOK && primaryOK && secondaryOK
+        let studentOK = validatePhone(studentPhone, required: false) == nil
+        return nameOK && gradeOK && motherNameOK && fatherNameOK && primaryOK && secondaryOK && studentOK
     }
 
     /// Returns an error string if invalid, nil if valid.
@@ -192,10 +265,16 @@ struct EditAttendeeView: View {
         updated.name = trimmedName
         updated.grade = grade.trimmingCharacters(in: .whitespaces)
         updated.address = address.trimmingCharacters(in: .whitespaces)
+        updated.motherName = motherName.trimmingCharacters(in: .whitespaces)
+        updated.fatherName = fatherName.trimmingCharacters(in: .whitespaces)
         updated.primaryPhone = primaryPhone
         updated.primaryPhoneTag = primaryPhoneTag
         updated.secondaryPhone = secondaryPhone
         updated.secondaryPhoneTag = secondaryPhoneTag
+        updated.studentPhone = studentPhone
+        updated.studentPhoneTag = studentPhoneTag
+        updated.pickupTime = pickupTime
+        updated.dropoffTime = dropoffTime
 
         dataManager.updateAttendee(updated, in: list)
         dismiss()

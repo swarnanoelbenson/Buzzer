@@ -26,7 +26,7 @@ struct AttendeeList: Identifiable, Equatable {
 enum PhoneTag: String, CaseIterable {
     case mother = "Mother"
     case father = "Father"
-    case other = "Other"
+    case student = "Student"
 }
 
 // MARK: - Attendee
@@ -39,10 +39,21 @@ struct Attendee: Identifiable, Equatable, Sendable {
     var scheduledPM: Bool
     var notes: String
     var address: String
+    // Mother's phone (primary, required)
     var primaryPhone: String
     var primaryPhoneTag: PhoneTag
+    // Father's phone (secondary, optional)
     var secondaryPhone: String
     var secondaryPhoneTag: PhoneTag
+    // Student's phone (optional)
+    var studentPhone: String
+    var studentPhoneTag: PhoneTag
+    // Guardian info
+    var motherName: String
+    var fatherName: String
+    // Schedule times
+    var pickupTime: Date?
+    var dropoffTime: Date?
 
     init(
         id: UUID = UUID(),
@@ -56,7 +67,13 @@ struct Attendee: Identifiable, Equatable, Sendable {
         primaryPhone: String = "",
         primaryPhoneTag: PhoneTag = .mother,
         secondaryPhone: String = "",
-        secondaryPhoneTag: PhoneTag = .mother
+        secondaryPhoneTag: PhoneTag = .father,
+        studentPhone: String = "",
+        studentPhoneTag: PhoneTag = .student,
+        motherName: String = "",
+        fatherName: String = "",
+        pickupTime: Date? = nil,
+        dropoffTime: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -70,6 +87,12 @@ struct Attendee: Identifiable, Equatable, Sendable {
         self.primaryPhoneTag = primaryPhoneTag
         self.secondaryPhone = secondaryPhone
         self.secondaryPhoneTag = secondaryPhoneTag
+        self.studentPhone = studentPhone
+        self.studentPhoneTag = studentPhoneTag
+        self.motherName = motherName
+        self.fatherName = fatherName
+        self.pickupTime = pickupTime
+        self.dropoffTime = dropoffTime
     }
 }
 

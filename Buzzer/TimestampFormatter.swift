@@ -11,27 +11,27 @@ struct TimestampFormatter {
     
     // MARK: - Time Formatting
     
-    /// Formats a date as HH:MM:SS (24-hour format)
+    /// Formats a date as h:mm a (12-hour format, e.g., "10:30 PM")
     static func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
+        formatter.dateFormat = "h:mm a"
         return formatter.string(from: date)
     }
-    
-    /// Formats a date as HH:MM (24-hour format, without seconds)
+
+    /// Formats a date as h:mm a (12-hour format, e.g., "10:30 PM")
     static func formatTimeShort(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
+        formatter.dateFormat = "h:mm a"
         return formatter.string(from: date)
     }
-    
-    /// Formats time in 12-hour short format (e.g., "7:05am")
+
+    /// Formats time in 12-hour format (e.g., "7:05 AM")
     static func formatTimeShort12Hour(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "h:mma"
-        return formatter.string(from: date).lowercased()
+        formatter.dateFormat = "h:mm a"
+        return formatter.string(from: date)
     }
-    
+
     /// Formats time in 12-hour format with space (e.g., "3:35 PM")
     static func formatTime12Hour(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -64,34 +64,33 @@ struct TimestampFormatter {
         return formatter.string(from: date)
     }
     
-    /// Formats a date as "Month Day, Year" (e.g., "March 4, 2026")
+    /// Formats a date as "d MMMM yyyy" (e.g., "4 March 2026")
     static func formatDateLong(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateStyle = .long
-        formatter.timeStyle = .none
+        formatter.dateFormat = "d MMMM yyyy"
         return formatter.string(from: date)
     }
-    
-    /// Formats a date as "MMM d" (e.g., "Mar 4")
+
+    /// Formats a date as "d MMMM yyyy" (e.g., "4 March 2026")
     static func formatDateShort(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
+        formatter.dateFormat = "d MMMM yyyy"
         return formatter.string(from: date)
     }
     
     // MARK: - Combined Date and Time
     
-    /// Formats date and time as "MMM d, h:mm a" (e.g., "Mar 4, 8:15 AM")
+    /// Formats date and time as "d MMMM yyyy, h:mm a" (e.g., "4 March 2026, 8:15 AM")
     static func formatDateTime(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, h:mm a"
+        formatter.dateFormat = "d MMMM yyyy, h:mm a"
         return formatter.string(from: date)
     }
-    
-    /// Formats date and time as "YYYY-MM-DD HH:MM:SS"
+
+    /// Formats date and time as "d MMMM yyyy, h:mm a" (e.g., "4 March 2026, 8:15 AM")
     static func formatDateTimeFull(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.dateFormat = "d MMMM yyyy, h:mm a"
         return formatter.string(from: date)
     }
     

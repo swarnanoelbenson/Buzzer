@@ -264,7 +264,7 @@ struct SessionHistoryView: View {
     
     private var emptyStateMessage: String {
         if sessions.isEmpty {
-            return "No attendance sessions have been recorded yet. Start a pick-up or drop-off session to track attendance."
+            return "No attendance sessions have been recorded yet. Start an AM Pickup or PM Dropoff session to track attendance."
         } else if filterType != .all {
             return "No \(filterType.displayName.lowercased()) sessions found. Try changing your filter."
         } else if !Calendar.current.isDateInToday(searchDate) {
@@ -306,7 +306,7 @@ struct SessionHistoryRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Session type and time
                 HStack {
-                    Text(session.sessionType == .pickup ? "Pick-Up" : "Drop-Off")
+                    Text(session.sessionType == .pickup ? "AM Pickup" : "PM Dropoff")
                         .font(.headline)
                     
                     Spacer()
@@ -350,8 +350,8 @@ enum SessionFilterType: String, CaseIterable {
     var displayName: String {
         switch self {
         case .all: return "All"
-        case .pickup: return "Pick-Up"
-        case .dropoff: return "Drop-Off"
+        case .pickup: return "AM Pickup"
+        case .dropoff: return "PM Dropoff"
         }
     }
 }

@@ -25,6 +25,7 @@
 		597BA84A2F677AE00049CFB0 /* ValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 597BA83C2F677A940049CFB0 /* ValidationTests.swift */; };
 		597BA84B2F677AE50049CFB0 /* DataModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 597BA83D2F677A940049CFB0 /* DataModelTests.swift */; };
 		597BA84C2F677AE90049CFB0 /* SimpleValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 597BA83E2F677A940049CFB0 /* SimpleValidationTests.swift */; };
+		599F1D1F2F83D0C8006251C3 /* XLSXDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599F1D1E2F83D0C8006251C3 /* XLSXDocument.swift */; };
 		59BFEEAB2F5A793B00FD8389 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */; };
 		59F3E9D82F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md in Resources */ = {isa = PBXBuildFile; fileRef = 59F3E9D72F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md */; };
 /* End PBXBuildFile section */
@@ -72,6 +73,7 @@
 		597BA83C2F677A940049CFB0 /* ValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValidationTests.swift; sourceTree = "<group>"; };
 		597BA83D2F677A940049CFB0 /* DataModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataModelTests.swift; sourceTree = "<group>"; };
 		597BA83E2F677A940049CFB0 /* SimpleValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleValidationTests.swift; sourceTree = "<group>"; };
+		599F1D1E2F83D0C8006251C3 /* XLSXDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XLSXDocument.swift; sourceTree = "<group>"; };
 		59BFEEAA2F5A793B00FD8389 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
 		59F3E9D72F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DELETE_AND_RESET_IMPLEMENTATION.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -146,6 +148,7 @@
 				597BA82F2F6779340049CFB0 /* Frameworks */,
 				59F3E9D72F6A27B100C57A12 /* DELETE_AND_RESET_IMPLEMENTATION.md */,
 				590DBA5F2F6B8A4C0067745F /* XLSXGenerator.swift */,
+				599F1D1E2F83D0C8006251C3 /* XLSXDocument.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -289,6 +292,7 @@
 				593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */,
 				59633ED32F616D3800D79E5D /* DriverSetupView.swift in Sources */,
 				59633ED12F616D1D00D79E5D /* DriverManager.swift in Sources */,
+				599F1D1F2F83D0C8006251C3 /* XLSXDocument.swift in Sources */,
 				593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */,
 				59633EDD2F616E6100D79E5D /* DriverDetailsSettingsView.swift in Sources */,
 				593A3DF02F594E11004B6282 /* BuzzerLogo.swift in Sources */,

@@ -64,14 +64,21 @@ class SessionManager: ObservableObject {
     
     // MARK: - Attendance Recording
     
-    func recordAttendance(for attendee: Attendee, status: AttendanceStatus) {
+    func recordAttendance(for attendee: Attendee, status: AttendanceStatus, timestamp: Date? = nil) {
         guard currentSession != nil else { return }
-        
-        let timestamp = status == .present ? Date() : nil
+
+        // Use the provided timestamp if given, otherwise use now for present or nil for absent
+        let resolvedTimestamp: Date?
+        if status == .present {
+            resolvedTimestamp = timestamp ?? Date()
+        } else {
+            resolvedTimestamp = nil
+        }
+
         let record = AttendanceRecord(
             attendeeId: attendee.id,
             status: status,
-            timestamp: timestamp
+            timestamp: resolvedTimestamp
         )
         
         recordedStatuses[attendee.id] = record

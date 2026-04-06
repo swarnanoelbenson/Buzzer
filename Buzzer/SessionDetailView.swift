@@ -21,7 +21,7 @@ struct SessionDetailView: View {
                 sessionInfoRow(label: "Session Type", value: sessionTypeName, icon: sessionTypeIcon, color: sessionTypeColor)
                 sessionInfoRow(label: "Date", value: TimestampFormatter.formatDateLong(session.createdDate), icon: "calendar", color: .blue)
                 sessionInfoRow(label: "Time", value: TimestampFormatter.formatTime(session.createdDate), icon: "clock", color: .purple)
-                sessionInfoRow(label: "List", value: list.name, icon: "list.bullet.clipboard", color: .orange)
+                sessionInfoRow(label: "Route", value: list.name, icon: "list.bullet.clipboard", color: .orange)
             } header: {
                 Text("Session Information")
             }
@@ -97,7 +97,7 @@ struct SessionDetailView: View {
     // MARK: - Computed Properties
     
     private var sessionTypeName: String {
-        session.sessionType == .pickup ? "Pick-Up" : "Drop-Off"
+        session.sessionType == .pickup ? "AM Pickup" : "PM Dropoff"
     }
     
     private var sessionTypeIcon: String {
@@ -190,7 +190,7 @@ struct ExportOptionsSheet: View {
     let list: AttendeeList
 
     @State private var showFileExporter = false
-    @State private var csvDocument: CSVDocument?
+    @State private var xlsxDocument: XLSXDocument?
     @State private var showSuccessAlert = false
     @State private var showErrorAlert = false
     @State private var isGenerating = false
@@ -203,7 +203,7 @@ struct ExportOptionsSheet: View {
                         generateManifest()
                     } label: {
                         HStack {
-                            Label("Export as CSV", systemImage: "doc.text")
+                            Label("Export as XLSX", systemImage: "doc.text")
                             Spacer()
                             if isGenerating {
                                 ProgressView().progressViewStyle(.circular)
@@ -214,7 +214,7 @@ struct ExportOptionsSheet: View {
                 } header: {
                     Text("Export Options")
                 } footer: {
-                    Text("Export this session as a CSV manifest. You can save it to Files, share via email, or send to other apps.")
+                    Text("Export this session as an Excel manifest. You can save it to Files, share via email, or send to other apps.")
                 }
 
                 Section {
@@ -222,7 +222,7 @@ struct ExportOptionsSheet: View {
                         Label("Session Type", systemImage: session.sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                             .foregroundColor(session.sessionType == .pickup ? .green : .orange)
                         Spacer()
-                        Text(session.sessionType == .pickup ? "Pick-Up" : "Drop-Off")
+                        Text(session.sessionType == .pickup ? "AM Pickup" : "PM Dropoff")
                             .foregroundColor(.secondary)
                     }
 
@@ -243,7 +243,7 @@ struct ExportOptionsSheet: View {
                     }
 
                     HStack {
-                        Label("Attendees", systemImage: "person.2")
+                        Label("Students", systemImage: "person.2")
                             .foregroundColor(.orange)
                         Spacer()
                         Text("\(session.records.count)")
@@ -282,9 +282,9 @@ struct ExportOptionsSheet: View {
             }
             .fileExporter(
                 isPresented: $showFileExporter,
-                document: csvDocument,
-                contentType: .commaSeparatedText,
-                defaultFilename: csvDocument?.filename ?? "session.csv",
+                document: xlsxDocument,
+                contentType: .xlsx,
+                defaultFilename: xlsxDocument?.filename ?? "session.xlsx",
                 onCompletion: handleExport
             )
             .alert("Export Successful", isPresented: $showSuccessAlert) {
@@ -320,17 +320,26 @@ struct ExportOptionsSheet: View {
             let notes = PassengerNoteManager.shared.getNotes(for: attendeeIDs)
             let driverDetails = DriverManager.shared.driverDetails
 
-            let csvContent = CSVGenerator.generateSingleSessionManifest(
+            guard let fileURL = XLSXGenerator.generateSingleSessionManifest(
                 for: session,
                 list: list,
                 driverDetails: driverDetails,
                 passengerNotes: notes
-            )
-            let filename = CSVGenerator.generateFilename(for: session, list: list)
+            ) else {
+                isGenerating = false
+                showErrorAlert = true
+                return
+            }
 
-            csvDocument = CSVDocument(content: csvContent, filename: filename)
+            let filename = XLSXGenerator.generateSingleSessionFilename(for: session, list: list)
+
+            if let data = try? Data(contentsOf: fileURL) {
+                xlsxDocument = XLSXDocument(data: data, filename: filename)
+                showFileExporter = true
+            } else {
+                showErrorAlert = true
+            }
             isGenerating = false
-            showFileExporter = true
         }
     }
 
@@ -347,33 +356,6 @@ struct ExportOptionsSheet: View {
     }
 }
 
-// MARK: - CSV Document (for fileExporter)
-
-struct CSVDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.commaSeparatedText] }
-
-    let content: String
-    let filename: String
-
-    init(content: String, filename: String) {
-        self.content = content
-        self.filename = filename
-    }
-
-    init(configuration: ReadConfiguration) throws {
-        guard let data = configuration.file.regularFileContents,
-              let str = String(data: data, encoding: .utf8) else {
-            throw CocoaError(.fileReadCorruptFile)
-        }
-        self.content = str
-        self.filename = "session.csv"
-    }
-
-    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let data = content.data(using: .utf8) ?? Data()
-        return FileWrapper(regularFileWithContents: data)
-    }
-}
 
 #Preview {
     NavigationView {

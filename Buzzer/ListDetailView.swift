@@ -19,6 +19,8 @@ struct ListDetailView: View {
     @State private var attendeeToEdit: Attendee?
     @State private var showEditAttendee = false
     @State private var attendeeForNotes: Attendee?
+    @State private var showRenameRoute = false
+    @State private var pendingRouteName = ""
     
     // Get the current list from dataManager
     private var currentList: AttendeeList? {
@@ -40,7 +42,7 @@ struct ListDetailView: View {
                             )
                         }
                         .accessibilityLabel("Start session")
-                        .accessibilityHint("Start a new pick-up or drop-off session")
+                        .accessibilityHint("Start a new AM Pickup or PM Dropoff session")
                     }
                     
                     // HISTORY button
@@ -78,10 +80,34 @@ struct ListDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                // Edit button
-                EditButton()
-                    .font(.system(size: 18)) // Larger font
+                HStack(spacing: 16) {
+                    // Rename route button
+                    Button {
+                        pendingRouteName = currentList?.name ?? ""
+                        showRenameRoute = true
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .font(.system(size: 18))
+
+                    // Reorder / delete students
+                    EditButton()
+                        .font(.system(size: 18))
+                }
             }
+        }
+        .alert("Rename Route", isPresented: $showRenameRoute) {
+            TextField("Route name", text: $pendingRouteName)
+            Button("Cancel", role: .cancel) { }
+            Button("Save") {
+                let trimmed = pendingRouteName.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty, var updated = currentList {
+                    updated.name = trimmed
+                    dataManager.updateList(updated)
+                }
+            }
+        } message: {
+            Text("Enter a new name for this route.")
         }
         .environment(\.editMode, $isEditMode)
         .sheet(isPresented: $showingAddAttendee) {
@@ -100,7 +126,7 @@ struct ListDetailView: View {
                     }
             }
         }
-        .alert("Remove Attendee", isPresented: $showDeleteConfirmation, presenting: attendeeToDelete) { attendee in
+        .alert("Remove Student", isPresented: $showDeleteConfirmation, presenting: attendeeToDelete) { attendee in
             Button("Cancel", role: .cancel) {
                 attendeeToDelete = nil
             }
@@ -123,11 +149,11 @@ struct ListDetailView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.secondary)
             
-            Text("No Attendees")
+            Text("No Students")
                 .font(.title3)
                 .fontWeight(.semibold)
             
-            Text("Add attendees to this list to start tracking attendance")
+            Text("Add students to this route to start tracking attendance")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
