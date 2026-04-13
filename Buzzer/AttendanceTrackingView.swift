@@ -89,7 +89,10 @@ struct AttendanceTrackingView: View {
             )
         }
         .sheet(isPresented: $showFinalCheck) {
-            FinalCheckView { timestamp in
+            FinalCheckView(
+                unmarkedAttendees: orderedAttendees.filter { sessionManager.getRecord(for: $0) == nil },
+                sessionType: sessionType
+            ) { timestamp in
                 sessionManager.setFinalCheckTimestamp(timestamp)
                 sessionManager.stopSession()
                 dismiss()
@@ -103,24 +106,23 @@ struct AttendanceTrackingView: View {
         VStack(spacing: 8) {
             let progress = sessionManager.getProgress(for: list)
             
+            let summary = sessionManager.getSummary()
             HStack {
-                Spacer()
-                Text("\(progress.current) of \(progress.total)")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                
-                
-                let summary = sessionManager.getSummary()
                 HStack(spacing: 12) {
                     Label("\(summary.present)", systemImage: "checkmark.circle.fill")
                         .foregroundColor(.green)
                         .font(.subheadline)
-                    
+
                     Label("\(summary.absent)", systemImage: "xmark.circle.fill")
                         .foregroundColor(.red)
                         .font(.subheadline)
                 }
+
+                Spacer()
+
+                Text("\(progress.current) of \(progress.total)")
+                    .font(.headline)
+                    .foregroundColor(.primary)
             }
             .padding(.horizontal)
             .padding(.top, 12)

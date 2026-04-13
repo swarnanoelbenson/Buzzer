@@ -19,6 +19,7 @@ struct ListsView: View {
     @State private var listToDuplicate: AttendeeList?
     @State private var duplicateName = ""
     @State private var showDuplicateAlert = false
+    @State private var showDuplicateNameTakenAlert = false
 
     var body: some View {
         NavigationView {
@@ -83,13 +84,26 @@ struct ListsView: View {
                 }
                 Button("Duplicate") {
                     let trimmed = duplicateName.trimmingCharacters(in: .whitespaces)
-                    if !trimmed.isEmpty, let source = listToDuplicate {
-                        dataManager.duplicateList(source, newName: trimmed)
+                    guard !trimmed.isEmpty, let source = listToDuplicate else {
+                        listToDuplicate = nil
+                        return
                     }
-                    listToDuplicate = nil
+                    if isNameTaken(trimmed) {
+                        showDuplicateNameTakenAlert = true
+                    } else {
+                        dataManager.duplicateList(source, newName: trimmed)
+                        listToDuplicate = nil
+                    }
                 }
             } message: {
                 Text("Enter a name for the duplicated route. All students will be copied — attendance history will not.")
+            }
+            .alert("Name Already Taken", isPresented: $showDuplicateNameTakenAlert) {
+                Button("OK") {
+                    showDuplicateAlert = true
+                }
+            } message: {
+                Text("\"\(duplicateName)\" is already used by another route. Please choose a different name.")
             }
         }
         .navigationViewStyle(.stack)
@@ -153,6 +167,26 @@ struct ListsView: View {
         .listSectionSeparator(.hidden)
     }
 
+    // MARK: - Duplicate Name Helpers
+
+    /// Returns true if any existing route already has this name (case-insensitive).
+    private func isNameTaken(_ name: String) -> Bool {
+        dataManager.lists.contains {
+            $0.name.lowercased() == name.lowercased()
+        }
+    }
+
+    /// Generates a name that doesn't clash with any existing route.
+    /// "Route Copy" → "Route Copy 2" → "Route Copy 3" etc.
+    private func uniqueName(basedOn base: String) -> String {
+        if !isNameTaken(base) { return base }
+        var counter = 2
+        while isNameTaken("\(base) \(counter)") {
+            counter += 1
+        }
+        return "\(base) \(counter)"
+    }
+
     private var listContent: some View {
         List {
             if demoModeManager.isDemoMode {
@@ -173,7 +207,7 @@ struct ListsView: View {
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
                     Button {
                         listToDuplicate = list
-                        duplicateName = "\(list.name) Copy"
+                        duplicateName = uniqueName(basedOn: "\(list.name) Copy")
                         showDuplicateAlert = true
                     } label: {
                         Label("Duplicate", systemImage: "doc.on.doc")
