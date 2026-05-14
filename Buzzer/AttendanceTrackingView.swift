@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AttendanceTrackingView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var dataManager: DataManager
     @ObservedObject var sessionManager: SessionManager
     
@@ -96,6 +97,12 @@ struct AttendanceTrackingView: View {
                 sessionManager.setFinalCheckTimestamp(timestamp)
                 sessionManager.stopSession()
                 dismiss()
+            }
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .background {
+                // Snapshot the session to Core Data so it survives an app kill
+                sessionManager.saveIncompleteSnapshot()
             }
         }
     }

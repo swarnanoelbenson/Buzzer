@@ -14,7 +14,11 @@ class SessionManager: ObservableObject {
     @Published var recordedStatuses: [UUID: AttendanceRecord] = [:]
     @Published var isSessionActive: Bool = false
     @Published var finalCheckTimestamp: Date?
-    
+
+    /// True when the current session was resumed from a previously saved incomplete session.
+    /// stopSession() will update the existing Core Data record instead of inserting a new one.
+    private var isResumed: Bool = false
+
     private let dataManager: DataManager
     
     init(dataManager: DataManager) {
@@ -38,28 +42,63 @@ class SessionManager: ObservableObject {
         recordedStatuses.removeAll()
         finalCheckTimestamp = nil
         isSessionActive = true
+        isResumed = false
     }
     
     func stopSession() {
         guard let session = currentSession else { return }
-        
-        // Save session to Core Data with final check timestamp
-        dataManager.saveSession(session, records: Array(recordedStatuses.values), finalCheckTimestamp: finalCheckTimestamp)
-        
+
+        if isResumed {
+            // Update the existing Core Data session record instead of inserting a new one
+            dataManager.updateSession(session, records: Array(recordedStatuses.values), finalCheckTimestamp: finalCheckTimestamp)
+        } else {
+            dataManager.saveSession(session, records: Array(recordedStatuses.values), finalCheckTimestamp: finalCheckTimestamp)
+        }
+
         // Clear state
         currentSession = nil
         currentAttendeeIndex = 0
         recordedStatuses.removeAll()
         finalCheckTimestamp = nil
         isSessionActive = false
+        isResumed = false
     }
     
+    /// Restores an existing saved session into active state, jumping to the first unmarked attendee.
+    func resumeSession(_ session: AttendanceSession, records: [AttendanceRecord], orderedAttendees: [Attendee]) {
+        currentSession = session
+        recordedStatuses = Dictionary(uniqueKeysWithValues: records.map { ($0.attendeeId, $0) })
+        finalCheckTimestamp = nil
+        isSessionActive = true
+        isResumed = true
+
+        // Jump to first unmarked attendee
+        if let index = orderedAttendees.firstIndex(where: { recordedStatuses[$0.id] == nil }) {
+            currentAttendeeIndex = index
+        } else {
+            currentAttendeeIndex = orderedAttendees.count
+        }
+    }
+
+    /// Persists the current in-progress session to Core Data without ending it in memory.
+    /// Called when the app backgrounds so the session survives an app kill.
+    func saveIncompleteSnapshot() {
+        guard let session = currentSession else { return }
+        if isResumed {
+            dataManager.updateSession(session, records: Array(recordedStatuses.values), finalCheckTimestamp: nil)
+        } else {
+            // Only save a snapshot if not already persisted
+            dataManager.saveSessionIfNotExists(session, records: Array(recordedStatuses.values))
+        }
+    }
+
     func cancelSession() {
         currentSession = nil
         currentAttendeeIndex = 0
         recordedStatuses.removeAll()
         finalCheckTimestamp = nil
         isSessionActive = false
+        isResumed = false
     }
     
     // MARK: - Attendance Recording

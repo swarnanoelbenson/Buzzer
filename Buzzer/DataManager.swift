@@ -311,6 +311,126 @@ class DataManager: ObservableObject {
         }
     }
     
+    /// Returns the most recent today session that was never formally completed (no finalCheckTimestamp
+    /// and at least one attendee unmarked). This covers both app-kill and early-stop scenarios.
+    /// Saves a session only if it doesn't already exist in Core Data (used for background snapshots).
+    func saveSessionIfNotExists(_ session: AttendanceSession, records: [AttendanceRecord]) {
+        let request: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", session.id as CVarArg)
+        request.fetchLimit = 1
+
+        do {
+            if try context.fetch(request).first != nil {
+                // Already saved — just update the records
+                updateSession(session, records: records, finalCheckTimestamp: nil)
+            } else {
+                saveSession(session, records: records, finalCheckTimestamp: nil)
+            }
+        } catch {
+            print("Failed to check session existence: \(error)")
+        }
+    }
+
+    /// Updates an existing session entity (used when resuming and re-stopping a saved session).
+    func updateSession(_ session: AttendanceSession, records: [AttendanceRecord], finalCheckTimestamp: Date? = nil) {
+        let request: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", session.id as CVarArg)
+
+        do {
+            guard let sessionEntity = try context.fetch(request).first else {
+                // Fallback: save as new if entity not found
+                saveSession(session, records: records, finalCheckTimestamp: finalCheckTimestamp)
+                return
+            }
+
+            sessionEntity.finalCheckTimestamp = finalCheckTimestamp
+
+            // Remove old records and replace with updated set
+            if let existing = sessionEntity.records as? Set<AttendanceRecordEntity> {
+                for old in existing { context.delete(old) }
+            }
+
+            let listRequest: NSFetchRequest<AttendeeListEntity> = AttendeeListEntity.fetchRequest()
+            listRequest.predicate = NSPredicate(format: "id == %@", session.listId as CVarArg)
+
+            if (try context.fetch(listRequest).first) != nil {
+                for record in records {
+                    let recordEntity = AttendanceRecordEntity(context: context)
+                    recordEntity.id = record.id
+                    recordEntity.status = record.status.rawValue
+                    recordEntity.timestamp = record.timestamp
+                    recordEntity.session = sessionEntity
+
+                    let attendeeRequest: NSFetchRequest<AttendeeEntity> = AttendeeEntity.fetchRequest()
+                    attendeeRequest.predicate = NSPredicate(format: "id == %@", record.attendeeId as CVarArg)
+                    if let attendeeEntity = try context.fetch(attendeeRequest).first {
+                        recordEntity.attendee = attendeeEntity
+                    }
+                }
+            }
+
+            save()
+        } catch {
+            print("Failed to update session: \(error)")
+        }
+    }
+
+    func fetchTodayIncompleteSession(for list: AttendeeList, type: SessionType, attendeeCount: Int) -> AttendanceSession? {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+
+        // Fetch the single most recent session today (any state) to check ordering
+        let anyRequest: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
+        anyRequest.predicate = NSPredicate(
+            format: "list.id == %@ AND sessionType == %@ AND createdDate >= %@ AND createdDate < %@",
+            list.id as CVarArg, type.rawValue, startOfDay as CVarArg, endOfDay as CVarArg
+        )
+        anyRequest.sortDescriptors = [NSSortDescriptor(keyPath: \AttendanceSessionEntity.createdDate, ascending: false)]
+        anyRequest.fetchLimit = 1
+
+        do {
+            guard let mostRecent = try context.fetch(anyRequest).first else { return nil }
+
+            // If the most recent session today is completed, don't surface any incomplete prompt
+            if mostRecent.finalCheckTimestamp != nil { return nil }
+
+            // Most recent is incomplete — only return it if at least one attendee is unmarked
+            let session = convertToAttendanceSession(mostRecent)
+            if session.records.count < attendeeCount {
+                return session
+            }
+        } catch {
+            print("Failed to fetch today's incomplete session: \(error)")
+        }
+
+        return nil
+    }
+
+    func fetchTodaySession(for list: AttendeeList, type: SessionType) -> AttendanceSession? {
+        let calendar = Calendar.current
+        let startOfDay = calendar.startOfDay(for: Date())
+        let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+        
+        let request: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "list.id == %@ AND sessionType == %@ AND createdDate >= %@ AND createdDate < %@",
+            list.id as CVarArg, type.rawValue, startOfDay as CVarArg, endOfDay as CVarArg
+        )
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \AttendanceSessionEntity.createdDate, ascending: false)]
+        request.fetchLimit = 1
+        
+        do {
+            if let entity = try context.fetch(request).first {
+                return convertToAttendanceSession(entity)
+            }
+        } catch {
+            print("Failed to fetch today's session: \(error)")
+        }
+        
+        return nil
+    }
+    
     func fetchRecentSession(for list: AttendeeList, type: SessionType) -> AttendanceSession? {
         let request: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
         request.predicate = NSPredicate(format: "list.id == %@ AND sessionType == %@", list.id as CVarArg, type.rawValue)

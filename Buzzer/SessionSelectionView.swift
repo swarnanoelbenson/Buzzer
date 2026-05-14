@@ -1,5 +1,11 @@
     import SwiftUI
 
+    private struct IncompleteSessionContext: Identifiable {
+        let id = UUID()
+        let session: AttendanceSession
+        let list: AttendeeList
+    }
+
     struct SessionSelectionView: View {
         @EnvironmentObject var dataManager: DataManager
         @StateObject var sessionManager: SessionManager
@@ -9,6 +15,9 @@
         @State private var navigateToPickup = false
         @State private var navigateToDropoff = false
         @State private var showEmptyListAlert = false
+        @State private var showConfirmationAlert = false
+        @State private var pendingSessionType: SessionType?
+        @State private var incompleteSessionContext: IncompleteSessionContext?
         
         init(list: AttendeeList, dataManager: DataManager) {
             self.list = list
@@ -104,6 +113,33 @@
             }
             .navigationTitle("Start Session")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(item: $incompleteSessionContext) { ctx in
+                IncompleteSessionSheet(
+                    session: ctx.session,
+                    list: ctx.list,
+                    onContinue: {
+                        continueSession(ctx.session, list: ctx.list)
+                    },
+                    onStartNew: {
+                        beginSession(type: ctx.session.sessionType)
+                    }
+                )
+            }
+            .alert("Session Already Completed", isPresented: $showConfirmationAlert) {
+                Button("Cancel", role: .cancel) {
+                    pendingSessionType = nil
+                }
+                Button("Start New", role: .destructive) {
+                    if let type = pendingSessionType {
+                        beginSession(type: type)
+                    }
+                }
+            } message: {
+                if let type = pendingSessionType {
+                    let label = type == .pickup ? "AM Pickup" : "PM Dropoff"
+                    Text("You have already completed a \(label) session today. Starting a new one will create a separate session record.")
+                }
+            }
             .background(
                 Group {
                     NavigationLink(
@@ -162,9 +198,36 @@
                 showEmptyListAlert = true
                 return
             }
-            
+
+            // Check for an incomplete session from today first
+            if let incomplete = dataManager.fetchTodayIncompleteSession(for: currentList, type: type, attendeeCount: currentList.attendees.count) {
+                incompleteSessionContext = IncompleteSessionContext(session: incomplete, list: currentList)
+                return
+            }
+
+            // If a completed session already exists today, confirm before starting another
+            if dataManager.fetchTodaySession(for: currentList, type: type) != nil {
+                pendingSessionType = type
+                showConfirmationAlert = true
+            } else {
+                beginSession(type: type)
+            }
+        }
+
+        private func continueSession(_ session: AttendanceSession, list: AttendeeList) {
+            let orderedAttendees = session.sessionType == .dropoff ? list.attendees.reversed() : list.attendees
+            sessionManager.resumeSession(session, records: session.records, orderedAttendees: Array(orderedAttendees))
+            if session.sessionType == .pickup {
+                navigateToPickup = true
+            } else {
+                navigateToDropoff = true
+            }
+        }
+
+        private func beginSession(type: SessionType) {
+            guard let currentList = currentList else { return }
             sessionManager.startSession(for: currentList, type: type)
-            
+            pendingSessionType = nil
             if type == .pickup {
                 navigateToPickup = true
             } else {
