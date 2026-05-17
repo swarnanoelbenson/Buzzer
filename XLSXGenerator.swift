@@ -14,29 +14,17 @@ struct XLSXGenerator {
     // Cols 2–21: 5 days × 4 cols each
     //   Per day: AM Scheduled | AM Actual | PM Scheduled | PM Actual
     //   Monday 2–5, Tuesday 6–9, Wednesday 10–13, Thursday 14–17, Friday 18–21
-    // Col 22: Address
-    // Col 23: Mother's Name   (motherName)
-    // Col 24: Mother's Phone  (primaryPhone)
-    // Col 25: Father's Name   (fatherName)
-    // Col 26: Father's Phone  (secondaryPhone)
-    // Col 27: Student's Phone (studentPhone)
-    // Total: 28 columns (0–27)
+    // Total: 22 columns (0–21)
 
-    private static let weeklyLastCol: lxw_col_t = 27
+    private static let weeklyLastCol: lxw_col_t = 21
 
     // MARK: - Column layout constants (Single Session)
     // Col 0:  Name
     // Col 1:  {Date} AM Pickup  (actual time or "Absent" for pickup sessions; blank for dropoff)
     // Col 2:  {Date} PM Dropoff (actual time or "Absent" for dropoff sessions; blank for pickup)
-    // Col 3:  Address
-    // Col 4:  Mother's Name
-    // Col 5:  Mother's Phone
-    // Col 6:  Father's Name
-    // Col 7:  Father's Phone
-    // Col 8:  Student's Phone
-    // Total: 9 columns (0–8)
+    // Total: 3 columns (0–2)
 
-    private static let sessionLastCol: lxw_col_t = 8
+    private static let sessionLastCol: lxw_col_t = 2
 
     // MARK: - Weekly Manifest
 
@@ -87,14 +75,6 @@ struct XLSXGenerator {
             format_set_align(f, UInt8(LXW_ALIGN_CENTER.rawValue))
             format_set_border(f, UInt8(LXW_BORDER_THIN.rawValue))
         }
-        // Dark green for contact headers
-        let fHeaderContact = makeFormat(workbook) { f in
-            format_set_bold(f)
-            format_set_bg_color(f, 0x375623)
-            format_set_font_color(f, 0xFFFFFF)
-            format_set_align(f, UInt8(LXW_ALIGN_CENTER.rawValue))
-            format_set_border(f, UInt8(LXW_BORDER_THIN.rawValue))
-        }
         let fCell          = makeFormat(workbook) { f in
             format_set_border(f, UInt8(LXW_BORDER_THIN.rawValue))
             format_set_align(f, UInt8(LXW_ALIGN_CENTER.rawValue))
@@ -131,12 +111,7 @@ struct XLSXGenerator {
         for col in stride(from: lxw_col_t(2), through: lxw_col_t(21), by: 1) {
             worksheet_set_column(ws, col, col, 13, nil)
         }
-        worksheet_set_column(ws, 22, 22, 35, nil)  // Address
-        worksheet_set_column(ws, 23, 23, 18, nil)  // Mother's Name
-        worksheet_set_column(ws, 24, 24, 15, nil)  // Mother's Phone
-        worksheet_set_column(ws, 25, 25, 18, nil)  // Father's Name
-        worksheet_set_column(ws, 26, 26, 15, nil)  // Father's Phone
-        worksheet_set_column(ws, 27, 27, 15, nil)  // Student's Phone
+
 
         // ── Track current row ─────────────────────────────────────────────
         var row: lxw_row_t = 0
@@ -178,12 +153,6 @@ struct XLSXGenerator {
             // Merge PM Dropoff label across its two sub-columns
             worksheet_merge_range(ws, row, pmDropoffCol, row, pmBlankCol,   "\(day) PM Dropoff", fHeaderDay)
         }
-        writeStr(ws, row, 22, "Address",        fHeaderContact)
-        writeStr(ws, row, 23, "Mother's Name",  fHeaderContact)
-        writeStr(ws, row, 24, "Mother's Phone", fHeaderContact)
-        writeStr(ws, row, 25, "Father's Name",  fHeaderContact)
-        writeStr(ws, row, 26, "Father's Phone", fHeaderContact)
-        writeStr(ws, row, 27, "Student's Phone",fHeaderContact)
         row += 1
 
         // ── Header row 2: blank for Name/Grade, then Scheduled/Actual per day, blank for contacts ──
@@ -196,10 +165,6 @@ struct XLSXGenerator {
             writeStr(ws, row, base + 1, "AM Actual",    fHeaderSub)
             writeStr(ws, row, base + 2, "PM Scheduled", fHeaderSub)
             writeStr(ws, row, base + 3, "PM Actual",    fHeaderSub)
-        }
-        // Contact columns — blank sub-headers with same style
-        for c in lxw_col_t(22)...lxw_col_t(27) {
-            writeStr(ws, row, c, "", fHeaderContact)
         }
         row += 1
 
@@ -271,13 +236,6 @@ struct XLSXGenerator {
                 }
             }
 
-            // Contact columns
-            writeStr(ws, row, 22, attendee.address,       fCellLeft)
-            writeStr(ws, row, 23, attendee.motherName,    fCell)
-            writeStr(ws, row, 24, attendee.primaryPhone,  fCell)
-            writeStr(ws, row, 25, attendee.fatherName,    fCell)
-            writeStr(ws, row, 26, attendee.secondaryPhone,fCell)
-            writeStr(ws, row, 27, attendee.studentPhone,  fCell)
             row += 1
         }
         row += 1
@@ -388,13 +346,6 @@ struct XLSXGenerator {
             format_set_align(f, UInt8(LXW_ALIGN_CENTER.rawValue))
             format_set_border(f, UInt8(LXW_BORDER_THIN.rawValue))
         }
-        let fHeaderContact = makeFormat(workbook) { f in
-            format_set_bold(f)
-            format_set_bg_color(f, 0x375623)
-            format_set_font_color(f, 0xFFFFFF)
-            format_set_align(f, UInt8(LXW_ALIGN_CENTER.rawValue))
-            format_set_border(f, UInt8(LXW_BORDER_THIN.rawValue))
-        }
         let fCell          = makeFormat(workbook) { f in
             format_set_border(f, UInt8(LXW_BORDER_THIN.rawValue))
             format_set_align(f, UInt8(LXW_ALIGN_CENTER.rawValue))
@@ -423,12 +374,7 @@ struct XLSXGenerator {
         worksheet_set_column(ws, 0, 0, 25, nil)   // Name
         worksheet_set_column(ws, 1, 1, 16, nil)   // AM Pickup
         worksheet_set_column(ws, 2, 2, 16, nil)   // PM Dropoff
-        worksheet_set_column(ws, 3, 3, 35, nil)   // Address
-        worksheet_set_column(ws, 4, 4, 18, nil)   // Mother's Name
-        worksheet_set_column(ws, 5, 5, 15, nil)   // Mother's Phone
-        worksheet_set_column(ws, 6, 6, 18, nil)   // Father's Name
-        worksheet_set_column(ws, 7, 7, 15, nil)   // Father's Phone
-        worksheet_set_column(ws, 8, 8, 15, nil)   // Student's Phone
+
 
         var row: lxw_row_t = 0
         let sessionTypeName = session.sessionType == .pickup ? "AM Pickup" : "PM Dropoff"
@@ -461,12 +407,6 @@ struct XLSXGenerator {
         writeStr(ws, row, 0, "Name",                   fHeader)
         writeStr(ws, row, 1, "\(shortDate) AM Pickup",  fHeader)
         writeStr(ws, row, 2, "\(shortDate) PM Dropoff", fHeader)
-        writeStr(ws, row, 3, "Address",                fHeaderContact)
-        writeStr(ws, row, 4, "Mother's Name",          fHeaderContact)
-        writeStr(ws, row, 5, "Mother's Phone",         fHeaderContact)
-        writeStr(ws, row, 6, "Father's Name",          fHeaderContact)
-        writeStr(ws, row, 7, "Father's Phone",         fHeaderContact)
-        writeStr(ws, row, 8, "Student's Phone",        fHeaderContact)
         row += 1
 
         // ── Data rows ─────────────────────────────────────────────────────
@@ -506,13 +446,6 @@ struct XLSXGenerator {
                 writeStr(ws, row, 2, "", fCell)
             }
 
-            // Contact columns
-            writeStr(ws, row, 3, attendee.address,        fCellLeft)
-            writeStr(ws, row, 4, attendee.motherName,     fCell)
-            writeStr(ws, row, 5, attendee.primaryPhone,   fCell)
-            writeStr(ws, row, 6, attendee.fatherName,     fCell)
-            writeStr(ws, row, 7, attendee.secondaryPhone, fCell)
-            writeStr(ws, row, 8, attendee.studentPhone,   fCell)
             row += 1
         }
         row += 1

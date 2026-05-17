@@ -277,7 +277,7 @@ struct SessionHistoryView: View {
     // MARK: - Helpers
     
     private func loadSessions() {
-        sessions = dataManager.fetchSessions(for: list)
+        sessions = dataManager.fetchCompletedSessions(for: list)
     }
     
     private func formatSectionDate(_ date: Date) -> String {

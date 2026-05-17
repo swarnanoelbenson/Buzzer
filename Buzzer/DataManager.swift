@@ -448,6 +448,22 @@ class DataManager: ObservableObject {
         return nil
     }
     
+    func fetchCompletedSessions(for list: AttendeeList) -> [AttendanceSession] {
+        let request: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "list.id == %@ AND finalCheckTimestamp != nil",
+            list.id as CVarArg
+        )
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \AttendanceSessionEntity.createdDate, ascending: false)]
+
+        do {
+            return try context.fetch(request).map { convertToAttendanceSession($0) }
+        } catch {
+            print("Failed to fetch completed sessions: \(error)")
+            return []
+        }
+    }
+
     func fetchSessions(for list: AttendeeList) -> [AttendanceSession] {
         let request: NSFetchRequest<AttendanceSessionEntity> = AttendanceSessionEntity.fetchRequest()
         request.predicate = NSPredicate(format: "list.id == %@", list.id as CVarArg)

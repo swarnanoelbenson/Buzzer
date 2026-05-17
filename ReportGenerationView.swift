@@ -163,10 +163,10 @@ struct ReportGenerationView: View {
     }
 
     private var sessionsToExport: [AttendanceSession] {
-        let allSessions = dataManager.fetchSessions(for: list)
+        let completedSessions = dataManager.fetchCompletedSessions(for: list)
         let start = Calendar.current.startOfDay(for: mondayDate)
         let end   = Calendar.current.date(byAdding: .day, value: 7, to: start) ?? start
-        return allSessions.filter { $0.createdDate >= start && $0.createdDate < end }
+        return completedSessions.filter { $0.createdDate >= start && $0.createdDate < end }
     }
 
     private var filename: String {
@@ -188,7 +188,8 @@ struct ReportGenerationView: View {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             let attendeeIDs = list.attendees.map { $0.id }
-            let notes       = PassengerNoteManager.shared.getNotes(for: attendeeIDs)
+            let allNotes = PassengerNoteManager.shared.getNotes(for: attendeeIDs)
+            let notes = allNotes.filter { $0.fromDate <= fridayDate && $0.toDate >= mondayDate }
 
             guard let fileURL = XLSXGenerator.generateWeeklyManifest(
                 for: sessionsToExport,

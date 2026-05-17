@@ -13,10 +13,21 @@ struct PassengerNotesListView: View {
     @State private var noteToEdit: PassengerNote?
     @State private var noteToDelete: PassengerNote?
     @State private var showDeleteConfirmation = false
+    @State private var showPastNotes = false
+
+    private var currentNotes: [PassengerNote] {
+        let today = Calendar.current.startOfDay(for: Date())
+        return notes.filter { Calendar.current.startOfDay(for: $0.toDate) >= today }
+    }
+
+    private var pastNotes: [PassengerNote] {
+        let today = Calendar.current.startOfDay(for: Date())
+        return notes.filter { Calendar.current.startOfDay(for: $0.toDate) < today }
+    }
 
     var body: some View {
         List {
-            if notes.isEmpty {
+            if currentNotes.isEmpty && pastNotes.isEmpty {
                 Section {
                     VStack(spacing: 16) {
                         Image(systemName: "note.text")
@@ -32,10 +43,23 @@ struct PassengerNotesListView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
                 }
-            } else {
+            } else if !currentNotes.isEmpty {
                 Section {
-                    ForEach(notes) { note in
+                    ForEach(currentNotes) { note in
                         noteRow(note)
+                    }
+                }
+            }
+
+            if !pastNotes.isEmpty {
+                Section {
+                    DisclosureGroup(isExpanded: $showPastNotes) {
+                        ForEach(pastNotes) { note in
+                            noteRow(note)
+                        }
+                    } label: {
+                        Label("Past Notes (\(pastNotes.count))", systemImage: "clock.arrow.circlepath")
+                            .foregroundColor(.secondary)
                     }
                 }
             }

@@ -8,9 +8,9 @@
 import Foundation
 
 struct CSVGenerator {
-    
+
     // MARK: - Weekly Manifest Report
-    
+
     /// Generates bus manifest in Excel-friendly CSV format for a week
     static func generateWeeklyManifest(
         for sessions: [AttendanceSession],
@@ -20,15 +20,9 @@ struct CSVGenerator {
         passengerNotes: [PassengerNote] = []
     ) -> String {
         var csv = ""
-        
-        // Get week end date (unused but kept for potential future use)
+
         let calendar = Calendar.current
-        _ = calendar.date(byAdding: .day, value: 6, to: weekStartDate) ?? weekStartDate
-        
-        // Get final check timestamp from the most recent dropoff session (unused but kept for potential future use)
-        let dropoffSessions = sessions.filter { $0.sessionType == .dropoff }
-        _ = dropoffSessions.last?.finalCheckTimestamp
-        
+
         // HEADER SECTION
         csv += "WEEKLY REPORT - \(TimestampFormatter.formatDateLong(weekStartDate))\n"
         csv += "\n"
@@ -38,33 +32,26 @@ struct CSVGenerator {
         csv += "PHONE:,\(driverDetails?.phoneNo ?? "N/A")\n"
         csv += "EMAIL:,\(driverDetails?.email ?? "N/A")\n"
         csv += "\n"
-        
 
         // ATTENDANCE TABLE HEADERS
-        // Layout: Name | Grade | [Mon AM Pickup Sched | Mon AM Pickup Actual | Mon PM Dropoff Sched | Mon PM Dropoff Actual] x5 | Address | Mother's Phone | Mother's Name | Father's Phone | Father's Name | Student's Phone
-        // Total columns: 2 + 20 + 6 = 28
+        // Layout: Name | Grade | [Mon AM Pickup Sched | Mon AM Pickup Actual | Mon PM Dropoff Sched | Mon PM Dropoff Actual] x5
+        // Total columns: 2 + 20 = 22
         let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 
-        // Header row 1 — day labels (AM Pickup, PM Dropoff) each span two sub-columns (the day label + a blank neighbour that merges left in Excel)
-        // Loop emits: ,{Day} AM Pickup,,{Day} PM Dropoff,  (4 commas = 4 separators per day)
-        // The trailing comma after PM Dropoff becomes the blank sub-column that merges left in Excel.
-        // After the loop, contact headers follow WITHOUT a leading comma (the loop's last comma serves as separator).
+        // Header row 1 — day labels
         csv += "Name,Grade"
         for day in weekdays {
             csv += ",\(day) AM Pickup,,\(day) PM Dropoff,"
         }
-        // The loop's trailing comma creates the blank neighbour for Friday PM Dropoff (col 21).
-        // The leading comma here starts Address at col 22.
-        csv += ",Address,Mother's Phone,Mother's Name,Father's Phone,Father's Name,Student's Phone\n"
+        csv += "\n"
 
-        // Header row 2 — "AM Scheduled | AM Actual | PM Scheduled | PM Actual" under each day pair; blanks elsewhere
+        // Header row 2 — "AM Scheduled | AM Actual | PM Scheduled | PM Actual" under each day pair
         csv += ","   // Name — blank
-        csv += ","   // Grade — blank (also acts as separator before first day sub-headers)
+        csv += ","   // Grade — blank
         for _ in weekdays {
             csv += "AM Scheduled,AM Actual,PM Scheduled,PM Actual,"
         }
-        // Contact columns (6) — blank sub-headers; leading separator already emitted by the loop's trailing comma
-        csv += ",,,,,\n"
+        csv += "\n"
 
         // Sort attendees by original list order
         let sortedAttendees = list.attendees.sorted { $0.orderIndex < $1.orderIndex }
@@ -136,28 +123,12 @@ struct CSVGenerator {
                 }
             }
 
-            // Contact detail columns: Address | Mother's Phone | Mother's Name | Father's Phone | Father's Name | Student's Phone
-            csv += ","
-            csv += escapeCSV(attendee.address)
-            csv += ","
-            csv += escapeCSV(attendee.primaryPhone)           // Mother's Phone
-            csv += ","
-            csv += escapeCSV(attendee.motherName)             // Mother's Name
-            csv += ","
-            csv += escapeCSV(attendee.secondaryPhone)         // Father's Phone
-            csv += ","
-            csv += escapeCSV(attendee.fatherName)             // Father's Name
-            csv += ","
-            csv += escapeCSV(attendee.studentPhone)           // Student's Phone
             csv += "\n"
         }
 
         csv += "\n"
 
         // JOURNEY START TIME ROW
-        // Col layout: Name | Grade | [PickSched | PickActual | DropSched | DropActual] x5 | Address | ...
-        // Journey start goes into the first "Actual" cell of each day pair (col index 3 & 1 within each group).
-        // Simpler: emit Name, Grade, then for each day emit: blank(sched) | startTime(actual) | blank(sched) | startTime(actual) | then contact blanks.
         csv += "Journey Start Time,"  // Name col
         csv += ""                      // Grade col
 
@@ -171,22 +142,18 @@ struct CSVGenerator {
                 $0.sessionType == .dropoff && calendar.isDate($0.createdDate, inSameDayAs: dayDate)
             }
 
-            // AM Pickup Scheduled (blank) | AM Pickup Actual (session start)
-            csv += ","  // sched — blank
+            csv += ","  // AM sched — blank
             csv += ","
             if let start = pickupSession?.sessionStartTimestamp {
                 csv += TimestampFormatter.formatTimeShort12Hour(start)
             }
 
-            // PM Dropoff Scheduled (blank) | PM Dropoff Actual (session start)
-            csv += ","  // sched — blank
+            csv += ","  // PM sched — blank
             csv += ","
             if let start = dropoffSession?.sessionStartTimestamp {
                 csv += TimestampFormatter.formatTimeShort12Hour(start)
             }
         }
-        // Contact columns — all blank (6: Address, Mother's Phone, Mother's Name, Father's Phone, Father's Name, Student's Phone)
-        csv += ",,,,,,"
         csv += "\n"
 
         // FINAL CHECK ROW
@@ -204,31 +171,27 @@ struct CSVGenerator {
                 $0.sessionType == .dropoff && calendar.isDate($0.createdDate, inSameDayAs: dayDate)
             }
 
-            // AM Pickup Scheduled (blank) | AM Pickup Actual (final check)
-            csv += ","  // sched — blank
+            csv += ","  // AM sched — blank
             csv += ","
             if !isDayInFuture, let fc = pickupSession?.finalCheckTimestamp {
                 csv += TimestampFormatter.formatTimeShort12Hour(fc)
             }
 
-            // PM Dropoff Scheduled (blank) | PM Dropoff Actual (final check)
-            csv += ","  // sched — blank
+            csv += ","  // PM sched — blank
             csv += ","
             if !isDayInFuture, let fc = dropoffSession?.finalCheckTimestamp {
                 csv += TimestampFormatter.formatTimeShort12Hour(fc)
             }
         }
-        // Contact columns — all blank (6: Address, Mother's Phone, Mother's Name, Father's Phone, Father's Name, Student's Phone)
-        csv += ",,,,,,"
         csv += "\n"
         csv += "\n"
 
-        // Total columns = 2 (Name+Grade) + 20 (5 days × 4) + 6 (contact) = 28
-        // To span a value across all columns, pad with 27 commas.
-        let columnSpan = String(repeating: ",", count: 27)
+        // Total columns = 2 (Name+Grade) + 20 (5 days × 4) = 22
+        // To span a value across all columns, pad with 21 commas.
+        let columnSpan = String(repeating: ",", count: 21)
 
         // TRAVEL NOTES SECTION
-        let notesTrail = String(repeating: ",", count: 26)  // 27 cols - 1 for the value cell = 26 trailing
+        let notesTrail = String(repeating: ",", count: 20)
         csv += "TRAVEL NOTES\(columnSpan)\n"
         csv += "Student Name,Notes\(notesTrail)\n"
 
@@ -272,10 +235,9 @@ struct CSVGenerator {
         formatter.dateFormat = "d MMMM yyyy"
         return formatter.string(from: date)
     }
-    
+
     // MARK: - Manifest Helper Functions
-    
-    
+
     /// Escapes CSV values with quotes if needed
     private static func escapeCSV(_ value: String) -> String {
         if value.contains(",") || value.contains("\"") || value.contains("\n") {
@@ -283,7 +245,7 @@ struct CSVGenerator {
         }
         return value
     }
-    
+
     // MARK: - Single Session Export
 
     /// Generates a manifest-style CSV for a single session, mirroring the weekly report format
@@ -309,11 +271,10 @@ struct CSVGenerator {
         csv += "\n"
 
         // ATTENDANCE TABLE HEADERS
-        // Columns: Name | [Date] Pickup | [Date] Dropoff | Address | Mother's Phone | Mother's Name | Father's Phone | Father's Name | Student's Phone
+        // Columns: Name | [Date] AM Pickup | [Date] PM Dropoff
         let shortDate = TimestampFormatter.formatDate(session.createdDate)
         csv += "Name"
         csv += ",\(shortDate) AM Pickup,\(shortDate) PM Dropoff"
-        csv += ",Address,Mother's Phone,Mother's Name,Father's Phone,Father's Name,Student's Phone"
         csv += "\n"
 
         let sortedAttendees = list.attendees.sorted { $0.orderIndex < $1.orderIndex }
@@ -335,7 +296,6 @@ struct CSVGenerator {
                     csv += "Absent"
                 }
             }
-            // else leave blank — this is a dropoff-only session
 
             // Dropoff column
             csv += ","
@@ -350,21 +310,7 @@ struct CSVGenerator {
                     csv += "Absent"
                 }
             }
-            // else leave blank — this is a pickup-only session
 
-            // Contact detail columns: Address | Mother's Phone | Mother's Name | Father's Phone | Father's Name | Student's Phone
-            csv += ","
-            csv += escapeCSV(attendee.address)
-            csv += ","
-            csv += escapeCSV(attendee.primaryPhone)       // Mother's Phone
-            csv += ","
-            csv += escapeCSV(attendee.motherName)         // Mother's Name
-            csv += ","
-            csv += escapeCSV(attendee.secondaryPhone)     // Father's Phone
-            csv += ","
-            csv += escapeCSV(attendee.fatherName)         // Father's Name
-            csv += ","
-            csv += escapeCSV(attendee.studentPhone)       // Student's Phone
             csv += "\n"
         }
 
@@ -394,17 +340,17 @@ struct CSVGenerator {
         }
         csv += "\n\n"
 
-        // Total columns = 1 (Name) + 2 (Pickup/Dropoff) + 6 (contact details) = 9
-        let columnSpan = String(repeating: ",", count: 8)
+        // Total columns = 1 (Name) + 2 (Pickup/Dropoff) = 3
+        let columnSpan = String(repeating: ",", count: 2)
 
         // TRAVEL NOTES SECTION
         csv += "TRAVEL NOTES\(columnSpan)\n"
-        csv += "Student Name,Notes\(String(repeating: ",", count: 7))\n"
+        csv += "Student Name,Notes\(String(repeating: ",", count: 1))\n"
         for attendee in sortedAttendees where !attendee.notes.isEmpty {
             csv += escapeCSV(attendee.name)
             csv += ","
             csv += escapeCSV(attendee.notes)
-            csv += String(repeating: ",", count: 7)
+            csv += String(repeating: ",", count: 1)
             csv += "\n"
         }
 
@@ -427,7 +373,7 @@ struct CSVGenerator {
 
         return csv
     }
-    
+
     /// Generates filename for a single session export
     static func generateFilename(for session: AttendanceSession, list: AttendeeList) -> String {
         let dateStr = TimestampFormatter.formatDate(session.createdDate)
@@ -436,26 +382,26 @@ struct CSVGenerator {
             .replacingOccurrences(of: " ", with: "_")
         let sessionType = session.sessionType == .pickup ? "AMPickup" : "PMDropoff"
         let listName = sanitizeFilename(list.name)
-        
+
         return "Session_\(listName)_\(sessionType)_\(dateStr)_\(timeStr).csv"
     }
-    
+
     // MARK: - File Naming
-    
+
     /// Generates filename for weekly manifest report
     static func generateManifestFilename(for list: AttendeeList, weekStartDate: Date) -> String {
         let calendar = Calendar.current
         let weekEndDate = calendar.date(byAdding: .day, value: 6, to: weekStartDate) ?? weekStartDate
-        
+
         let startDateStr = TimestampFormatter.formatDate(weekStartDate)
         let endDateStr = TimestampFormatter.formatDate(weekEndDate)
         let listName = sanitizeFilename(list.name)
-        
+
         return "\(listName)_\(startDateStr)_to_\(endDateStr).csv"
     }
-    
+
     // MARK: - Helpers
-    
+
     /// Removes invalid characters from filename
     private static func sanitizeFilename(_ name: String) -> String {
         let invalidCharacters = CharacterSet(charactersIn: ":/\\?%*|\"<>")
@@ -464,14 +410,14 @@ struct CSVGenerator {
             .joined(separator: "_")
             .replacingOccurrences(of: " ", with: "_")
     }
-    
+
     // MARK: - Save to File
-    
+
     /// Saves CSV content to temporary file and returns URL
     static func saveToTemporaryFile(csvContent: String, filename: String) -> URL? {
         let tempDirectory = FileManager.default.temporaryDirectory
         let fileURL = tempDirectory.appendingPathComponent(filename)
-        
+
         do {
             try csvContent.write(to: fileURL, atomically: true, encoding: .utf8)
             return fileURL
@@ -481,5 +427,3 @@ struct CSVGenerator {
         }
     }
 }
-
-
