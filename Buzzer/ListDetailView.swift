@@ -49,8 +49,7 @@ struct ListDetailView: View {
                     // HISTORY button
                     NavigationLink(destination: SessionHistoryView(list: currentList)) {
                         AccessibleNavigationButton(
-                            "View History",
-                            subtitle: "Reports from previous days",
+                            "VIEW HISTORY",
                             systemImage: "clock.fill",
                             color: .orange
                         )
@@ -176,7 +175,7 @@ struct ListDetailView: View {
                         attendeeForProfile = attendee
                     } label: {
                         Text(attendee.name)
-                            .font(.body)
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
                             .foregroundColor(.primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
@@ -190,13 +189,12 @@ struct ListDetailView: View {
                             } label: {
                                 VStack(spacing: 3) {
                                     Image(systemName: "note.text")
-                                        .font(.system(size: 18))
+                                        .font(.system(size: 20))
                                     Text("Note")
-                                        .font(.caption2)
-                                        .fontWeight(.medium)
+                                        .font(.system(size: 13, weight: .medium, design: .rounded))
                                 }
                                 .foregroundColor(.orange)
-                                .frame(width: 56, height: 44)
+                                .frame(width: 60, height: 50)
                                 .background(Color.orange.opacity(0.1))
                                 .cornerRadius(10)
                             }
@@ -207,13 +205,12 @@ struct ListDetailView: View {
                             } label: {
                                 VStack(spacing: 3) {
                                     Image(systemName: "pencil.circle")
-                                        .font(.system(size: 18))
+                                        .font(.system(size: 20))
                                     Text("Edit")
-                                        .font(.caption2)
-                                        .fontWeight(.medium)
+                                        .font(.system(size: 13, weight: .medium, design: .rounded))
                                 }
                                 .foregroundColor(.accentColor)
-                                .frame(width: 56, height: 44)
+                                .frame(width: 60, height: 50)
                                 .background(Color.accentColor.opacity(0.1))
                                 .cornerRadius(10)
                             }
@@ -221,7 +218,7 @@ struct ListDetailView: View {
                         }
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 8)
             }
             .onMove { source, destination in
                 moveAttendee(from: source, to: destination, in: currentList)

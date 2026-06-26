@@ -34,12 +34,12 @@
                         .foregroundColor(.accentColor)
                     
                     Text(currentList?.name ?? list.name)
-                        .font(.system(size: 28, weight: .bold)) // Accessible size
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
                         .multilineTextAlignment(.center)
                         .accessibleHeader()
                     
                     Text("\(currentList?.attendees.count ?? 0) student\(currentList?.attendees.count == 1 ? "" : "s")")
-                        .font(.system(size: 18)) // Accessible size
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
                         .foregroundColor(.secondary)
                         .accessibilityLabel("\(currentList?.attendees.count ?? 0) attendees in this list")
                 }
@@ -65,7 +65,7 @@
                     
                     if let lastPickup = dataManager.fetchRecentSession(for: list, type: .pickup) {
                         Text("Last AM Pickup: \(lastPickup.createdDate, style: .relative)")
-                            .font(.system(size: 16)) // Accessible font size
+                            .font(.system(size: 17, weight: .medium, design: .rounded))
                             .foregroundColor(.secondary)
                             .accessibilityLabel("Last AM Pickup session was \(lastPickup.createdDate, style: .relative)")
                     }
@@ -88,7 +88,7 @@
                     
                     if let lastDropoff = dataManager.fetchRecentSession(for: list, type: .dropoff) {
                         Text("Last PM Dropoff: \(lastDropoff.createdDate, style: .relative)")
-                            .font(.system(size: 16)) // Accessible font size
+                            .font(.system(size: 17, weight: .medium, design: .rounded))
                             .foregroundColor(.secondary)
                             .accessibilityLabel("Last PM Dropoff session was \(lastDropoff.createdDate, style: .relative)")
                     }
@@ -172,9 +172,9 @@
         private func sessionButton(title: String, systemImage: String, color: Color) -> some View {
             HStack(spacing: 16) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 32)) // Large icon
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
                 Text(title)
-                    .font(.system(size: 24, weight: .bold)) // 20pt+ font for accessibility
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
             }
             .frame(maxWidth: .infinity)
             .frame(minWidth: 60, minHeight: 70) // Accessibility: 60x70pt minimum

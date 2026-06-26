@@ -23,15 +23,19 @@ struct IncompleteSessionSheet: View {
                 // Header banner
                 VStack(spacing: 6) {
                     Image(systemName: "exclamationmark.circle.fill")
-                        .font(.system(size: 48))
+                        .font(.system(size: 60))
                         .foregroundColor(.orange)
 
-                    Text("Incomplete Session Found")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                    VStack(spacing: 2) {
+                        Text(session.sessionType == .pickup ? "On Bus" : "Off Bus")
+                            .font(.system(size: 22, weight: .semibold, design: .rounded))
+                            .foregroundColor(accentColor)
+                        Text("Incomplete Session Found")
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                    }
 
                     Text("A \(sessionLabel) session from earlier today was not finished.")
-                        .font(.subheadline)
+                        .font(.system(size: 17, weight: .medium, design: .rounded))
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
@@ -43,10 +47,11 @@ struct IncompleteSessionSheet: View {
                 VStack(spacing: 16) {
                     HStack {
                         Text("Session started")
+                            .font(.system(size: 17, weight: .medium, design: .rounded))
                             .foregroundColor(.secondary)
                         Spacer()
                         Text(session.createdDate, style: .time)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
                     }
 
                     Divider()
@@ -55,10 +60,11 @@ struct IncompleteSessionSheet: View {
                     VStack(spacing: 8) {
                         HStack {
                             Text("Progress")
+                                .font(.system(size: 17, weight: .medium, design: .rounded))
                                 .foregroundColor(.secondary)
                             Spacer()
                             Text("\(marked) of \(total)")
-                                .fontWeight(.semibold)
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
                         }
                         ProgressView(value: Double(marked), total: Double(max(total, 1)))
                             .tint(accentColor)
@@ -90,9 +96,9 @@ struct IncompleteSessionSheet: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "arrow.counterclockwise.circle.fill")
-                                .font(.system(size: 22))
+                                .font(.system(size: 26))
                             Text("Continue Session")
-                                .font(.headline)
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
@@ -107,9 +113,9 @@ struct IncompleteSessionSheet: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 22))
+                                .font(.system(size: 26))
                             Text("Start New Session")
-                                .font(.headline)
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
@@ -125,6 +131,7 @@ struct IncompleteSessionSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 36)
             }
+            .navigationTitle("Incomplete Session")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
@@ -133,12 +140,12 @@ struct IncompleteSessionSheet: View {
         VStack(spacing: 4) {
             Image(systemName: icon)
                 .foregroundColor(color)
-                .font(.system(size: 20))
+                .font(.system(size: 24))
             Text("\(value)")
-                .font(.system(size: 28, weight: .bold))
+                .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(color)
             Text(label)
-                .font(.caption)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity)

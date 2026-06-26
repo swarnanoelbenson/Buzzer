@@ -55,13 +55,15 @@ struct SessionHistoryView: View {
             // Session type filter
             Picker("Filter", selection: $filterType) {
                 ForEach(SessionFilterType.allCases, id: \.self) { type in
-                    Text(type.displayName).tag(type)
+                    Text(type.displayName)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .tag(type)
                 }
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.top, 12)
-            
+
             // Date filter button
             Button {
                 showDatePicker = true
@@ -71,10 +73,10 @@ struct SessionHistoryView: View {
                     Text("Filter by Date: \(TimestampFormatter.formatDate(searchDate))")
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.caption)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundColor(.secondary)
                 }
-                .font(.subheadline)
+                .font(.system(size: 17, weight: .medium, design: .rounded))
                 .foregroundColor(.primary)
                 .padding(.horizontal)
                 .padding(.vertical, 8)
@@ -108,14 +110,8 @@ struct SessionHistoryView: View {
                     Image(systemName: "arrow.down.doc.fill")
                         .font(.system(size: 24, weight: .semibold))
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("DOWNLOAD REPORT")
-                            .font(.system(size: 18, weight: .bold))
-                        
-                        Text("Export and save attendance data")
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundColor(.white.opacity(0.9))
-                    }
+                    Text("DOWNLOAD REPORT")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                     
                     Spacer()
                     
@@ -300,30 +296,30 @@ struct SessionHistoryRow: View {
         HStack(spacing: 12) {
             // Session type icon
             Image(systemName: session.sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                .font(.title2)
+                .font(.system(size: 22, weight: .semibold, design: .rounded))
                 .foregroundColor(session.sessionType == .pickup ? .green : .orange)
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 // Session type and time
                 HStack {
                     Text(session.sessionType == .pickup ? "AM Pickup" : "PM Dropoff")
-                        .font(.headline)
-                    
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+
                     Spacer()
-                    
+
                     Text(session.createdDate, style: .time)
-                        .font(.subheadline)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .foregroundColor(.secondary)
                 }
-                
+
                 // Summary
                 HStack(spacing: 16) {
                     Label("\(presentCount) present", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundColor(.green)
-                    
+
                     Label("\(absentCount) absent", systemImage: "xmark.circle.fill")
-                        .font(.caption)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundColor(.red)
                 }
             }

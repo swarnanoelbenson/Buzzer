@@ -38,8 +38,7 @@ struct FinalCheckView: View {
                 if !unmarkedAttendees.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
                         Text("Unrecorded Students")
-                            .font(.caption)
-                            .fontWeight(.semibold)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 16)
                             .padding(.bottom, 6)
@@ -61,7 +60,7 @@ struct FinalCheckView: View {
                 // Time Display
                 VStack(spacing: 8) {
                     Text("Final Check Time")
-                        .font(.headline)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .foregroundColor(.secondary)
 
                     Text(currentTime, style: .time)
@@ -83,10 +82,10 @@ struct FinalCheckView: View {
                 } label: {
                     HStack(spacing: 12) {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
 
                         Text("Confirm")
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 60)
@@ -138,7 +137,7 @@ struct FinalCheckView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.primary)
                 }
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .font(.system(size: 15, weight: .medium, design: .rounded))
             }
         }
         .padding(.horizontal, 14)

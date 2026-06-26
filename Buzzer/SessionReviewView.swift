@@ -17,11 +17,9 @@ struct SessionReviewView: View {
     // MARK: - Sheet state
     /// Attendee waiting for a green-tick timestamp entry (unmarked)
     @State private var attendeeForPresent: Attendee?
-    @State private var showTimestampSheet = false
 
     /// Attendee whose existing record is being modified
     @State private var attendeeForModify: Attendee?
-    @State private var showModifySheet = false
 
     var body: some View {
         NavigationView {
@@ -29,32 +27,44 @@ struct SessionReviewView: View {
                 // Summary section
                 Section {
                     let summary = sessionManager.getSummary()
+                    let presentLabel = sessionType == .pickup ? "On Bus" : "Off Bus"
 
                     HStack {
-                        Label("Present", systemImage: "checkmark.circle.fill")
+                        Label(presentLabel, systemImage: "checkmark.circle.fill")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
                             .foregroundColor(.green)
                         Spacer()
                         Text("\(summary.present)")
-                            .font(.headline)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(.green)
                     }
+                    .padding(.vertical, 2)
 
                     HStack {
                         Label("Absent", systemImage: "xmark.circle.fill")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
                             .foregroundColor(.red)
                         Spacer()
                         Text("\(summary.absent)")
-                            .font(.headline)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(.red)
                     }
+                    .padding(.vertical, 2)
 
                     HStack {
                         Label("Total", systemImage: "person.2.fill")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
                         Spacer()
                         Text("\(list.attendees.count)")
-                            .font(.headline)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(.secondary)
                     }
+                    .padding(.vertical, 2)
                 } header: {
                     Text("Summary")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .textCase(.uppercase)
                 }
 
                 // Attendee details
@@ -64,6 +74,8 @@ struct SessionReviewView: View {
                     }
                 } header: {
                     Text("Attendance Details")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .textCase(.uppercase)
                 }
             }
             .listStyle(.insetGrouped)
@@ -78,20 +90,19 @@ struct SessionReviewView: View {
                 }
             }
             // Timestamp sheet for marking an unmarked student present
-            .sheet(isPresented: $showTimestampSheet) {
-                if let attendee = attendeeForPresent {
-                    TimestampEntrySheet(
-                        attendeeName: attendee.name,
-                        initialTime: (sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime) ?? Date()
-                    ) { chosenTime in
-                        sessionManager.recordAttendance(for: attendee, status: .present, timestamp: chosenTime)
-                    }
+            .sheet(item: $attendeeForPresent) { attendee in
+                TimestampEntrySheet(
+                    attendeeName: attendee.name,
+                    sessionType: sessionType,
+                    scheduledTime: sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime,
+                    initialTime: (sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime) ?? Date()
+                ) { chosenTime in
+                    sessionManager.recordAttendance(for: attendee, status: .present, timestamp: chosenTime)
                 }
             }
             // Modify sheet for updating an already-marked student
-            .sheet(isPresented: $showModifySheet) {
-                if let attendee = attendeeForModify,
-                   let record = sessionManager.getRecord(for: attendee) {
+            .sheet(item: $attendeeForModify) { attendee in
+                if let record = sessionManager.getRecord(for: attendee) {
                     ModifyAttendanceSheet(
                         attendeeName: attendee.name,
                         sessionType: sessionType,
@@ -111,7 +122,7 @@ struct SessionReviewView: View {
     private func reviewRow(for attendee: Attendee) -> some View {
         let record = sessionManager.getRecord(for: attendee)
 
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
             // Status icon
             Group {
                 if let record {
@@ -122,22 +133,23 @@ struct SessionReviewView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .imageScale(.large)
+            .font(.system(size: 26))
 
             // Name + timestamp
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(attendee.name)
-                    .font(.body)
+                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
 
                 if let record {
                     if let timestamp = record.timestamp {
                         Text(TimestampFormatter.formatTime(timestamp))
-                            .font(.caption)
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
                             .foregroundColor(.secondary)
                     } else if record.status == .absent {
                         Text("Absent")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundColor(.red)
                     }
                 }
             }
@@ -146,23 +158,22 @@ struct SessionReviewView: View {
 
             if record == nil {
                 // Unmarked — show red cross and green tick
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Button {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         sessionManager.recordAttendance(for: attendee, status: .absent, timestamp: nil)
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 32))
+                            .font(.system(size: 36))
                             .foregroundColor(.red)
                     }
                     .buttonStyle(.plain)
 
                     Button {
                         attendeeForPresent = attendee
-                        showTimestampSheet = true
                     } label: {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 32))
+                            .font(.system(size: 36))
                             .foregroundColor(.green)
                     }
                     .buttonStyle(.plain)
@@ -171,21 +182,20 @@ struct SessionReviewView: View {
                 // Already marked — orange Modify button
                 Button {
                     attendeeForModify = attendee
-                    showModifySheet = true
                 } label: {
                     Text("Modify")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
                         .background(Color.orange)
                         .cornerRadius(10)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .listRowBackground(record == nil ? Color.orange.opacity(0.10) : Color(uiColor: .systemBackground))
     }
 }
 
@@ -228,18 +238,42 @@ struct ModifyAttendanceSheet: View {
             Form {
                 Section {
                     Text(attendeeName)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .padding(.vertical, 4)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .padding(.vertical, 6)
                 } header: {
                     Text("Student")
                 }
 
                 Section {
-                    Picker("Status", selection: $selectedStatus) {
-                        Text(presentLabel).tag(AttendanceStatus.present)
-                        Text("Absent").tag(AttendanceStatus.absent)
+                    HStack(spacing: 12) {
+                        // Absent button
+                        Button {
+                            selectedStatus = .absent
+                        } label: {
+                            Text("Absent")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(selectedStatus == .absent ? Color.red : Color.red.opacity(0.3))
+                                .cornerRadius(12)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Present button
+                        Button {
+                            selectedStatus = .present
+                        } label: {
+                            Text(presentLabel)
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(selectedStatus == .present ? Color.green : Color.green.opacity(0.3))
+                                .cornerRadius(12)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .pickerStyle(.segmented)
                     .padding(.vertical, 4)
                 } header: {
                     Text("Status")

@@ -19,11 +19,13 @@ struct UnmarkedReviewView: View {
 
     // MARK: - Timestamp entry pop-up state
     @State private var attendeeForTimestamp: Attendee?
-    @State private var enteredTime: Date = Date()
-    @State private var showTimestampSheet = false
 
     private var sessionDate: Date {
         sessionManager.currentSession?.createdDate ?? Date()
+    }
+
+    private var allMissedStudentsMarked: Bool {
+        unmarkedAttendees.allSatisfy { sessionManager.getRecord(for: $0) != nil }
     }
 
     var body: some View {
@@ -36,10 +38,7 @@ struct UnmarkedReviewView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         ForEach(unmarkedAttendees) { attendee in
-                            // Skip students already marked from this view during this session
-                            if sessionManager.getRecord(for: attendee) == nil {
-                                attendeeRow(for: attendee)
-                            }
+                            attendeeRow(for: attendee)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -51,7 +50,7 @@ struct UnmarkedReviewView: View {
                 finalCheckButton
             }
             .navigationTitle("Missed Students")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
@@ -60,14 +59,14 @@ struct UnmarkedReviewView: View {
                 }
             }
             // Timestamp entry sheet — shown when green tick is tapped
-            .sheet(isPresented: $showTimestampSheet) {
-                if let attendee = attendeeForTimestamp {
-                    TimestampEntrySheet(
-                        attendeeName: attendee.name,
-                        initialTime: (sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime) ?? Date()
-                    ) { chosenTime in
-                        sessionManager.recordAttendance(for: attendee, status: .present, timestamp: chosenTime)
-                    }
+            .sheet(item: $attendeeForTimestamp) { attendee in
+                TimestampEntrySheet(
+                    attendeeName: attendee.name,
+                    sessionType: sessionType,
+                    scheduledTime: sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime,
+                    initialTime: (sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime) ?? Date()
+                ) { chosenTime in
+                    sessionManager.recordAttendance(for: attendee, status: .present, timestamp: chosenTime)
                 }
             }
         }
@@ -79,6 +78,8 @@ struct UnmarkedReviewView: View {
         let notes = PassengerNoteManager.shared.getActiveNotes(for: attendee.id, on: sessionDate)
         let accentColor: Color = sessionType == .pickup ? .green : .orange
         let scheduleTime: Date? = sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime
+        let record = sessionManager.getRecord(for: attendee)
+        let isMarked = record != nil
 
         return HStack(alignment: .center, spacing: 12) {
             // Name + scheduled time stacked on the left
@@ -91,9 +92,9 @@ struct UnmarkedReviewView: View {
                     HStack(spacing: 4) {
                         Image(systemName: sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                             .foregroundColor(accentColor)
-                            .font(.system(size: 13))
+                            .font(.system(size: 15))
                         Text(time, style: .time)
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -124,32 +125,39 @@ struct UnmarkedReviewView: View {
 
             Spacer()
 
-            // Red cross → mark absent
-            Button {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                sessionManager.recordAttendance(for: attendee, status: .absent, timestamp: nil)
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.red)
-            }
-            .buttonStyle(.plain)
+            if isMarked {
+                // Show the recorded status badge
+                if let record {
+                    Image(systemName: record.status == .present ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(record.status == .present ? .green : .red)
+                }
+            } else {
+                // Red cross → mark absent
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    sessionManager.recordAttendance(for: attendee, status: .absent, timestamp: nil)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
 
-            // Green tick → open timestamp entry
-            Button {
-                attendeeForTimestamp = attendee
-                enteredTime = (sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime) ?? Date()
-                showTimestampSheet = true
-            } label: {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 40))
-                    .foregroundColor(.green)
+                // Green tick → open timestamp entry
+                Button {
+                    attendeeForTimestamp = attendee
+                } label: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.green)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(uiColor: .systemBackground))
+        .background(isMarked ? Color(uiColor: .systemBackground) : Color.orange.opacity(0.10))
         .cornerRadius(16)
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
     }
@@ -162,13 +170,14 @@ struct UnmarkedReviewView: View {
             onProceed()
         } label: {
             Text("Final Check")
-                .font(.headline)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 18)
-                .background(Color.green)
+                .background(allMissedStudentsMarked ? Color.green : Color.green.opacity(0.35))
                 .cornerRadius(16)
         }
+        .disabled(!allMissedStudentsMarked)
         .padding(.horizontal, 16)
         .padding(.bottom, 32)
         .padding(.top, 12)
@@ -186,31 +195,68 @@ struct TimestampEntrySheet: View {
     @Environment(\.dismiss) var dismiss
 
     let attendeeName: String
+    let sessionType: SessionType
+    let scheduledTime: Date?
     let initialTime: Date
     let onConfirm: (Date) -> Void
 
     @State private var selectedTime: Date
 
-    init(attendeeName: String, initialTime: Date, onConfirm: @escaping (Date) -> Void) {
+    init(
+        attendeeName: String,
+        sessionType: SessionType,
+        scheduledTime: Date?,
+        initialTime: Date,
+        onConfirm: @escaping (Date) -> Void
+    ) {
         self.attendeeName = attendeeName
+        self.sessionType = sessionType
+        self.scheduledTime = scheduledTime
         self.initialTime = initialTime
         self.onConfirm = onConfirm
         _selectedTime = State(initialValue: initialTime)
     }
 
+    private var presentLabel: String {
+        sessionType == .pickup ? "On Bus" : "Off Bus"
+    }
+
+    private var scheduleIcon: String {
+        sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill"
+    }
+
+    private var accentColor: Color {
+        sessionType == .pickup ? .green : .orange
+    }
+
     var body: some View {
         NavigationView {
-            VStack(spacing: 32) {
+            VStack(spacing: 24) {
                 Spacer()
 
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     Text(attendeeName)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
                         .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(2)
+                        .padding(.horizontal, 16)
 
-                    Text("Select the boarding time")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    if let sched = scheduledTime {
+                        HStack(spacing: 6) {
+                            Image(systemName: scheduleIcon)
+                                .foregroundColor(accentColor)
+                            Text(sched, style: .time)
+                                .fontWeight(.bold)
+                        }
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                    }
+
+                    Text("Select the time for \(presentLabel)")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
+                        .padding(.top, 4)
                 }
 
                 DatePicker(
@@ -221,6 +267,7 @@ struct TimestampEntrySheet: View {
                 .datePickerStyle(.wheel)
                 .labelsHidden()
                 .frame(maxWidth: .infinity)
+                .fontWeight(.bold)
 
                 Spacer()
 
@@ -228,19 +275,18 @@ struct TimestampEntrySheet: View {
                     onConfirm(selectedTime)
                     dismiss()
                 } label: {
-                    Text("Confirm")
-                        .font(.headline)
+                    Text(presentLabel)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
-                        .background(Color.green)
+                        .background(accentColor)
                         .cornerRadius(16)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
             }
-            .padding(.horizontal, 24)
-            .navigationTitle("Mark Present")
+            .navigationTitle("Mark \(presentLabel)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

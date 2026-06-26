@@ -118,17 +118,17 @@ struct AttendanceTrackingView: View {
                 HStack(spacing: 12) {
                     Label("\(summary.present)", systemImage: "checkmark.circle.fill")
                         .foregroundColor(.green)
-                        .font(.subheadline)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
 
                     Label("\(summary.absent)", systemImage: "xmark.circle.fill")
                         .foregroundColor(.red)
-                        .font(.subheadline)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
                 }
 
                 Spacer()
 
                 Text("\(progress.current) of \(progress.total)")
-                    .font(.headline)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
                     .foregroundColor(.primary)
             }
             .padding(.horizontal)
@@ -150,54 +150,59 @@ struct AttendanceTrackingView: View {
             let actionButtonWidth = (geometry.size.width - 48 - 20) / 2
 
             VStack(spacing: 0) {
-                // Navigation arrows — above the attendee name
+                // Navigation arrows — always rendered in fixed positions
+                let isFirstAttendee = sessionManager.currentAttendeeIndex == 0
+                let isLastAttendee = sessionManager.currentAttendeeIndex >= orderedAttendees.count - 1
                 HStack(spacing: 20) {
-                    // Left arrow
+                    // Previous — left slot, invisible on first student
                     Button {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             sessionManager.goToPrevious()
                         }
                     } label: {
                         Text("Previous")
-                            .font(.title2)
-                            .fontWeight(.bold)
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                             .frame(width: actionButtonWidth, height: 80)
                             .background(Color(red: 0, green: 0.588, blue: 0.714))
                             .cornerRadius(16)
                     }
-                    .disabled(sessionManager.currentAttendeeIndex == 0)
-                    .opacity(sessionManager.currentAttendeeIndex == 0 ? 0.35 : 1.0)
+                    .opacity(isFirstAttendee ? 0 : 1)
+                    .disabled(isFirstAttendee)
 
-                    // Right arrow
+                    // Next — right slot, invisible on last student
                     Button {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             sessionManager.advanceToNext()
                         }
                     } label: {
                         Text("Next")
-                            .font(.title2)
-                            .fontWeight(.bold)
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                             .frame(width: actionButtonWidth, height: 80)
                             .background(Color(red: 0, green: 0.588, blue: 0.714))
                             .cornerRadius(16)
                     }
-                    .disabled(sessionManager.currentAttendeeIndex >= orderedAttendees.count - 1)
-                    .opacity(sessionManager.currentAttendeeIndex >= orderedAttendees.count - 1 ? 0.35 : 1.0)
+                    .opacity(isLastAttendee ? 0 : 1)
+                    .disabled(isLastAttendee)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .padding(.bottom, 16)
-                
+
                 Spacer()
-                
-                // Current attendee info
+
+                // Current attendee info — fixed three-slot layout
                 if sessionManager.currentAttendeeIndex < orderedAttendees.count {
                     let currentAttendee = orderedAttendees[sessionManager.currentAttendeeIndex]
+                    let record = sessionManager.getRecord(for: currentAttendee)
+                    let accentColor: Color = sessionType == .pickup ? .green : .blue
+                    let schedTime: Date? = sessionType == .pickup ? currentAttendee.pickupTime : currentAttendee.dropoffTime
+                    let schedLabel = sessionType == .pickup ? "AM Pickup" : "PM Dropoff"
+                    let schedIcon = sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill"
 
-                    VStack(spacing: 24) {
-                        // Attendee name
+                    VStack(spacing: 20) {
+                        // Slot 1: Attendee name
                         Text(currentAttendee.name)
                             .font(.system(size: 48, weight: .bold, design: .rounded))
                             .multilineTextAlignment(.center)
@@ -205,34 +210,58 @@ struct AttendanceTrackingView: View {
                             .minimumScaleFactor(0.5)
                             .lineLimit(2)
 
-                        // Scheduled pickup / dropoff time
-                        scheduleTimeRow(for: currentAttendee)
+                        // Slot 2: Scheduled time (fixed height, shown when available)
+                        Group {
+                            if let time = schedTime {
+                                HStack(spacing: 6) {
+                                    Image(systemName: schedIcon)
+                                        .foregroundColor(accentColor)
+                                    Text("\(schedLabel): \(time, style: .time)")
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                }
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(accentColor.opacity(0.10))
+                                )
+                            } else {
+                                Color.clear
+                                    .frame(height: 52)
+                            }
+                        }
 
-                        // Active notes for today's session date
-                        activeNotesView(for: currentAttendee)
-
-                        // Status indicator if already recorded
-                        if let record = sessionManager.getRecord(for: currentAttendee) {
-                            HStack(spacing: 8) {
+                        // Slot 3: Actual timestamp (always present, empty until marked)
+                        HStack(spacing: 8) {
+                            if let record {
                                 Image(systemName: record.status == .present ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    .foregroundColor(record.status == .present ? .green : .red)
-
+                                    .foregroundColor(record.status == .present ? (sessionType == .pickup ? .green : .blue) : .red)
                                 Text(record.status == .present
                                     ? (sessionType == .pickup ? "On Bus" : "Off Bus")
                                     : "Marked Absent")
                                     .fontWeight(.medium)
-
                                 if let timestamp = record.timestamp {
                                     Text("at \(timestamp, style: .time)")
                                         .foregroundColor(.secondary)
                                 }
+                            } else {
+                                // Empty placeholder to hold the space
+                                Color.clear
                             }
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 12)
-                            .background(Color(uiColor: .secondarySystemBackground))
-                            .cornerRadius(20)
                         }
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .frame(height: 52)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20)
+                                .fill(record != nil ? Color(uiColor: .secondarySystemBackground) : Color.clear)
+                        )
+
+                        // Active notes for today's session date
+                        activeNotesView(for: currentAttendee)
                     }
                     .gesture(
                         DragGesture(minimumDistance: 50)
@@ -259,8 +288,7 @@ struct AttendanceTrackingView: View {
                                 .font(.system(size: 50))
 
                             Text("Absent")
-                                .font(.title2)
-                                .fontWeight(.bold)
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 180)
@@ -278,12 +306,11 @@ struct AttendanceTrackingView: View {
                                 .font(.system(size: 50))
 
                             Text(sessionType == .pickup ? "On Bus" : "Off Bus")
-                                .font(.title2)
-                                .fontWeight(.bold)
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 180)
-                        .background(Color.green)
+                        .background(sessionType == .pickup ? Color.green : Color.blue)
                         .foregroundColor(.white)
                         .cornerRadius(20)
                     }
@@ -294,32 +321,6 @@ struct AttendanceTrackingView: View {
         }
     }
     
-    // MARK: - Schedule Time Row
-
-    @ViewBuilder
-    private func scheduleTimeRow(for attendee: Attendee) -> some View {
-        let accentColor: Color = sessionType == .pickup ? .green : .orange
-        let time: Date? = sessionType == .pickup ? attendee.pickupTime : attendee.dropoffTime
-        let label = sessionType == .pickup ? "AM Pickup" : "PM Dropoff"
-
-        if let time {
-            HStack(spacing: 6) {
-                Image(systemName: sessionType == .pickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
-                    .foregroundColor(accentColor)
-                Text("\(label): \(time, style: .time)")
-                    .fontWeight(.semibold)
-                    .foregroundColor(.primary)
-            }
-            .font(.system(size: 24, weight: .bold, design: .rounded))
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(accentColor.opacity(0.10))
-            )
-        }
-    }
-
     // MARK: - Note View
 
     // Each note container is ~90pt tall (14 vertical padding × 2 + ~62pt text).
@@ -387,27 +388,35 @@ struct AttendanceTrackingView: View {
                 .foregroundColor(.green)
             
             Text("Session Complete!")
-                .font(.title)
-                .fontWeight(.bold)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
             
             let summary = sessionManager.getSummary()
             VStack(spacing: 12) {
-                HStack(spacing: 40) {
+                HStack(spacing: 32) {
                     VStack {
                         Text("\(summary.present)")
-                            .font(.system(size: 44, weight: .bold))
+                            .font(.system(size: 56, weight: .bold, design: .rounded))
                             .foregroundColor(.green)
-                        Text("Present")
-                            .font(.headline)
+                        Text(sessionType == .pickup ? "On Bus" : "Off Bus")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
                     }
-                    
+
                     VStack {
                         Text("\(summary.absent)")
-                            .font(.system(size: 44, weight: .bold))
+                            .font(.system(size: 56, weight: .bold, design: .rounded))
                             .foregroundColor(.red)
                         Text("Absent")
-                            .font(.headline)
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundColor(.secondary)
+                    }
+
+                    VStack {
+                        Text("\(list.attendees.count)")
+                            .font(.system(size: 56, weight: .bold, design: .rounded))
+                            .foregroundColor(.secondary)
+                        Text("Total")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -421,14 +430,14 @@ struct AttendanceTrackingView: View {
                     showSessionReview = true
                 } label: {
                     Text("Review Session")
-                        .font(.headline)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
                         .background(Color.accentColor)
                         .cornerRadius(16)
                 }
-                
+
                 Button {
                     if sessionManager.unmarkedCount(for: list) > 0 {
                         showUnmarkedReview = true
@@ -437,7 +446,7 @@ struct AttendanceTrackingView: View {
                     }
                 } label: {
                     Text("Final Check")
-                        .font(.headline)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 18)
