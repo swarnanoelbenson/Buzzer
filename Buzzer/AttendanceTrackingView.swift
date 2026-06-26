@@ -148,6 +148,8 @@ struct AttendanceTrackingView: View {
         GeometryReader { geometry in
             // Each action button width = (totalWidth - 24*2 padding - 20 spacing) / 2
             let actionButtonWidth = (geometry.size.width - 48 - 20) / 2
+            // Scale action button height relative to screen: ~180pt on large phones, smaller on iPhone 8
+            let actionButtonHeight = min(180, geometry.size.height * 0.27)
 
             VStack(spacing: 0) {
                 // Navigation arrows — always rendered in fixed positions
@@ -163,7 +165,7 @@ struct AttendanceTrackingView: View {
                         Text("Previous")
                             .font(.system(size: 22, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
-                            .frame(width: actionButtonWidth, height: 80)
+                            .frame(width: actionButtonWidth, height: min(80, geometry.size.height * 0.12))
                             .background(Color(red: 0, green: 0.588, blue: 0.714))
                             .cornerRadius(16)
                     }
@@ -179,7 +181,7 @@ struct AttendanceTrackingView: View {
                         Text("Next")
                             .font(.system(size: 22, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
-                            .frame(width: actionButtonWidth, height: 80)
+                            .frame(width: actionButtonWidth, height: min(80, geometry.size.height * 0.12))
                             .background(Color(red: 0, green: 0.588, blue: 0.714))
                             .cornerRadius(16)
                     }
@@ -219,8 +221,10 @@ struct AttendanceTrackingView: View {
                                     Text("\(schedLabel): \(time, style: .time)")
                                         .fontWeight(.semibold)
                                         .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.7)
                                 }
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
                                 .padding(.horizontal, 20)
                                 .padding(.vertical, 12)
                                 .background(
@@ -251,7 +255,9 @@ struct AttendanceTrackingView: View {
                                 Color.clear
                             }
                         }
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .frame(height: 52)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 12)
@@ -291,7 +297,7 @@ struct AttendanceTrackingView: View {
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: 180)
+                        .frame(height: actionButtonHeight)
                         .background(Color.red)
                         .foregroundColor(.white)
                         .cornerRadius(20)
@@ -309,7 +315,7 @@ struct AttendanceTrackingView: View {
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                         }
                         .frame(maxWidth: .infinity)
-                        .frame(height: 180)
+                        .frame(height: actionButtonHeight)
                         .background(sessionType == .pickup ? Color.green : Color.blue)
                         .foregroundColor(.white)
                         .cornerRadius(20)
