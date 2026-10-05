@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, signOut, User } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
@@ -20,20 +20,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [schoolId, setSchoolId] = useState("");
 
   useEffect(() => {
-    // Tab-close logout: sessionStorage is wiped when the tab is closed (not on refresh).
-    // We detect a fresh tab open by the absence of "tabOpen" in sessionStorage.
-    // Exception: /auth-callback is always a fresh legitimate login — skip the check there.
-    const isAuthCallback = typeof window !== "undefined" && window.location.pathname.startsWith("/auth-callback");
-    const isFreshTab = typeof window !== "undefined" && !sessionStorage.getItem("tabOpen") && !isAuthCallback;
-    if (typeof window !== "undefined" && !sessionStorage.getItem("tabOpen")) {
-      sessionStorage.setItem("tabOpen", "1");
-    }
+    // Tab-session guard: a tab is considered "authenticated" only if it has a sessionToken
+    // in sessionStorage — meaning it either completed a login (auth-callback) or was an
+    // already-open tab at the time of login (sessionStorage persists across refreshes but
+    // not across tab closes or new tab opens).
+    //
+    // If a new tab is opened (no sessionToken) and Firebase reports a user (because auth
+    // state is shared via IndexedDB across tabs), we sign out only within this tab's
+    // local state — we do NOT call signOut(auth) globally, which would kill other tabs.
+    const hasTabSession = typeof window !== "undefined" && !!sessionStorage.getItem("sessionToken");
 
     const unsub = onAuthStateChanged(auth, async (u) => {
-      // If this is a fresh tab open (tab was previously closed) and Firebase restored a
-      // persisted session, sign out immediately — the session should not survive a tab close.
-      if (isFreshTab && u) {
-        await signOut(auth).catch(() => {});
+      // If this tab has no session token but Firebase reports a user, this tab was opened
+      // fresh (new tab or after tab close). Don't authenticate this tab — redirect to login.
+      if (!hasTabSession && u) {
+        // Sign out only locally: clear state without calling global signOut.
+        setUser(null);
+        setSchoolName("");
+        setSchoolId("");
         setLoading(false);
         return;
       }
