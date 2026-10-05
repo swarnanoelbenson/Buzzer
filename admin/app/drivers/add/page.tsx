@@ -16,7 +16,6 @@ export default function AddDriverPage() {
   const [form, setForm] = useState({
     name: "", phone: "", age: "", gender: "Male", address: "",
     childrenCheck: "", driversLicense: "", licenseExpiry: "",
-    busRegistration: "",
   });
 
   const set = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));
@@ -40,7 +39,6 @@ export default function AddDriverPage() {
         childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
-        busRegistration: form.busRegistration.trim(),
         imageUrl: "",
         isActive: true,
         createdAt: Timestamp.now(),
@@ -95,10 +93,6 @@ export default function AddDriverPage() {
             <select className={FIELD} value={form.gender} onChange={e => set("gender", e.target.value)}>
               {["Male", "Female", "Prefer not to say"].map(g => <option key={g}>{g}</option>)}
             </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Bus Registration</label>
-            <input className={FIELD} required value={form.busRegistration} onChange={e => set("busRegistration", e.target.value)} placeholder="BUS001" />
           </div>
           <div className="col-span-2">
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Residential Address</label>

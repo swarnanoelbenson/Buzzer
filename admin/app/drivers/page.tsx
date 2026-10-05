@@ -26,13 +26,13 @@ const LABEL = "block text-[10px] font-black tracking-widest text-gray-400 upperc
 type FormState = {
   name: string; phone: string; age: string; gender: string;
   address: string; childrenCheck: string; driversLicense: string;
-  licenseExpiry: string; busRegistration: string;
+  licenseExpiry: string;
 };
 
 const EMPTY_FORM: FormState = {
   name: "", phone: "", age: "", gender: "Male",
   address: "", childrenCheck: "", driversLicense: "",
-  licenseExpiry: "", busRegistration: "",
+  licenseExpiry: "",
 };
 
 function driverToForm(d: Driver): FormState {
@@ -41,7 +41,6 @@ function driverToForm(d: Driver): FormState {
     gender: d.gender, address: d.address,
     childrenCheck: d.childrenCheck, driversLicense: d.driversLicense,
     licenseExpiry: d.licenseExpiry instanceof Date ? toInputDate(d.licenseExpiry) : "",
-    busRegistration: d.busRegistration,
   };
 }
 
@@ -55,7 +54,6 @@ const DIFF_FIELDS: { key: keyof FormState; label: string }[] = [
   { key: "age",             label: "Age" },
   { key: "gender",          label: "Gender" },
   { key: "address",         label: "Address" },
-  { key: "busRegistration", label: "Bus Registration" },
   { key: "childrenCheck",   label: "WWC Check" },
   { key: "driversLicense",  label: "Driver's Licence" },
   { key: "licenseExpiry",   label: "Licence Expiry" },
@@ -79,7 +77,6 @@ function PreviewModal({ driver, onClose, onEdit }: { driver: Driver; onClose: ()
     { label: "Age",              value: String(driver.age) },
     { label: "Gender",           value: driver.gender },
     { label: "Address",          value: driver.address },
-    { label: "Bus Registration", value: driver.busRegistration },
     { label: "WWC Check",        value: driver.childrenCheck },
     { label: "Driver's Licence", value: driver.driversLicense },
     { label: "Licence Expiry",   value: driver.licenseExpiry instanceof Date ? driver.licenseExpiry.toLocaleDateString("en-AU") : "—" },
@@ -143,10 +140,6 @@ function DriverForm({ form, onChange }: { form: FormState; onChange: (key: keyof
         <select className={FIELD} value={form.gender} onChange={set("gender")}>
           {["Male", "Female", "Prefer not to say"].map(g => <option key={g}>{g}</option>)}
         </select>
-      </div>
-      <div>
-        <label className={LABEL}>Bus Registration</label>
-        <input className={FIELD} required value={form.busRegistration} onChange={set("busRegistration")} placeholder="BUS001" />
       </div>
       <div className="col-span-2">
         <label className={LABEL}>Residential Address</label>
@@ -258,7 +251,6 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
-        busRegistration: form.busRegistration.trim(),
         imageUrl: "", isActive: true, createdAt: Timestamp.now(),
       });
       const newDriver: Driver = {
@@ -267,7 +259,6 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? new Date(form.licenseExpiry) : new Date(),
-        busRegistration: form.busRegistration.trim(),
         isActive: true, createdAt: new Date(),
       };
       onAdded(newDriver);
@@ -341,7 +332,6 @@ function EditDriverModal({ driver, onClose, onSaved }: {
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
-        busRegistration: form.busRegistration.trim(),
       });
       const updated: Driver = {
         ...driver, name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
@@ -349,7 +339,6 @@ function EditDriverModal({ driver, onClose, onSaved }: {
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? new Date(form.licenseExpiry) : driver.licenseExpiry,
-        busRegistration: form.busRegistration.trim(),
       };
       onSaved(updated);
     } catch (err) { console.error(err); }
@@ -428,7 +417,7 @@ function RemoveDriverModal({ driver, onClose, onRemoved, user }: {
       actorId: user?.uid ?? "admin",
       actorName: user?.displayName ?? user?.email ?? "Admin",
       targetId: driver.id, targetName: driver.name,
-      details: `Driver removed: ${driver.name} (${driver.phone}, Bus: ${driver.busRegistration})`,
+      details: `Driver removed: ${driver.name} (${driver.phone})`,
       reason: reason.trim() || "No reason provided",
       timestamp: Timestamp.now(),
       year: now.getFullYear(),
@@ -459,14 +448,12 @@ function RemoveDriverModal({ driver, onClose, onRemoved, user }: {
               <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-2">Before</div>
               <div className="font-bold text-gray-900 text-sm">{driver.name}</div>
               <div className="text-xs text-gray-500">{driver.phone}</div>
-              <div className="text-xs text-gray-500">{driver.busRegistration}</div>
               <span className="inline-block mt-1.5 text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-700">Active</span>
             </div>
             <div className="pl-4">
               <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-2">After</div>
               <div className="font-bold text-gray-900 text-sm">{driver.name}</div>
               <div className="text-xs text-gray-500">{driver.phone}</div>
-              <div className="text-xs text-gray-500">{driver.busRegistration}</div>
               <span className="inline-block mt-1.5 text-[10px] font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>
             </div>
           </div>
@@ -515,14 +502,13 @@ function ReactivateDriverModal({ driver, onClose, onReactivated, user }: {
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
-        busRegistration: form.busRegistration.trim(),
       });
       await addDoc(collection(db, "adminLog"), {
         type: "reactivate_driver", tag: "REACTIVATE DRIVER",
         actorId: user?.uid ?? "admin",
         actorName: user?.displayName ?? user?.email ?? "Admin",
         targetId: driver.id, targetName: form.name.trim(),
-        details: `Driver reactivated: ${form.name.trim()} (+61${form.phone.trim()}, Bus: ${form.busRegistration.trim()})`,
+        details: `Driver reactivated: ${form.name.trim()} (+61${form.phone.trim()})`,
         timestamp: Timestamp.now(),
         year: now.getFullYear(),
         term: Math.ceil((now.getMonth() + 1) / 3),
@@ -535,7 +521,6 @@ function ReactivateDriverModal({ driver, onClose, onReactivated, user }: {
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? new Date(form.licenseExpiry) : driver.licenseExpiry,
-        busRegistration: form.busRegistration.trim(),
       };
       onReactivated(updated);
     } catch (err) { console.error(err); }
@@ -678,8 +663,8 @@ export default function DriversPage() {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           {/* Table header */}
-          <div className="grid grid-cols-[2fr_1fr_1fr_1fr_100px_100px_100px] px-5 py-3 border-b border-gray-100">
-            {["Driver", "Phone", "Bus Rego", "Lic. Expiry", "Status", "", ""].map((h, i) => (
+          <div className="grid grid-cols-[2fr_1fr_1fr_100px_100px_100px] px-5 py-3 border-b border-gray-100">
+            {["Driver", "Phone", "Lic. Expiry", "Status", "", ""].map((h, i) => (
               <span key={i} className="text-xs font-bold tracking-widest text-gray-900 uppercase">{h}</span>
             ))}
           </div>
@@ -691,7 +676,7 @@ export default function DriversPage() {
                 <div
                   key={driver.id}
                   onClick={() => handleRowClick(driver.id)}
-                  className={`grid grid-cols-[2fr_1fr_1fr_1fr_100px_100px_100px] items-center px-5 py-3.5 cursor-pointer transition-colors ${
+                  className={`grid grid-cols-[2fr_1fr_1fr_100px_100px_100px] items-center px-5 py-3.5 cursor-pointer transition-colors ${
                     !driver.isActive ? "opacity-60" : ""
                   } ${revealed ? "bg-blue-50/40" : "hover:bg-gray-50"}`}
                 >
@@ -711,8 +696,6 @@ export default function DriversPage() {
                   <span className="text-xs font-bold tracking-widest text-gray-600">
                     {revealed ? driver.phone : redact(driver.phone)}
                   </span>
-                  {/* Bus rego */}
-                  <span className="text-xs font-bold tracking-widest text-gray-600">{driver.busRegistration}</span>
                   {/* License expiry */}
                   <span className="text-xs font-bold tracking-widest text-gray-600">
                     {driver.licenseExpiry instanceof Date ? driver.licenseExpiry.toLocaleDateString("en-AU") : "—"}

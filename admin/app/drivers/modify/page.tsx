@@ -27,7 +27,7 @@ function ModifyDriverForm() {
 
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selected, setSelected] = useState<Driver | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", age: "", gender: "Male", address: "", childrenCheck: "", driversLicense: "", licenseExpiry: "", busRegistration: "" });
+  const [form, setForm] = useState({ name: "", phone: "", age: "", gender: "Male", address: "", childrenCheck: "", driversLicense: "", licenseExpiry: "" });
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -49,7 +49,6 @@ function ModifyDriverForm() {
       gender: d.gender, address: d.address, childrenCheck: d.childrenCheck,
       driversLicense: d.driversLicense,
       licenseExpiry: d.licenseExpiry instanceof Date ? toInputDate(d.licenseExpiry) : "",
-      busRegistration: d.busRegistration,
     });
   };
 
@@ -64,7 +63,6 @@ function ModifyDriverForm() {
       gender: form.gender, address: form.address.trim(),
       childrenCheck: form.childrenCheck.trim(), driversLicense: form.driversLicense.trim(),
       licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
-      busRegistration: form.busRegistration.trim(),
     });
     setSaving(false);
     setSuccess(true);
@@ -96,8 +94,7 @@ function ModifyDriverForm() {
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Phone</label><PhoneInput className={FIELD} required value={form.phone} onChange={v => set("phone", v)} /></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Age</label><input className={FIELD} type="number" value={form.age} onChange={e => set("age", e.target.value)} /></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Gender</label><select className={FIELD} value={form.gender} onChange={e => set("gender", e.target.value)}>{["Male","Female","Prefer not to say"].map(g => <option key={g}>{g}</option>)}</select></div>
-            <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Bus Registration</label><input className={FIELD} value={form.busRegistration} onChange={e => set("busRegistration", e.target.value)} /></div>
-            <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Address</label><input className={FIELD} value={form.address} onChange={e => set("address", e.target.value)} /></div>
+<div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Address</label><input className={FIELD} value={form.address} onChange={e => set("address", e.target.value)} /></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">WWC Check</label><input className={FIELD} value={form.childrenCheck} onChange={e => set("childrenCheck", e.target.value)} /></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Driver&apos;s Licence</label><input className={FIELD} value={form.driversLicense} onChange={e => set("driversLicense", e.target.value)} /></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Licence Expiry</label><input className={FIELD} type="date" value={form.licenseExpiry} onChange={e => set("licenseExpiry", e.target.value)} /></div>

@@ -8,7 +8,6 @@ export interface Driver {
   childrenCheck: string;
   driversLicense: string;
   licenseExpiry: Date;
-  busRegistration: string;
   isActive: boolean;
   createdAt: Date;
 }
