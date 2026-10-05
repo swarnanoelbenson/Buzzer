@@ -1,0 +1,149 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2870
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 HelveticaNeue-Bold;\f1\fnil\fcharset0 HelveticaNeue;\f2\fnil\fcharset0 .AppleSystemUIFontMonospaced-Regular;
+}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0\c84706;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\slleading60\pardirnatural\partightenfactor0
+
+\f0\b\fs30 \cf2 Progress Checklist
+\f1\b0\fs26 \
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\slleading60\pardirnatural\partightenfactor0
+
+\f0\b \cf2 \uc0\u9989  Phase 1 \'97 Firebase Foundation
+\f1\b0 \
+\'95 [x] Firebase SDK added (FirebaseAuth, FirebaseFirestore, FirebaseStorage, FirebaseMessaging)\
+\'95 [x] 
+\f2 Google\uc0\u8203 Service\u8203 -\u8203 Info\u8203 .plist
+\f1  configured\
+\'95 [x] Firebase initialised in 
+\f2 Buzzer\uc0\u8203 App\u8203 .swift
+\f1  via 
+\f2 App\uc0\u8203 Delegate
+\f1 \
+\'95 [x] 
+\f2 Firestore\uc0\u8203 Config\u8203 .swift
+\f1  \'97 central 
+\f2 Firestore\uc0\u8203 .db
+\f1  pointing to 
+\f2 busmate\uc0\u8203 -db
+\f1 \
+\'95 [x] iOS deployment target raised to 17.0\
+\
+
+\f0\b \uc0\u9989  Phase 2 \'97 Authentication & Role-Based Access
+\f1\b0 \
+\'95 [x] 
+\f2 Auth\uc0\u8203 Manager\u8203 .swift
+\f1  \'97 
+\f2 @\uc0\u8203 Observable
+\f1  role detection (driver/parent) via Firestore post-login\
+\'95 [x] 
+\f2 Root\uc0\u8203 View\u8203 .swift
+\f1  \'97 routes to correct portal based on auth state\
+\'95 [x] 
+\f2 Login\uc0\u8203 Selection\u8203 View\u8203 .swift
+\f1  \'97 portal selection screen with Developer Menu\
+\'95 [x] 
+\f2 Driver\uc0\u8203 Login\u8203 View\u8203 .swift
+\f1  \'97 name dropdown + full phone verification + OTP flow\
+\'95 [x] Simulator bypass \'97 skips APNs-dependent OTP on simulator, uses synthetic Auth account\
+\'95 [x] 
+\f2 Parent\uc0\u8203 Login\u8203 View\u8203 .swift
+\f1  \'97 username + password, creates Firebase Auth account on first login\
+\'95 [x] 
+\f2 Firestore\uc0\u8203 Models\u8203 .swift
+\f1  \'97 typed models for Driver, Student, Parent, Route, Trip, ActivityLog\
+\'95 [x] 
+\f2 Firestore\uc0\u8203 Service\u8203 .swift
+\f1  \'97 full CRUD service layer using 
+\f2 busmate\uc0\u8203 -db
+\f1 \
+\
+
+\f0\b \uc0\u9989  Phase 3 \'97 Driver Portal (iOS)
+\f1\b0 \
+\'95 [x] 
+\f2 Driver\uc0\u8203 Portal\u8203 View\u8203 .swift
+\f1  \'97 Schedule / View All tab header\
+\'95 [x] 
+\f2 Driver\uc0\u8203 Schedule\u8203 View\u8203 .swift
+\f1  \'97 today's trips, green = pick-up, orange = drop-off, pull-to-refresh, empty/error states\
+\'95 [x] 
+\f2 Driver\uc0\u8203 All\u8203 Routes\u8203 View\u8203 .swift
+\f1  \'97 all assigned trips grouped by date\
+\'95 [x] 
+\f2 Trip\uc0\u8203 Detail\u8203 View\u8203 .swift
+\f1  \'97 start trip, progress bar, per-student On Bus / Off Bus / Absent buttons, real-time Firestore writes, auto-complete when all students resolved\
+\
+
+\f0\b \uc0\u9989  Demo Data & Developer Tooling
+\f1\b0 \
+\'95 [x] 
+\f2 Demo\uc0\u8203 Seeder\u8203 .swift
+\f1  \'97 single Firestore batch write, completes in ~2 seconds\
+\'95 [x] 
+\f2 Developer\uc0\u8203 Menu\u8203 View\u8203 .swift
+\f1  \'97 in-app seeding trigger + credentials reference\
+\'95 [x] 3 demo drivers (John Mitchell, Sarah Thompson, David Nguyen)\
+\'95 [x] 3 demo parents (Emma Chen, James Chen, Sofia Patel)\
+\'95 [x] 3 demo students (Liam Chen, Mia Patel, Noah Patel)\
+\'95 [x] Demo route + today's pick-up and drop-off trips seeded\
+\
+\uc0\u11835 \
+\
+
+\f0\b \uc0\u55357 \u56626  Phase 4 \'97 Push Notifications
+\f1\b0 \
+\'95 [ ] FCM token saved to Firestore on driver/parent login\
+\'95 [ ] Firebase Cloud Function triggered on each student status update\
+\'95 [ ] Notification sent to authorised parent(s) on pick-up and drop-off\
+\
+
+\f0\b \uc0\u55357 \u56626  Phase 5 \'97 Parent Portal (iOS)
+\f1\b0 \
+\'95 [ ] Profile setup on first login (relationship, name)\
+\'95 [ ] Term schedule list for linked children\
+\'95 [ ] Real-time pick-up / drop-off status updates\
+\'95 [ ] Payment status (paid / pending) per child\
+\
+
+\f0\b \uc0\u55357 \u56626  Phase 6 \'97 Admin Web Platform
+\f1\b0 \
+\'95 [ ] Project setup (Next.js + Firebase)\
+\'95 [ ] Admin authentication\
+\'95 [ ] Bus Drivers section \'97 add (form or .xlsx), modify, remove, view all\
+\'95 [ ] Schedule section \'97 add term schedule with .xlsx student roster, auto-generate daily trips, modify, remove, view all\
+\'95 [ ] Student Profiles section \'97 add, modify, remove, view all with parent access control\
+\'95 [ ] Activity Log viewer\
+\
+\uc0\u11835 \
+\
+
+\f0\b \uc0\u55357 \u56626  Ongoing / Before Production
+\f1\b0 \
+\'95 [ ] Enable Phone Auth test numbers in Firebase Console\
+\'95 [ ] Firestore security rules \'97 lock down by role (currently 
+\f2 allow read, write: if true
+\f1 )\
+\'95 [ ] Remove old CoreData files and unused legacy views\
+\'95 [ ] Remove Developer Menu before App Store submission\
+\'95 [ ] App icon + branding\
+\
+\
+\
+# Install Firebase CLI if you don't have it\
+npm install -g firebase-tools\
+\
+# Login to Firebase\
+firebase login\
+\
+# Go to the project root\
+cd /Users/Noel/Desktop/PROJECTS/Buzzer\
+\
+# Install function dependencies\
+cd functions && npm install && cd ..\
+\
+# Deploy the function\
+firebase deploy --only functions}

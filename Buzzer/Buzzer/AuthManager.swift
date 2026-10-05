@@ -1,0 +1,202 @@
+//
+//  AuthManager.swift
+//  Buzzer
+//
+//  Manages authentication state for both Driver and Parent portals.
+//  Drivers log in via phone OTP. Parents log in via email/password.
+//
+
+import SwiftUI
+import FirebaseAuth
+import FirebaseFirestore
+import FirebaseMessaging
+import Observation
+
+enum UserRole {
+    case driver
+    case parent
+    case student
+    case admin
+    case none
+}
+
+@Observable
+@MainActor
+class AuthManager {
+    var currentRole: UserRole = .none
+    var currentUserId: String? = nil
+    var isLoading: Bool = true
+
+    private let db = Firestore.db
+    @ObservationIgnored nonisolated(unsafe) private var authStateListener: AuthStateDidChangeListenerHandle?
+    @ObservationIgnored nonisolated(unsafe) private var tokenObserver: NSObjectProtocol?
+
+    init() {
+        listenToAuthState()
+        listenForTokenRefresh()
+    }
+
+    deinit {
+        if let listener = authStateListener {
+            Auth.auth().removeStateDidChangeListener(listener)
+        }
+    }
+
+    // MARK: - Auth State
+
+    private func listenToAuthState() {
+        authStateListener = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            guard let self else { return }
+            Task {
+                if let user = user {
+                    await self.resolveRole(for: user.uid)
+                } else {
+                    self.currentRole = .none
+                    self.currentUserId = nil
+                    self.isLoading = false
+                }
+            }
+        }
+    }
+
+    /// After Firebase login, check Firestore to determine the user's role.
+    private func resolveRole(for uid: String) async {
+        // Check drivers collection by UID
+        let driverDoc = try? await db.collection("drivers").document(uid).getDocument()
+        if driverDoc?.exists == true {
+            self.currentRole = .driver
+            self.currentUserId = uid
+            self.isLoading = false
+            await saveCurrentFCMToken()
+            return
+        }
+
+        // Simulator bypass: driver auth account links to a fixed-ID driver doc
+        #if targetEnvironment(simulator)
+        let bypassSnapshot = try? await db.collection("drivers")
+            .whereField("simulatorBypass", isEqualTo: true)
+            .limit(to: 1)
+            .getDocuments()
+        if let linkedId = bypassSnapshot?.documents.first?.data()["linkedDriverId"] as? String {
+            self.currentRole = .driver
+            self.currentUserId = linkedId   // use the real driver doc ID
+            self.isLoading = false
+            return
+        }
+        #endif
+
+        // Check parents collection
+        let parentDoc = try? await db.collection("parents").document(uid).getDocument()
+        if parentDoc?.exists == true {
+            self.currentRole = .parent
+            self.currentUserId = uid
+            self.isLoading = false
+            await saveCurrentFCMToken()
+            return
+        }
+
+        // Check students collection
+        let studentDoc = try? await db.collection("students").document(uid).getDocument()
+        if studentDoc?.exists == true {
+            self.currentRole = .student
+            self.currentUserId = uid
+            self.isLoading = false
+            return
+        }
+
+        // Check schools collection (admin)
+        let schoolSnap = try? await db.collection("schools")
+            .whereField("adminUid", isEqualTo: uid)
+            .limit(to: 1)
+            .getDocuments()
+        if let schoolDoc = schoolSnap?.documents.first {
+            self.currentRole = .admin
+            self.currentUserId = schoolDoc.documentID
+            self.isLoading = false
+            return
+        }
+
+        // Authenticated but no role found — sign out
+        try? Auth.auth().signOut()
+        self.currentRole = .none
+        self.currentUserId = nil
+        self.isLoading = false
+    }
+
+    // MARK: - Driver Login (Phone OTP)
+
+    /// Step 1: Send OTP to driver's phone number.
+    func sendOTP(to phoneNumber: String) async throws -> String {
+        let verificationID = try await PhoneAuthProvider.provider()
+            .verifyPhoneNumber(phoneNumber, uiDelegate: nil)
+        return verificationID
+    }
+
+    /// Step 2: Verify OTP and sign in driver.
+    func verifyOTP(verificationID: String, code: String) async throws {
+        let credential = PhoneAuthProvider.provider().credential(
+            withVerificationID: verificationID,
+            verificationCode: code
+        )
+        try await Auth.auth().signIn(with: credential)
+    }
+
+    // MARK: - Parent Login (Email/Password)
+
+    func signInParent(email: String, password: String) async throws {
+        try await Auth.auth().signIn(withEmail: email, password: password)
+    }
+
+    // MARK: - Student Login (Email/Password)
+
+    func signInStudent(email: String, password: String) async throws {
+        try await Auth.auth().signIn(withEmail: email, password: password)
+    }
+
+    // MARK: - Admin Login (Custom Token from OTP API)
+
+    func signInWithCustomToken(_ token: String) async throws {
+        try await Auth.auth().signIn(withCustomToken: token)
+    }
+
+    // MARK: - FCM Token
+
+    private func listenForTokenRefresh() {
+        tokenObserver = NotificationCenter.default.addObserver(
+            forName: .fcmTokenRefreshed,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let token = notification.userInfo?["token"] as? String else { return }
+            Task { await self.saveFCMToken(token) }
+        }
+    }
+
+    func saveFCMToken(_ token: String) async {
+        guard let uid = currentUserId else { return }
+        let collection: String
+        switch currentRole {
+        case .driver:  collection = "drivers"
+        case .parent:  collection = "parents"
+        case .student: collection = "students"
+        case .admin:   collection = "schools"
+        case .none:    return
+        }
+        try? await db.collection(collection).document(uid).updateData(["fcmToken": token])
+    }
+
+    /// Call this after login to immediately save the current FCM token.
+    func saveCurrentFCMToken() async {
+        guard let token = Messaging.messaging().fcmToken else { return }
+        await saveFCMToken(token)
+    }
+
+    // MARK: - Sign Out
+
+    func signOut() {
+        try? Auth.auth().signOut()
+        currentRole = .none
+        currentUserId = nil
+    }
+}

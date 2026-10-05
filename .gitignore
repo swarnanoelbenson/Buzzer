@@ -1,0 +1,35 @@
+# ── Ignore everything at the root that isn't a code project ──────────────────
+# (loose files, videos, images, notes, etc.)
+/*.mp4
+/*.jpeg
+/*.PNG
+/*.jpg
+/*.zip
+/*.rtf
+/BusMate*/
+/Setups/
+/Privacy_policy/
+/Support_BusMate/
+/Step*.jpg
+/xlsx*/
+
+# ── iOS / Xcode ───────────────────────────────────────────────────────────────
+Buzzer/App\ Screenshots/
+Buzzer/Buzzer.xcodeproj/xcuserdata/
+Buzzer/Buzzer.xcodeproj/project.xcworkspace/xcuserdata/
+Buzzer/Buzzer/.Rhistory
+Buzzer/Buzzer/Busmate_logo_for_website.png
+*.xcuserstate
+DerivedData/
+
+# ── WAC (Next.js / Node) ─────────────────────────────────────────────────────
+admin/node
+admin/node_modules/
+admin/.next/
+admin/.vercel/output/
+admin/.vercel/.env.*
+admin/.env.local
+
+# ── General ───────────────────────────────────────────────────────────────────
+.DS_Store
+*.log

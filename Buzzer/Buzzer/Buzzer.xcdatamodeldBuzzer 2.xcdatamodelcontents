@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22D68" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="AttendeeEntity" representedClassName="AttendeeEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="orderIndex" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeListEntity" inverseName="attendees" inverseEntity="AttendeeListEntity"/>
+        <relationship name="records" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceRecordEntity" inverseName="attendee" inverseEntity="AttendanceRecordEntity"/>
+    </entity>
+    <entity name="AttendanceRecordEntity" representedClassName="AttendanceRecordEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="status" attributeType="String"/>
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="attendee" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeEntity" inverseName="records" inverseEntity="AttendeeEntity"/>
+        <relationship name="session" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendanceSessionEntity" inverseName="records" inverseEntity="AttendanceSessionEntity"/>
+    </entity>
+    <entity name="AttendanceSessionEntity" representedClassName="AttendanceSessionEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="createdDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="sessionType" attributeType="String"/>
+        <relationship name="list" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AttendeeListEntity" inverseName="sessions" inverseEntity="AttendeeListEntity"/>
+        <relationship name="records" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceRecordEntity" inverseName="session" inverseEntity="AttendanceRecordEntity"/>
+    </entity>
+    <entity name="AttendeeListEntity" representedClassName="AttendeeListEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="createdDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <relationship name="attendees" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendeeEntity" inverseName="list" inverseEntity="AttendeeEntity"/>
+        <relationship name="sessions" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="AttendanceSessionEntity" inverseName="list" inverseEntity="AttendanceSessionEntity"/>
+    </entity>
+</model>
