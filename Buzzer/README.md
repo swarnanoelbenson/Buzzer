@@ -27,9 +27,8 @@ Buzzer/                             Xcode project root
 │   │   ├── LoginSelectionView.swift    Choose user type (Driver/Parent/Student/Admin)
 │   │   ├── DriverLoginView.swift       Phone OTP login for drivers
 │   │   ├── ParentLoginView.swift       Email + password login for parents
-│   │   ├── StudentLoginView.swift      Email + password login for students
 │   │   ├── AdminLoginView.swift        Email OTP login for admins (via WAC API)
-│   │   └── ParentOnboardingView.swift  First-time profile setup for new parents
+│   │   └── StudentLoginView.swift      Phone OTP login for students (file lives at project root)
 │   │
 │   ├── Driver Portal
 │   │   ├── DriverPortalView.swift      Main driver hub. Shows today's routes.
@@ -52,7 +51,7 @@ Buzzer/                             Xcode project root
 │   │   └── ProfileView.swift           Parent account settings.
 │   │
 │   ├── Student Portal
-│   │   └── StudentPortalView.swift     Student's view of their route and status.
+│   │   └── StudentPortalView.swift     Student's view of their route, driver, schedule, and parent notes. (file lives at project root)
 │   │
 │   ├── Admin Portal
 │   │   ├── AdminPortalView.swift       Admin hub. Four tabs.
@@ -101,6 +100,9 @@ Buzzer/                             Xcode project root
 │   ├── GoogleService-Info.plist        Firebase configuration file.
 │   └── BusMate-Info.plist              App background modes (push notifications).
 │
+├── StudentPortalView.swift             Student portal (at project root — not inside Buzzer/)
+├── StudentLoginView.swift              Student login (at project root — not inside Buzzer/)
+├── ParentOnboardingView.swift          First-time parent onboarding (at project root)
 ├── BuzzerTests/                        Unit tests
 │   └── BuzzerTests.swift
 ├── BusMate.entitlements                App entitlements (push notifications)
@@ -144,7 +146,7 @@ The app supports four roles. Each role sees a different portal after login.
 |---------|---------------------------------------|--------------------------|
 | Driver  | Phone number + SMS OTP (Firebase)     | `DriverPortalView`       |
 | Parent  | Email + password (Firebase)           | `ParentPortalView`       |
-| Student | Email + password (Firebase)           | `StudentPortalView`      |
+| Student | Phone number + SMS OTP (Firebase)     | `StudentPortalView`      |
 | Admin   | Email + 6-digit OTP (via WAC API)     | `AdminPortalView`        |
 
 `RootView.swift` reads `authManager.currentRole` and shows the correct portal.
@@ -252,6 +254,17 @@ Tracks the current attendee index, attendance records, and session progress.
 Manages the Core Data stack for local storage.
 Handles creating, reading, updating, and deleting attendance lists, sessions, and passenger notes locally.
 
+### `StudentPortalView.swift`
+The student-facing portal. Read-only.
+Shows a greeting, driver and bus info, route and stop details, a 14-day schedule calendar strip with scheduled days highlighted, and any active parent notes for the student.
+Fetches data on load and supports pull-to-refresh.
+
+### `ParentOnboardingView.swift`
+Two-step first-login flow shown to parents whose `profileCompleted == false`.
+Step 1: Displays linked children's names, grades, and scheduled pick-up/drop-off times for review.
+Step 2: Prompts the parent to set a new password (replacing the school-issued one). Uses `Auth.updatePassword`.
+On completion, writes `profileCompleted = true` to the parent's Firestore document, then dismisses to `ParentPortalView`.
+
 ### `DeveloperMenuView.swift`
 A hidden debug menu. Access it from the login selection screen.
 Functions: seed demo data, clear all local data, switch Firebase environment.
@@ -311,6 +324,30 @@ authManager.signInParent(email:password:)
 AuthManager.resolveRole() checks parents collection
 If profileCompleted == false → shows ParentOnboardingView
 Else → sets currentRole = .parent → shows ParentPortalView
+```
+
+### Student Login
+```
+StudentLoginView enters phone number
+       │
+       ▼
+FirestoreService.fetchStudentByPhone() verifies the number exists in the students collection
+       │
+       ▼
+authManager.sendOTP(to: normalisedPhone)
+  Firebase PhoneAuthProvider sends SMS to the number
+       │
+       ▼
+Student enters 6-digit OTP
+       │
+       ▼
+authManager.verifyOTP(verificationID:code:)
+  Firebase Auth signs in the student
+       │
+       ▼
+AuthManager.resolveRole() checks students collection
+Sets currentRole = .student
+Shows StudentPortalView
 ```
 
 ### Admin Login
