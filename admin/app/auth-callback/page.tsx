@@ -134,11 +134,10 @@ export default function AuthCallbackPage() {
       }
 
       setStatus("success");
-      if (isSignup) {
-        setTimeout(() => { window.location.href = "/"; }, 1500);
-      } else {
-        setTimeout(() => router.replace("/"), 1500);
-      }
+      // Use window.location.href (hard navigation) so the new page load picks up
+      // the Firebase auth state cleanly, rather than a client-side router.replace
+      // which can race with onAuthStateChanged in AuthProvider.
+      setTimeout(() => { window.location.href = "/"; }, 1500);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       if (code === "auth/invalid-custom-token") {
