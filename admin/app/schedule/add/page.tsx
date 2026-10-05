@@ -234,12 +234,10 @@ export default function AddSchedulePage() {
             </div>
           </div>
 
-          {/* Download template */}
-          <button
-            type="button"
-            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-500 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-colors"
-          >
-            Download template
+          {/* Upload zone */}
+          <button type="button" onClick={() => fileRef.current?.click()}
+            className="w-full border-2 border-dashed border-orange-200 rounded-xl py-8 text-sm text-orange-400 hover:border-orange-300 hover:text-orange-500 transition-colors">
+            {preview.length > 0 ? "Replace file — click to upload again" : "Click to upload .xlsx file"}
           </button>
           {fileError && <p className="text-xs text-red-500">{fileError}</p>}
 
