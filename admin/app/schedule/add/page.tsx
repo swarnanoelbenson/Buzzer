@@ -234,28 +234,13 @@ export default function AddSchedulePage() {
             </div>
           </div>
 
-          {/* Upload zone + download template */}
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
-          <div className="flex gap-3">
-            <button type="button" onClick={() => fileRef.current?.click()}
-              className="flex-1 border-2 border-dashed border-orange-200 rounded-xl py-6 text-sm text-orange-400 hover:border-orange-300 hover:text-orange-500 transition-colors">
-              {preview.length > 0 ? "Replace file — click to upload again" : "Click to upload .xlsx file"}
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                const XLSX = await import("xlsx");
-                const headers = [["Student Name", "Stop Address", "Grade", "Pick-up Time", "Drop-off Time", "Parent 1 Name", "Parent 1 Phone", "Parent 2 Name", "Parent 2 Phone", "Student Phone"]];
-                const ws = XLSX.utils.aoa_to_sheet(headers);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Students");
-                XLSX.writeFile(wb, "schedule_template.xlsx");
-              }}
-              className="flex-shrink-0 px-4 py-2 bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-500 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-colors"
-            >
-              Download template
-            </button>
-          </div>
+          {/* Download template */}
+          <button
+            type="button"
+            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-500 rounded-xl hover:bg-gray-100 hover:text-gray-700 transition-colors"
+          >
+            Download template
+          </button>
           {fileError && <p className="text-xs text-red-500">{fileError}</p>}
 
           {/* Student count stat + preview */}
