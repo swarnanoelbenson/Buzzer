@@ -21,18 +21,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Tab-close logout: sessionStorage is wiped when the tab is closed (not on refresh).
-    // If the tab was closed while logged in, Firebase persists the token but sessionStorage
-    // is empty — sign the user out immediately so they can't resume the session.
-    if (typeof window !== "undefined" && !sessionStorage.getItem("tabOpen")) {
-      // Mark this tab as open
+    // We detect a fresh tab open by the absence of "tabOpen" in sessionStorage.
+    const isFreshTab = typeof window !== "undefined" && !sessionStorage.getItem("tabOpen");
+    if (isFreshTab) {
       sessionStorage.setItem("tabOpen", "1");
-      // If Firebase still has a user from a previous closed tab, sign them out
-      if (auth.currentUser) {
-        signOut(auth).catch(() => {});
-      }
     }
 
     const unsub = onAuthStateChanged(auth, async (u) => {
+      // If this is a fresh tab open (tab was previously closed) and Firebase restored a
+      // persisted session, sign out immediately — the session should not survive a tab close.
+      if (isFreshTab && u) {
+        await signOut(auth).catch(() => {});
+        setLoading(false);
+        return;
+      }
+
       setUser(u);
       if (u) {
         // Fetch the school associated with this admin
