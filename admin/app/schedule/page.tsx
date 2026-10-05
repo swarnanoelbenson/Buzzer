@@ -58,9 +58,11 @@ const DIFF_FIELDS: { key: keyof RouteForm; label: string }[] = [
 
 interface XlsxRow {
   name: string; grade: string;
-  pickupTime: string; dropoffTime: string;
-  stop: string;
+  orderAM: string; pickupTime: string;
+  orderPM: string; dropoffTime: string;
+  stopAM: string; stopPM: string;
   parentPhone: string; parentName: string;
+  studentPhone: string; relationship: string;
 }
 
 // ── Overlay ──────────────────────────────────────────────────────────────────
@@ -271,14 +273,13 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
   const downloadTemplate = async () => {
     const count = Math.max(1, Math.min(200, parseInt(templateCount) || 10));
     const XLSX = await import("xlsx");
-    const headers = ["Name", "Grade", "Scheduled AM", "Scheduled PM", "STOP Location", "Parent Contact", "Parent Name"];
+    const headers = ["Student Name", "Grade", "Order AM", "Scheduled AM", "Order PM", "Scheduled PM", "STOP Location AM", "STOP Location PM", "Parent 1 Phone", "Parent 1 Name", "Student Phone", "Relationship"];
     const rows: string[][] = [headers];
     for (let i = 1; i <= count; i++) {
-      rows.push([`Student ${i}`, "", "", "", "", "", ""]);
+      rows.push([`Student ${i}`, "", "", "", "", "", "", "", "", "", "", ""]);
     }
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    // Set column widths
-    ws["!cols"] = [{ wch: 20 }, { wch: 8 }, { wch: 14 }, { wch: 14 }, { wch: 30 }, { wch: 16 }, { wch: 20 }];
+    ws["!cols"] = [{ wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 30 }, { wch: 30 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 14 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Students");
     XLSX.writeFile(wb, "student_template.xlsx");
@@ -299,19 +300,17 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
       const wb = XLSX.read(data, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
-      // Fill down merged cells: carry the last non-empty value for stop/parent columns
-      let lastStop = "", lastPhone = "", lastParent = "";
-      const filled = rows.map(r => {
-        if (r[4]) lastStop = String(r[4]);
-        if (r[5]) lastPhone = String(r[5]);
-        if (r[6]) lastParent = String(r[6]);
-        return [r[0], r[1], r[2], r[3], lastStop, lastPhone, lastParent];
-      });
-      const parsed: XlsxRow[] = filled.slice(1).filter(r => r[0]).map(r => ({
+      // A: Student Name | B: Grade | C: Order AM | D: Scheduled AM | E: Order PM | F: Scheduled PM
+      // G: STOP Location AM | H: STOP Location PM | I: Parent 1 Phone | J: Parent 1 Name
+      // K: Student Phone | L: Relationship
+      const normalisePhone = (p: string) => p ? (p.startsWith("+61") ? p : `+61${p.replace(/^0/, "")}`) : "";
+      const parsed: XlsxRow[] = rows.slice(1).filter(r => r[0]).map(r => ({
         name: String(r[0] ?? ""), grade: String(r[1] ?? ""),
-        pickupTime: String(r[2] ?? ""), dropoffTime: String(r[3] ?? ""),
-        stop: String(r[4] ?? ""),
-        parentPhone: String(r[5] ?? ""), parentName: String(r[6] ?? ""),
+        orderAM: String(r[2] ?? ""), pickupTime: String(r[3] ?? ""),
+        orderPM: String(r[4] ?? ""), dropoffTime: String(r[5] ?? ""),
+        stopAM: String(r[6] ?? ""), stopPM: String(r[7] ?? ""),
+        parentPhone: normalisePhone(String(r[8] ?? "")), parentName: String(r[9] ?? ""),
+        studentPhone: normalisePhone(String(r[10] ?? "")), relationship: String(r[11] ?? ""),
       }));
       setPreview(parsed);
     } catch {
@@ -361,20 +360,28 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
       const scheduledDates = getScheduledDates(startDate, endDate, selectedDays);
 
       const studentIds: string[] = [];
-      const studentRecordTemplate: { id: string; studentName: string; stopAddress: string; status: string; timestamp: null }[] = [];
+      const studentRecordTemplate: { id: string; studentName: string; stopAddressAM: string; stopAddressPM: string; status: string; timestamp: null }[] = [];
+
+      // Create route ref first so we have the ID for student routeId
+      const routeRef = doc(collection(db, "routes"));
 
       for (const row of preview) {
         const studentRef = doc(collection(db, "students"));
+        const parents = row.parentName || row.parentPhone
+          ? [{ name: row.parentName, phone: row.parentPhone, canAccess: true, relationship: row.relationship || "Guardian" }]
+          : [];
         batch.set(studentRef, {
-          name: row.name, grade: row.grade, stopAddress: row.stop,
-          routeId: "", scheduledPickupTime: row.pickupTime, scheduledDropoffTime: row.dropoffTime,
+          name: row.name, grade: row.grade,
+          stopAddressAM: row.stopAM, stopAddressPM: row.stopPM,
+          routeId: routeRef.id,
+          scheduledPickupTime: row.pickupTime, scheduledDropoffTime: row.dropoffTime,
+          phone: row.studentPhone || "",
+          parents,
           authorisedParentIds: [], isActive: true, createdAt: Timestamp.now(),
         });
         studentIds.push(studentRef.id);
-        studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddress: row.stop, status: "pending", timestamp: null });
+        studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, status: "pending", timestamp: null });
       }
-
-      const routeRef = doc(collection(db, "routes"));
       batch.set(routeRef, {
         name: form.name.trim(), driverId: form.driverId,
         busRegistration: form.busRegistration.trim(),
@@ -445,7 +452,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                  Columns: Name · Grade · Scheduled AM · Scheduled PM · STOP Location · Parent Contact · Parent Name
+                  Columns: Student Name · Grade · Order AM · Scheduled AM · Order PM · Scheduled PM · STOP Location AM · STOP Location PM · Parent 1 Phone · Parent 1 Name · Student Phone · Relationship
                 </p>
                 <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
                 <button type="button" onClick={() => fileRef.current?.click()}
@@ -462,7 +469,8 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
                           <tr className="text-gray-400">
                             <th className="px-3 py-2 text-left font-bold">Name</th>
                             <th className="px-3 py-2 text-left font-bold">Grade</th>
-                            <th className="px-3 py-2 text-left font-bold">Stop</th>
+                            <th className="px-3 py-2 text-left font-bold">Stop AM</th>
+                            <th className="px-3 py-2 text-left font-bold">Stop PM</th>
                             <th className="px-3 py-2 text-left font-bold">Pick-up</th>
                             <th className="px-3 py-2 text-left font-bold">Drop-off</th>
                           </tr>
@@ -472,12 +480,13 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
                             <tr key={i}>
                               <td className="px-3 py-2 text-gray-700 font-medium">{r.name}</td>
                               <td className="px-3 py-2 text-gray-500">{r.grade}</td>
-                              <td className="px-3 py-2 text-gray-500">{r.stop}</td>
+                              <td className="px-3 py-2 text-gray-500">{r.stopAM}</td>
+                              <td className="px-3 py-2 text-gray-500">{r.stopPM}</td>
                               <td className="px-3 py-2 text-gray-500">{r.pickupTime}</td>
                               <td className="px-3 py-2 text-gray-500">{r.dropoffTime}</td>
                             </tr>
                           ))}
-                          {preview.length > 5 && <tr><td colSpan={5} className="px-3 py-2 text-gray-400 text-center">…and {preview.length - 5} more</td></tr>}
+                          {preview.length > 5 && <tr><td colSpan={6} className="px-3 py-2 text-gray-400 text-center">…and {preview.length - 5} more</td></tr>}
                         </tbody>
                       </table>
                     </div>

@@ -15,7 +15,7 @@ export default function AddStudentPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({
-    name: "", grade: "", stopAddress: "", routeId: "",
+    name: "", grade: "", stopAddressAM: "", stopAddressPM: "", routeId: "",
     scheduledPickupTime: "", scheduledDropoffTime: "",
     parentOneName: "", parentOnePhone: "",
     parentTwoName: "", parentTwoPhone: "",
@@ -37,7 +37,8 @@ export default function AddStudentPage() {
       await addDoc(collection(db, "students"), {
         name: form.name.trim(),
         grade: form.grade.trim(),
-        stopAddress: form.stopAddress.trim(),
+        stopAddressAM: form.stopAddressAM.trim(),
+        stopAddressPM: form.stopAddressPM.trim(),
         routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
@@ -68,7 +69,8 @@ export default function AddStudentPage() {
           <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Full Name</label><input className={FIELD} required value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Liam Chen" /></div>
           <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Grade</label><input className={FIELD} required value={form.grade} onChange={e => set("grade", e.target.value)} placeholder="Year 5" /></div>
           <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Student Phone</label><PhoneInput className={FIELD} value={form.studentPhone} onChange={v => set("studentPhone", v)} /></div>
-          <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address</label><input className={FIELD} required value={form.stopAddress} onChange={e => set("stopAddress", e.target.value)} placeholder="12 Oak St, Parramatta NSW 2150" /></div>
+          <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address AM (Morning Pick-up)</label><input className={FIELD} required value={form.stopAddressAM} onChange={e => set("stopAddressAM", e.target.value)} placeholder="12 Oak St, Parramatta NSW 2150" /></div>
+          <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address PM (Afternoon Drop-off)</label><input className={FIELD} required value={form.stopAddressPM} onChange={e => set("stopAddressPM", e.target.value)} placeholder="12 Oak St, Parramatta NSW 2150" /></div>
           <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Assigned Route</label>
             <select className={FIELD} value={form.routeId} onChange={e => set("routeId", e.target.value)}>
               <option value="">— select a route —</option>

@@ -37,7 +37,7 @@ export default function RemoveStudentPage() {
       actorName: user?.displayName ?? user?.email ?? "Admin",
       targetId: modalStudent.id,
       targetName: modalStudent.name,
-      details: `Student removed: ${modalStudent.name} (Grade ${modalStudent.grade}, Stop: ${modalStudent.stopAddress})`,
+      details: `Student removed: ${modalStudent.name} (Grade ${modalStudent.grade}, Stop AM: ${modalStudent.stopAddressAM})`,
       reason: reason.trim() || "No reason provided",
       timestamp: Timestamp.now(),
       year: now.getFullYear(),
@@ -68,7 +68,7 @@ export default function RemoveStudentPage() {
                 <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-bold">{s.name.charAt(0)}</div>
                 <div>
                   <div className="text-sm font-bold text-gray-900">{s.name}</div>
-                  <div className="text-xs text-gray-400">Grade {s.grade} · {s.stopAddress}</div>
+                  <div className="text-xs text-gray-400">Grade {s.grade} · {s.stopAddressAM}</div>
                 </div>
               </div>
               <button onClick={() => openModal(s)} className="px-4 py-2 bg-red-50 text-red-600 text-sm font-bold rounded-lg hover:bg-red-100 transition-colors">
@@ -103,7 +103,7 @@ export default function RemoveStudentPage() {
                   <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-2">Before</div>
                   <div className="font-bold text-gray-900 text-sm">{modalStudent.name}</div>
                   <div className="text-xs text-gray-500">Grade {modalStudent.grade}</div>
-                  <div className="text-xs text-gray-500">{modalStudent.stopAddress}</div>
+                  <div className="text-xs text-gray-500">{modalStudent.stopAddressAM}</div>
                   <div className="text-xs text-gray-500">Pickup: {modalStudent.scheduledPickupTime}</div>
                   <span className="inline-block mt-1.5 text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-700">Active</span>
                 </div>
@@ -111,7 +111,7 @@ export default function RemoveStudentPage() {
                   <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-2">After</div>
                   <div className="font-bold text-gray-900 text-sm">{modalStudent.name}</div>
                   <div className="text-xs text-gray-500">Grade {modalStudent.grade}</div>
-                  <div className="text-xs text-gray-500">{modalStudent.stopAddress}</div>
+                  <div className="text-xs text-gray-500">{modalStudent.stopAddressAM}</div>
                   <div className="text-xs text-gray-500">Pickup: {modalStudent.scheduledPickupTime}</div>
                   <span className="inline-block mt-1.5 text-[10px] font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>
                 </div>

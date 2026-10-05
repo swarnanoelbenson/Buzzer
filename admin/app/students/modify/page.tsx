@@ -16,7 +16,7 @@ function ModifyStudentForm() {
   const [students, setStudents] = useState<Student[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [selected, setSelected] = useState<Student | null>(null);
-  const [form, setForm] = useState({ name: "", grade: "", stopAddress: "", routeId: "", scheduledPickupTime: "", scheduledDropoffTime: "" });
+  const [form, setForm] = useState({ name: "", grade: "", stopAddressAM: "", stopAddressPM: "", routeId: "", scheduledPickupTime: "", scheduledDropoffTime: "" });
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -31,7 +31,7 @@ function ModifyStudentForm() {
 
   const select = (s: Student) => {
     setSelected(s);
-    setForm({ name: s.name, grade: s.grade, stopAddress: s.stopAddress, routeId: s.routeId, scheduledPickupTime: s.scheduledPickupTime, scheduledDropoffTime: s.scheduledDropoffTime });
+    setForm({ name: s.name, grade: s.grade, stopAddressAM: s.stopAddressAM, stopAddressPM: s.stopAddressPM, routeId: s.routeId, scheduledPickupTime: s.scheduledPickupTime, scheduledDropoffTime: s.scheduledDropoffTime });
   };
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -40,7 +40,7 @@ function ModifyStudentForm() {
     e.preventDefault();
     if (!selected) return;
     setSaving(true);
-    await updateDoc(doc(db, "students", selected.id), { name: form.name.trim(), grade: form.grade.trim(), stopAddress: form.stopAddress.trim(), routeId: form.routeId, scheduledPickupTime: form.scheduledPickupTime, scheduledDropoffTime: form.scheduledDropoffTime });
+    await updateDoc(doc(db, "students", selected.id), { name: form.name.trim(), grade: form.grade.trim(), stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(), routeId: form.routeId, scheduledPickupTime: form.scheduledPickupTime, scheduledDropoffTime: form.scheduledDropoffTime });
     setSaving(false); setSuccess(true);
     setTimeout(() => router.push("/students"), 1200);
   };
@@ -63,7 +63,8 @@ function ModifyStudentForm() {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Full Name</label><input className={FIELD} required value={form.name} onChange={e => set("name", e.target.value)} /></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Grade</label><input className={FIELD} required value={form.grade} onChange={e => set("grade", e.target.value)} /></div>
-            <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address</label><input className={FIELD} required value={form.stopAddress} onChange={e => set("stopAddress", e.target.value)} /></div>
+            <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address AM (Morning Pick-up)</label><input className={FIELD} required value={form.stopAddressAM} onChange={e => set("stopAddressAM", e.target.value)} /></div>
+            <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address PM (Afternoon Drop-off)</label><input className={FIELD} required value={form.stopAddressPM} onChange={e => set("stopAddressPM", e.target.value)} /></div>
             <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Route</label>
               <select className={FIELD} value={form.routeId} onChange={e => set("routeId", e.target.value)}>
                 <option value="">— select a route —</option>

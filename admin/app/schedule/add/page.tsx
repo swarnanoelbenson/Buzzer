@@ -23,11 +23,12 @@ const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 tex
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 interface XlsxRow {
-  name: string; stop: string; grade: string;
-  pickupTime: string; dropoffTime: string;
-  parent1Name: string; parent1Phone: string;
-  parent2Name: string; parent2Phone: string;
-  studentPhone: string;
+  name: string; grade: string;
+  orderAM: string; pickupTime: string;
+  orderPM: string; dropoffTime: string;
+  stopAM: string; stopPM: string;
+  parentPhone: string; parentName: string;
+  studentPhone: string; relationship: string;
 }
 
 export default function AddSchedulePage() {
@@ -67,23 +68,17 @@ export default function AddSchedulePage() {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
 
-      // Skip header row, map columns by position:
-      // A: Student Name | B: Grade | C: Scheduled AM | D: Scheduled PM | E: STOP Location
-      // F: Parent 1 Phone | G: Parent 1 Name | H: Student Phone | I: Parent 2 Name | J: Parent 2 Phone
-      // Fill down merged cells: carry the last non-empty value for stop/parent columns
-      let lastStop = "", lastPhone = "", lastParent = "";
-      const filled = rows.map(r => {
-        if (r[4]) lastStop = String(r[4]);
-        if (r[5]) lastPhone = String(r[5]);
-        if (r[6]) lastParent = String(r[6]);
-        return [r[0], r[1], r[2], r[3], lastStop, lastPhone, lastParent, r[7], r[8], r[9]];
-      });
-      const parsed: XlsxRow[] = filled.slice(1).filter(r => r[0]).map(r => ({
-        name: String(r[0] ?? ""), grade: String(r[1] ?? ""), stop: String(r[4] ?? ""),
-        pickupTime: String(r[2] ?? ""), dropoffTime: String(r[3] ?? ""),
-        parent1Phone: normalisePhone(String(r[5] ?? "")), parent1Name: String(r[6] ?? ""),
-        studentPhone: normalisePhone(String(r[7] ?? "")),
-        parent2Name: String(r[8] ?? ""), parent2Phone: normalisePhone(String(r[9] ?? "")),
+      // Columns A–L (indices 0–11):
+      // A: Student Name | B: Grade | C: Order AM | D: Scheduled AM | E: Order PM | F: Scheduled PM
+      // G: STOP Location AM | H: STOP Location PM | I: Parent 1 Phone | J: Parent 1 Name
+      // K: Student Phone | L: Relationship
+      const parsed: XlsxRow[] = rows.slice(1).filter(r => r[0]).map(r => ({
+        name: String(r[0] ?? ""), grade: String(r[1] ?? ""),
+        orderAM: String(r[2] ?? ""), pickupTime: String(r[3] ?? ""),
+        orderPM: String(r[4] ?? ""), dropoffTime: String(r[5] ?? ""),
+        stopAM: String(r[6] ?? ""), stopPM: String(r[7] ?? ""),
+        parentPhone: normalisePhone(String(r[8] ?? "")), parentName: String(r[9] ?? ""),
+        studentPhone: normalisePhone(String(r[10] ?? "")), relationship: String(r[11] ?? ""),
       }));
       setPreview(parsed);
     } catch {
@@ -115,31 +110,29 @@ export default function AddSchedulePage() {
       const endDate = new Date(form.endDate);
       const scheduledDates = getScheduledDates(startDate, endDate, selectedDays);
 
-      // 1. Create student docs and collect IDs
+      // 1. Create route doc first so we have the ID for student routeId
+      const routeRef = doc(collection(db, "routes"));
+
+      // 2. Create student docs and collect IDs
       const studentIds: string[] = [];
-      const studentRecordTemplate: { id: string; studentName: string; stopAddress: string; status: string; timestamp: null }[] = [];
+      const studentRecordTemplate: { id: string; studentName: string; stopAddressAM: string; stopAddressPM: string; status: string; timestamp: null }[] = [];
 
       for (const row of preview) {
         const studentRef = doc(collection(db, "students"));
-        const parents = [
-          { name: row.parent1Name, phone: row.parent1Phone, canAccess: true, relationship: "" },
-          ...(row.parent2Name || row.parent2Phone
-            ? [{ name: row.parent2Name, phone: row.parent2Phone, canAccess: true, relationship: "" }]
-            : []),
-        ];
+        const parents = row.parentName || row.parentPhone
+          ? [{ name: row.parentName, phone: row.parentPhone, canAccess: true, relationship: row.relationship }]
+          : [];
         batch.set(studentRef, {
-          name: row.name, grade: row.grade, stopAddress: row.stop,
-          routeId: "", // filled in after route doc created
+          name: row.name, grade: row.grade,
+          stopAddressAM: row.stopAM, stopAddressPM: row.stopPM,
+          routeId: routeRef.id,
           scheduledPickupTime: row.pickupTime, scheduledDropoffTime: row.dropoffTime,
           phone: row.studentPhone, parents, authorisedParentIds: [],
           isActive: true, createdAt: Timestamp.now(),
         });
         studentIds.push(studentRef.id);
-        studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddress: row.stop, status: "pending", timestamp: null });
+        studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, status: "pending", timestamp: null });
       }
-
-      // 2. Create route doc
-      const routeRef = doc(collection(db, "routes"));
       batch.set(routeRef, {
         name: form.routeName.trim(), driverId: form.driverId,
         term: parseInt(form.term), year: parseInt(form.year),
@@ -231,8 +224,8 @@ export default function AddSchedulePage() {
               />
               <button type="button" onClick={async () => {
                 const XLSX = await import("xlsx");
-                const headers = [["Student Name", "Grade", "Scheduled AM", "Scheduled PM", "STOP Location", "Parent 1 Phone", "Parent 1 Name", "Student Phone", "Parent 2 Name", "Parent 2 Phone"]];
-                const blankRows = Array.from({ length: templateCount }, () => Array(10).fill(""));
+                const headers = [["Student Name", "Grade", "Order AM", "Scheduled AM", "Order PM", "Scheduled PM", "STOP Location AM", "STOP Location PM", "Parent 1 Phone", "Parent 1 Name", "Student Phone", "Relationship"]];
+                const blankRows = Array.from({ length: templateCount }, () => Array(12).fill(""));
                 const ws = XLSX.utils.aoa_to_sheet([...headers, ...blankRows]);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Students");
@@ -245,7 +238,7 @@ export default function AddSchedulePage() {
 
           {/* Compact column list */}
           <p className="text-xs text-gray-400">
-            Columns: Name · Grade · Scheduled AM · Scheduled PM · STOP Location · Parent 1 Phone · Parent 1 Name · Student Phone · Parent 2 Name · Parent 2 Phone
+            Columns: Name · Grade · Order AM · Scheduled AM · Order PM · Scheduled PM · STOP AM · STOP PM · Parent Phone · Parent Name · Student Phone · Relationship
           </p>
 
           {/* Upload zone */}
@@ -279,7 +272,8 @@ export default function AddSchedulePage() {
                     <tr className="text-gray-400">
                       <th className="px-3 py-2 text-left font-medium">Name</th>
                       <th className="px-3 py-2 text-left font-medium">Grade</th>
-                      <th className="px-3 py-2 text-left font-medium">Stop</th>
+                      <th className="px-3 py-2 text-left font-medium">Stop AM</th>
+                      <th className="px-3 py-2 text-left font-medium">Stop PM</th>
                       <th className="px-3 py-2 text-left font-medium">Pick-up</th>
                       <th className="px-3 py-2 text-left font-medium">Drop-off</th>
                     </tr>
@@ -289,13 +283,14 @@ export default function AddSchedulePage() {
                       <tr key={i}>
                         <td className="px-3 py-2 text-gray-700 font-medium">{r.name}</td>
                         <td className="px-3 py-2 text-gray-500">{r.grade}</td>
-                        <td className="px-3 py-2 text-gray-500">{r.stop}</td>
+                        <td className="px-3 py-2 text-gray-500">{r.stopAM}</td>
+                        <td className="px-3 py-2 text-gray-500">{r.stopPM}</td>
                         <td className="px-3 py-2 text-gray-500">{r.pickupTime}</td>
                         <td className="px-3 py-2 text-gray-500">{r.dropoffTime}</td>
                       </tr>
                     ))}
                     {preview.length > 5 && (
-                      <tr><td colSpan={5} className="px-3 py-2 text-gray-400 text-center">…and {preview.length - 5} more</td></tr>
+                      <tr><td colSpan={6} className="px-3 py-2 text-gray-400 text-center">…and {preview.length - 5} more</td></tr>
                     )}
                   </tbody>
                 </table>

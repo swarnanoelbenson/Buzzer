@@ -23,7 +23,8 @@ export interface Student {
   id: string;
   name: string;
   grade: string;
-  stopAddress: string;
+  stopAddressAM: string;  // morning pickup stop
+  stopAddressPM: string;  // afternoon dropoff stop
   routeId: string;
   scheduledPickupTime: string;
   scheduledDropoffTime: string;
@@ -73,7 +74,8 @@ export interface Trip {
 export interface StudentTripRecord {
   id: string;
   studentName: string;
-  stopAddress: string;
+  stopAddressAM: string;
+  stopAddressPM: string;
   status: "pending" | "onBus" | "offBus" | "absent";
   timestamp?: Date;
 }

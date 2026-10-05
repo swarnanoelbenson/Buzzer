@@ -124,8 +124,9 @@ function GanttChart({ trips }: { trips: GanttTrip[] }) {
 
             const stopMap: Record<string, StudentTripRecord[]> = {};
             trip.studentRecords.forEach(r => {
-              if (!stopMap[r.stopAddress]) stopMap[r.stopAddress] = [];
-              stopMap[r.stopAddress].push(r);
+              const stopKey = trip.type === "pickup" ? (r.stopAddressAM || r.stopAddressPM) : (r.stopAddressPM || r.stopAddressAM);
+              if (!stopMap[stopKey]) stopMap[stopKey] = [];
+              stopMap[stopKey].push(r);
             });
             const stops = Object.entries(stopMap);
             const stopCount = stops.length;

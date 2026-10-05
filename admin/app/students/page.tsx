@@ -13,14 +13,14 @@ const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 tex
 const LABEL = "block text-[10px] font-black tracking-widest text-gray-400 uppercase mb-1.5";
 
 type FormState = {
-  name: string; grade: string; stopAddress: string; routeId: string;
+  name: string; grade: string; stopAddressAM: string; stopAddressPM: string; routeId: string;
   scheduledPickupTime: string; scheduledDropoffTime: string;
   studentPhone: string;
   parents: ParentContact[];
 };
 
 const EMPTY_FORM: FormState = {
-  name: "", grade: "", stopAddress: "", routeId: "",
+  name: "", grade: "", stopAddressAM: "", stopAddressPM: "", routeId: "",
   scheduledPickupTime: "", scheduledDropoffTime: "",
   studentPhone: "",
   parents: [{ name: "", phone: "", canAccess: true, relationship: "" }],
@@ -28,7 +28,9 @@ const EMPTY_FORM: FormState = {
 
 function studentToForm(s: Student): FormState {
   return {
-    name: s.name, grade: s.grade, stopAddress: s.stopAddress,
+    name: s.name, grade: s.grade,
+    stopAddressAM: s.stopAddressAM ?? "",
+    stopAddressPM: s.stopAddressPM ?? "",
     routeId: s.routeId ?? "",
     scheduledPickupTime: s.scheduledPickupTime,
     scheduledDropoffTime: s.scheduledDropoffTime,
@@ -40,7 +42,7 @@ function studentToForm(s: Student): FormState {
 }
 
 function formChanged(original: FormState, current: FormState): boolean {
-  const simpleKeys: (keyof FormState)[] = ["name", "grade", "stopAddress", "routeId", "scheduledPickupTime", "scheduledDropoffTime", "studentPhone"];
+  const simpleKeys: (keyof FormState)[] = ["name", "grade", "stopAddressAM", "stopAddressPM", "routeId", "scheduledPickupTime", "scheduledDropoffTime", "studentPhone"];
   if (simpleKeys.some(k => original[k] !== current[k])) return true;
   if (original.parents.length !== current.parents.length) return true;
   return original.parents.some((p, i) =>
@@ -54,7 +56,8 @@ function formChanged(original: FormState, current: FormState): boolean {
 const DIFF_FIELDS: { key: keyof Omit<FormState, "parents">; label: string }[] = [
   { key: "name",                 label: "Full Name" },
   { key: "grade",                label: "Grade" },
-  { key: "stopAddress",          label: "Stop Address" },
+  { key: "stopAddressAM",        label: "Stop Address AM" },
+  { key: "stopAddressPM",        label: "Stop Address PM" },
   { key: "routeId",              label: "Route" },
   { key: "scheduledPickupTime",  label: "Pick-up Time" },
   { key: "scheduledDropoffTime", label: "Drop-off Time" },
@@ -74,11 +77,12 @@ function Overlay({ children }: { children: React.ReactNode }) {
 
 function PreviewModal({ student, onClose, onEdit }: { student: Student; onClose: () => void; onEdit: () => void }) {
   const fields = [
-    { label: "Grade",        value: student.grade },
-    { label: "Stop Address", value: student.stopAddress },
-    { label: "Pick-up",      value: student.scheduledPickupTime },
-    { label: "Drop-off",     value: student.scheduledDropoffTime },
-    { label: "Status",       value: student.isActive ? "Active" : "Inactive" },
+    { label: "Grade",          value: student.grade },
+    { label: "Stop AM",        value: student.stopAddressAM },
+    { label: "Stop PM",        value: student.stopAddressPM },
+    { label: "Pick-up",        value: student.scheduledPickupTime },
+    { label: "Drop-off",       value: student.scheduledDropoffTime },
+    { label: "Status",         value: student.isActive ? "Active" : "Inactive" },
   ];
   return (
     <Overlay>
@@ -170,8 +174,12 @@ function StudentForm({ form, onChange, onParentChange, onAddParent, onRemovePare
         </div>
       </div>
       <div className="col-span-2">
-        <label className={LABEL}>Stop Address</label>
-        <input className={FIELD} required value={form.stopAddress} onChange={set("stopAddress")} placeholder="12 Oak St, Parramatta NSW 2150" />
+        <label className={LABEL}>Stop Address AM (Morning Pick-up)</label>
+        <input className={FIELD} required value={form.stopAddressAM} onChange={set("stopAddressAM")} placeholder="12 Oak St, Parramatta NSW 2150" />
+      </div>
+      <div className="col-span-2">
+        <label className={LABEL}>Stop Address PM (Afternoon Drop-off)</label>
+        <input className={FIELD} required value={form.stopAddressPM} onChange={set("stopAddressPM")} placeholder="12 Oak St, Parramatta NSW 2150" />
       </div>
       <div className="col-span-2">
         <label className={LABEL}>Assigned Route</label>
@@ -416,7 +424,8 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
       // 1. Create the student document first (so we have its ID)
       const ref = await addDoc(collection(db, "students"), {
         name: form.name.trim(), grade: form.grade.trim(),
-        stopAddress: form.stopAddress.trim(), routeId: form.routeId,
+        stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+        routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
         phone: form.studentPhone.trim() ? `+61${form.studentPhone.trim()}` : "",
@@ -453,7 +462,8 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
 
       const newStudent: Student = {
         id: studentId, name: form.name.trim(), grade: form.grade.trim(),
-        stopAddress: form.stopAddress.trim(), routeId: form.routeId,
+        stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+        routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
         parents: validParents,
@@ -530,14 +540,16 @@ function EditStudentModal({ student, routes, onClose, onSaved }: {
       const validParents = form.parents.filter(p => p.name.trim()).map(p => ({ ...p, phone: p.phone.trim() ? `+61${p.phone.trim()}` : "" }));
       await updateDoc(doc(db, "students", student.id), {
         name: form.name.trim(), grade: form.grade.trim(),
-        stopAddress: form.stopAddress.trim(), routeId: form.routeId,
+        stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+        routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
         parents: validParents,
       });
       const updated: Student = {
         ...student, name: form.name.trim(), grade: form.grade.trim(),
-        stopAddress: form.stopAddress.trim(), routeId: form.routeId,
+        stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+        routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
         parents: validParents,
@@ -623,7 +635,7 @@ function RemoveStudentModal({ student, onClose, onRemoved, user }: {
       actorId: user?.uid ?? "admin",
       actorName: user?.displayName ?? user?.email ?? "Admin",
       targetId: student.id, targetName: student.name,
-      details: `Student removed: ${student.name} (Grade ${student.grade}, Stop: ${student.stopAddress})`,
+      details: `Student removed: ${student.name} (Grade ${student.grade})`,
       reason: reason.trim() || "No reason provided",
       timestamp: Timestamp.now(),
       year: now.getFullYear(),
@@ -654,14 +666,14 @@ function RemoveStudentModal({ student, onClose, onRemoved, user }: {
               <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-2">Before</div>
               <div className="font-bold text-gray-900 text-sm">{student.name}</div>
               <div className="text-xs text-gray-500">Grade {student.grade}</div>
-              <div className="text-xs text-gray-500">{student.stopAddress}</div>
+              <div className="text-xs text-gray-500">{student.stopAddressAM}</div>
               <span className="inline-block mt-1.5 text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-700">Active</span>
             </div>
             <div className="pl-4">
               <div className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-2">After</div>
               <div className="font-bold text-gray-900 text-sm">{student.name}</div>
               <div className="text-xs text-gray-500">Grade {student.grade}</div>
-              <div className="text-xs text-gray-500">{student.stopAddress}</div>
+              <div className="text-xs text-gray-500">{student.stopAddressAM}</div>
               <span className="inline-block mt-1.5 text-[10px] font-black px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inactive</span>
             </div>
           </div>
@@ -704,7 +716,8 @@ function ReactivateStudentModal({ student, routes, onClose, onReactivated, user 
     await updateDoc(doc(db, "students", student.id), {
       isActive: true,
       name: form.name.trim(), grade: form.grade.trim(),
-      stopAddress: form.stopAddress.trim(), routeId: form.routeId,
+      stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+      routeId: form.routeId,
       scheduledPickupTime: form.scheduledPickupTime,
       scheduledDropoffTime: form.scheduledDropoffTime,
       parents: validParents,
@@ -723,10 +736,11 @@ function ReactivateStudentModal({ student, routes, onClose, onReactivated, user 
     const updated: Student = {
       ...student, isActive: true,
       name: form.name.trim(), grade: form.grade.trim(),
-      stopAddress: form.stopAddress.trim(), routeId: form.routeId,
+      stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+      routeId: form.routeId,
       scheduledPickupTime: form.scheduledPickupTime,
       scheduledDropoffTime: form.scheduledDropoffTime,
-      parents: validParents, // already has +61 prefix from above
+      parents: validParents,
     };
     setSaving(false);
     onReactivated(updated);
@@ -862,7 +876,7 @@ export default function StudentsPage() {
     let cmp = 0;
     if (sortBy === "name") cmp = a.name.localeCompare(b.name);
     else if (sortBy === "grade") cmp = a.grade.localeCompare(b.grade);
-    else if (sortBy === "stop") cmp = a.stopAddress.localeCompare(b.stopAddress);
+    else if (sortBy === "stop") cmp = (a.stopAddressAM ?? "").localeCompare(b.stopAddressAM ?? "");
     else if (sortBy === "route") cmp = getRouteName(a.routeId).localeCompare(getRouteName(b.routeId));
     return sortDir === "asc" ? cmp : -cmp;
   });
@@ -911,7 +925,7 @@ export default function StudentsPage() {
                 { label: "Student", col: "name" as const },
                 { label: "Grade",   col: "grade" as const },
                 { label: "Route",   col: "route" as const },
-                { label: "Stop Address", col: "stop" as const },
+                { label: "Stop AM",   col: "stop" as const },
                 { label: "Pick-up",  col: null },
                 { label: "Drop-off", col: null },
                 { label: "Status",   col: null },
@@ -972,9 +986,9 @@ export default function StudentsPage() {
                   <span className="text-xs font-bold tracking-widest text-gray-600 truncate">
                     {getRouteName(student.routeId) || <span className="text-gray-300">—</span>}
                   </span>
-                  {/* Stop Address */}
+                  {/* Stop AM */}
                   <span className="text-xs font-bold tracking-widest text-gray-600 truncate">
-                    {revealed ? student.stopAddress : redact(student.stopAddress)}
+                    {revealed ? student.stopAddressAM : redact(student.stopAddressAM)}
                   </span>
                   {/* Pick-up */}
                   <span className="text-xs font-bold tracking-widest text-gray-600">
