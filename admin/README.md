@@ -232,7 +232,7 @@ Handles creation of a new route via a slide-out form.
 **Key functions in this file:**
 
 `handleFile(e)` — Parses an uploaded .xlsx file.
-Reads 12 columns: Student Name, Grade, Order AM, Scheduled AM, Order PM, Scheduled PM, STOP Location AM, STOP Location PM, Parent 1 Phone, Parent 1 Name, Student Phone, Relationship.
+Reads 12 columns: Student Name, Grade, Student Phone, Order AM, Scheduled AM, Stop Location AM, Order PM, Scheduled PM, Stop Location PM, Parent 1 Name, Parent 1 Phone, Relationship.
 Stores the parsed rows in the `preview` state.
 
 `handleSubmit(e)` — Saves a new route to Firestore.
@@ -252,7 +252,7 @@ Sensitive fields (stop address, phone, pick-up time) are redacted by default; cl
 
 **Key components in this file:**
 
-`PreviewModal` — Displays all student details: grade, route name, Stop AM/PM, Order AM/PM, pick-up/drop-off times, student phone, status, and all linked parents with name, relationship, phone, and app access status.
+`PreviewModal` — Displays all student details in order: grade, student phone, Order AM, Scheduled AM, Stop Location AM, Order PM, Scheduled PM, Stop Location PM, assigned route, parent 1 name/phone/relationship (inline), status, created date. Additional guardians (2nd parent onwards) appear in a separate card section below.
 
 `AddStudentModal` — Form to add a new student and store parent info in Firestore.
 
@@ -275,15 +275,15 @@ The schedule creation form accepts a `.xlsx` file with exactly these columns in 
 |--------|-------------------|--------------------------------------|
 | A (0)  | Student Name      | `student.name`                       |
 | B (1)  | Grade             | `student.grade`                      |
-| C (2)  | Order AM          | `student.orderAM`                    |
-| D (3)  | Scheduled AM      | `student.scheduledPickupTime`        |
-| E (4)  | Order PM          | `student.orderPM`                    |
-| F (5)  | Scheduled PM      | `student.scheduledDropoffTime`       |
-| G (6)  | STOP Location AM  | `student.stopAddressAM`              |
-| H (7)  | STOP Location PM  | `student.stopAddressPM`              |
-| I (8)  | Parent 1 Phone    | `student.parents[0].phone`           |
+| C (2)  | Student Phone     | `student.phone`                      |
+| D (3)  | Order AM          | `student.orderAM`                    |
+| E (4)  | Scheduled AM      | `student.scheduledPickupTime`        |
+| F (5)  | Stop Location AM  | `student.stopAddressAM`              |
+| G (6)  | Order PM          | `student.orderPM`                    |
+| H (7)  | Scheduled PM      | `student.scheduledDropoffTime`       |
+| I (8)  | Stop Location PM  | `student.stopAddressPM`              |
 | J (9)  | Parent 1 Name     | `student.parents[0].name`            |
-| K (10) | Student Phone     | `student.phone`                      |
+| K (10) | Parent 1 Phone    | `student.parents[0].phone`           |
 | L (11) | Relationship      | `student.parents[0].relationship`    |
 
 Row 1 must be the header row. Data starts from row 2.
