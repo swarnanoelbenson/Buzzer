@@ -102,7 +102,8 @@ admin/
 | `/students/add`    | `app/students/add/page.tsx` | Form to add a new student.                          |
 | `/students/modify` | `app/students/modify/page.tsx` | Form to edit a student's details.                |
 | `/students/remove` | `app/students/remove/page.tsx` | Confirm and remove a student.                    |
-| `/schedule`        | `app/schedule/page.tsx`     | View and create routes. Upload student .xlsx.       |
+| `/schedule`        | `app/schedule/page.tsx`     | View and create routes. Upload student .xlsx. Substitute drivers for a date range. |
+| `/schedule/add`    | `app/schedule/add/page.tsx` | Dedicated full-page route creation form.            |
 | `/schedule/modify` | `app/schedule/modify/page.tsx` | Edit a route.                                    |
 | `/schedule/remove` | `app/schedule/remove/page.tsx` | Remove a route and its trips.                    |
 | `/logs/admin`      | `app/logs/admin/page.tsx`   | View admin activity log.                            |
@@ -220,6 +221,9 @@ TypeScript interfaces for all data models:
 `Driver`, `Student`, `Parent`, `Route`, `Trip`, `StudentTripRecord`, `ActivityLog`, `PassengerNote`.
 These match the Firestore document structure exactly.
 
+Key fields on `Student`: `stopAddressAM`, `stopAddressPM` (separate morning and afternoon stops), `orderAM`, `orderPM` (stop sequence numbers for the driver app).
+`StudentTripRecord` (embedded in each `Trip.studentRecords` array) mirrors `stopAddressAM`, `stopAddressPM`, `orderAM`, and `orderPM` as a snapshot at trip creation time.
+
 ### `app/schedule/page.tsx`
 The main schedule management page.
 Lists all existing routes.
@@ -228,7 +232,7 @@ Handles creation of a new route via a slide-out form.
 **Key functions in this file:**
 
 `handleFile(e)` — Parses an uploaded .xlsx file.
-Reads columns: Name, Grade, Scheduled AM, Scheduled PM, STOP Location, Parent Contact, Parent Name.
+Reads 12 columns: Student Name, Grade, Order AM, Scheduled AM, Order PM, Scheduled PM, STOP Location AM, STOP Location PM, Parent 1 Phone, Parent 1 Name, Student Phone, Relationship.
 Stores the parsed rows in the `preview` state.
 
 `handleSubmit(e)` — Saves a new route to Firestore.
@@ -239,7 +243,7 @@ All writes use a Firestore batch for atomicity.
 
 `downloadTemplate()` — Generates and downloads a blank .xlsx template file.
 Uses SheetJS to build the file in the browser.
-The template contains the correct 7 column headers.
+The template contains the correct 12 column headers.
 
 ### `app/layout.tsx`
 Root layout for all pages.
@@ -252,15 +256,20 @@ Renders the navigation sidebar.
 
 The schedule creation form accepts a `.xlsx` file with exactly these columns in this order:
 
-| Column | Header           | Field in Firestore             |
-|--------|------------------|--------------------------------|
-| A (0)  | Name             | `student.name`                 |
-| B (1)  | Grade            | `student.grade`                |
-| C (2)  | Scheduled AM     | `student.scheduledPickupTime`  |
-| D (3)  | Scheduled PM     | `student.scheduledDropoffTime` |
-| E (4)  | STOP Location    | `student.stopAddress`          |
-| F (5)  | Parent Contact   | Stored in parent record        |
-| G (6)  | Parent Name      | Stored in parent record        |
+| Column | Header            | Field in Firestore                   |
+|--------|-------------------|--------------------------------------|
+| A (0)  | Student Name      | `student.name`                       |
+| B (1)  | Grade             | `student.grade`                      |
+| C (2)  | Order AM          | `student.orderAM`                    |
+| D (3)  | Scheduled AM      | `student.scheduledPickupTime`        |
+| E (4)  | Order PM          | `student.orderPM`                    |
+| F (5)  | Scheduled PM      | `student.scheduledDropoffTime`       |
+| G (6)  | STOP Location AM  | `student.stopAddressAM`              |
+| H (7)  | STOP Location PM  | `student.stopAddressPM`              |
+| I (8)  | Parent 1 Phone    | `student.parents[0].phone`           |
+| J (9)  | Parent 1 Name     | `student.parents[0].name`            |
+| K (10) | Student Phone     | `student.phone`                      |
+| L (11) | Relationship      | `student.parents[0].relationship`    |
 
 Row 1 must be the header row. Data starts from row 2.
 Use the "Download Template" button in the schedule form to get a pre-formatted file.
