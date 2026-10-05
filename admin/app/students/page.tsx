@@ -83,13 +83,18 @@ function Overlay({ children }: { children: React.ReactNode }) {
 
 // ── Preview Modal ─────────────────────────────────────────────────────────────
 
-function PreviewModal({ student, onClose, onEdit }: { student: Student; onClose: () => void; onEdit: () => void }) {
+function PreviewModal({ student, routes, onClose, onEdit }: { student: Student; routes: Route[]; onClose: () => void; onEdit: () => void }) {
+  const routeName = routes.find(r => r.id === student.routeId)?.name ?? "—";
   const fields = [
     { label: "Grade",          value: student.grade },
+    { label: "Route",          value: routeName },
     { label: "Stop AM",        value: student.stopAddressAM },
+    { label: "Order AM",       value: student.orderAM != null ? String(student.orderAM) : null },
     { label: "Stop PM",        value: student.stopAddressPM },
+    { label: "Order PM",       value: student.orderPM != null ? String(student.orderPM) : null },
     { label: "Pick-up",        value: student.scheduledPickupTime },
     { label: "Drop-off",       value: student.scheduledDropoffTime },
+    { label: "Student Phone",  value: student.phone || null },
     { label: "Status",         value: student.isActive ? "Active" : "Inactive" },
   ];
   return (
@@ -122,12 +127,13 @@ function PreviewModal({ student, onClose, onEdit }: { student: Student; onClose:
               <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-3">Parents / Guardians</p>
               <div className="space-y-2">
                 {student.parents.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2.5">
-                    <div>
+                  <div key={i} className="bg-gray-50 rounded-xl px-3 py-2.5 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                       <div className="text-sm font-bold text-gray-900">{p.name || "—"}</div>
-                      <div className="text-xs text-gray-500">{p.phone || "—"}</div>
+                      {p.relationship && <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{p.relationship}</div>}
+                      <div className="text-xs text-gray-500 mt-0.5">{p.phone || "—"}</div>
                     </div>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${p.canAccess ? "bg-green-100 text-green-700" : "bg-red-50 text-red-500"}`}>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 ${p.canAccess ? "bg-green-100 text-green-700" : "bg-red-50 text-red-500"}`}>
                       {p.canAccess ? "Access Granted" : "Access Denied"}
                     </span>
                   </div>
@@ -1066,6 +1072,7 @@ export default function StudentsPage() {
       {modal?.type === "preview" && (
         <PreviewModal
           student={modal.student}
+          routes={routes}
           onClose={closeModal}
           onEdit={() => setModal({ type: "edit", student: modal.student })}
         />
