@@ -6,6 +6,19 @@ import type { Driver } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
 import { useRouter } from "next/navigation";
 
+/** Normalise a raw phone string from XLSX to E.164 +61 format.
+ *  "0430040000" → "+61430040000"
+ *  "+61430040000" → "+61430040000"
+ *  "430040000" → "+61430040000"
+ */
+function normalisePhone(raw: string): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  if (s.startsWith("+61")) return s;
+  if (s.startsWith("0")) return `+61${s.slice(1)}`;
+  return `+61${s}`;
+}
+
 const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -58,9 +71,9 @@ export default function AddSchedulePage() {
       const parsed: XlsxRow[] = rows.slice(1).filter(r => r[0]).map(r => ({
         name: String(r[0] ?? ""), stop: String(r[1] ?? ""), grade: String(r[2] ?? ""),
         pickupTime: String(r[3] ?? ""), dropoffTime: String(r[4] ?? ""),
-        parent1Name: String(r[5] ?? ""), parent1Phone: String(r[6] ?? ""),
-        parent2Name: String(r[7] ?? ""), parent2Phone: String(r[8] ?? ""),
-        studentPhone: String(r[9] ?? ""),
+        parent1Name: String(r[5] ?? ""), parent1Phone: normalisePhone(String(r[6] ?? "")),
+        parent2Name: String(r[7] ?? ""), parent2Phone: normalisePhone(String(r[8] ?? "")),
+        studentPhone: normalisePhone(String(r[9] ?? "")),
       }));
       setPreview(parsed);
     } catch {

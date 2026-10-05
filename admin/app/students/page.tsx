@@ -5,6 +5,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import type { Student, Route, ParentContact } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
+import PhoneInput, { stripPrefix } from "@/components/PhoneInput";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ function studentToForm(s: Student): FormState {
     scheduledDropoffTime: s.scheduledDropoffTime,
     studentPhone: "",
     parents: s.parents && s.parents.length > 0
-      ? s.parents
+      ? s.parents.map(p => ({ ...p, phone: stripPrefix(p.phone) }))
       : [{ name: "", phone: "", canAccess: true, relationship: "" }],
   };
 }
@@ -156,7 +157,7 @@ function StudentForm({ form, onChange, onParentChange, onAddParent, onRemovePare
       </div>
       <div>
         <label className={LABEL}>Student Phone</label>
-        <input className={FIELD} value={form.studentPhone} onChange={set("studentPhone")} placeholder="+61412000000" />
+        <PhoneInput className={FIELD} value={form.studentPhone} onChange={v => onChange("studentPhone", v)} />
       </div>
 
       {/* Student app login info */}
@@ -231,11 +232,10 @@ function StudentForm({ form, onChange, onParentChange, onAddParent, onRemovePare
                 </div>
                 <div>
                   <label className={LABEL}>Phone</label>
-                  <input
+                  <PhoneInput
                     className={FIELD}
                     value={parent.phone}
-                    onChange={e => onParentChange(i, "phone", e.target.value)}
-                    placeholder="+61400000001"
+                    onChange={v => onParentChange(i, "phone", v)}
                   />
                 </div>
                 <div className="col-span-2">
@@ -419,9 +419,9 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
         stopAddress: form.stopAddress.trim(), routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
-        phone: form.studentPhone.trim(),
+        phone: form.studentPhone.trim() ? `+61${form.studentPhone.trim()}` : "",
         authorisedParentIds: [],
-        parents: validParents,
+        parents: validParents.map(p => ({ ...p, phone: p.phone.trim() ? `+61${p.phone.trim()}` : "" })),
         isActive: true, createdAt: Timestamp.now(),
       });
       const studentId = ref.id;
@@ -434,7 +434,7 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
         const parentRef = await addDoc(collection(db, "parents"), {
           name: p.name.trim(),
           relationship: p.relationship ?? "",
-          phone: p.phone.trim(),
+          phone: p.phone.trim() ? `+61${p.phone.trim()}` : "",
           fcmToken: null,
           childIds: [studentId],
           isActive: true,
@@ -527,7 +527,7 @@ function EditStudentModal({ student, routes, onClose, onSaved }: {
   const doSave = async () => {
     setSaving(true);
     try {
-      const validParents = form.parents.filter(p => p.name.trim());
+      const validParents = form.parents.filter(p => p.name.trim()).map(p => ({ ...p, phone: p.phone.trim() ? `+61${p.phone.trim()}` : "" }));
       await updateDoc(doc(db, "students", student.id), {
         name: form.name.trim(), grade: form.grade.trim(),
         stopAddress: form.stopAddress.trim(), routeId: form.routeId,
@@ -700,7 +700,7 @@ function ReactivateStudentModal({ student, routes, onClose, onReactivated, user 
     e.preventDefault();
     setSaving(true);
     const now = new Date();
-    const validParents = form.parents.filter(p => p.name.trim());
+    const validParents = form.parents.filter(p => p.name.trim()).map(p => ({ ...p, phone: p.phone.trim() ? `+61${p.phone.trim()}` : "" }));
     await updateDoc(doc(db, "students", student.id), {
       isActive: true,
       name: form.name.trim(), grade: form.grade.trim(),
@@ -726,7 +726,7 @@ function ReactivateStudentModal({ student, routes, onClose, onReactivated, user 
       stopAddress: form.stopAddress.trim(), routeId: form.routeId,
       scheduledPickupTime: form.scheduledPickupTime,
       scheduledDropoffTime: form.scheduledDropoffTime,
-      parents: validParents,
+      parents: validParents, // already has +61 prefix from above
     };
     setSaving(false);
     onReactivated(updated);

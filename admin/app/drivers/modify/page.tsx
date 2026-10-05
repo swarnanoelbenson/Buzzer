@@ -4,6 +4,7 @@ import { collection, getDocs, doc, updateDoc, Timestamp } from "firebase/firesto
 import { db } from "@/lib/firebase";
 import type { Driver } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
+import PhoneInput, { stripPrefix } from "@/components/PhoneInput";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition";
@@ -44,7 +45,7 @@ function ModifyDriverForm() {
   const selectDriver = (d: Driver) => {
     setSelected(d);
     setForm({
-      name: d.name, phone: d.phone, age: String(d.age),
+      name: d.name, phone: stripPrefix(d.phone), age: String(d.age),
       gender: d.gender, address: d.address, childrenCheck: d.childrenCheck,
       driversLicense: d.driversLicense,
       licenseExpiry: d.licenseExpiry instanceof Date ? toInputDate(d.licenseExpiry) : "",
@@ -59,7 +60,7 @@ function ModifyDriverForm() {
     if (!selected) return;
     setSaving(true);
     await updateDoc(doc(db, "drivers", selected.id), {
-      name: form.name.trim(), phone: form.phone.trim(), age: parseInt(form.age) || 0,
+      name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "", age: parseInt(form.age) || 0,
       gender: form.gender, address: form.address.trim(),
       childrenCheck: form.childrenCheck.trim(), driversLicense: form.driversLicense.trim(),
       licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
@@ -92,7 +93,7 @@ function ModifyDriverForm() {
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Full Name</label>
               <input className={FIELD} required value={form.name} onChange={e => set("name", e.target.value)} />
             </div>
-            <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Phone</label><input className={FIELD} required value={form.phone} onChange={e => set("phone", e.target.value)} /></div>
+            <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Phone</label><PhoneInput className={FIELD} required value={form.phone} onChange={v => set("phone", v)} /></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Age</label><input className={FIELD} type="number" value={form.age} onChange={e => set("age", e.target.value)} /></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Gender</label><select className={FIELD} value={form.gender} onChange={e => set("gender", e.target.value)}>{["Male","Female","Prefer not to say"].map(g => <option key={g}>{g}</option>)}</select></div>
             <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Bus Registration</label><input className={FIELD} value={form.busRegistration} onChange={e => set("busRegistration", e.target.value)} /></div>

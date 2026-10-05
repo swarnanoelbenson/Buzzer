@@ -3,6 +3,7 @@ import { useState } from "react";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import PageHeader from "@/components/PageHeader";
+import PhoneInput from "@/components/PhoneInput";
 import { useRouter } from "next/navigation";
 
 const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition";
@@ -32,7 +33,7 @@ export default function AddDriverPage() {
     try {
       await addDoc(collection(db, "drivers"), {
         name: form.name.trim(),
-        phone: form.phone.trim(),
+        phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0,
         gender: form.gender,
         address: form.address.trim(),
@@ -74,7 +75,7 @@ export default function AddDriverPage() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Phone Number</label>
-            <input className={FIELD} required value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="+61412345678" />
+            <PhoneInput className={FIELD} required value={form.phone} onChange={v => set("phone", v)} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Age</label>

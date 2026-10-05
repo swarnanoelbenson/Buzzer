@@ -4,6 +4,7 @@ import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Route } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
+import PhoneInput from "@/components/PhoneInput";
 import { useRouter } from "next/navigation";
 
 const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400 transition";
@@ -40,14 +41,14 @@ export default function AddStudentPage() {
         routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
-        phone: form.studentPhone.trim(),
+        phone: form.studentPhone.trim() ? `+61${form.studentPhone.trim()}` : "",
         authorisedParentIds: [],
         isActive: true,
         createdAt: Timestamp.now(),
         // Store parent info for later parent profile creation
         parentInfo: [
-          { name: form.parentOneName.trim(), phone: form.parentOnePhone.trim() },
-          form.parentTwoName ? { name: form.parentTwoName.trim(), phone: form.parentTwoPhone.trim() } : null,
+          { name: form.parentOneName.trim(), phone: form.parentOnePhone.trim() ? `+61${form.parentOnePhone.trim()}` : "" },
+          form.parentTwoName ? { name: form.parentTwoName.trim(), phone: form.parentTwoPhone.trim() ? `+61${form.parentTwoPhone.trim()}` : "" } : null,
         ].filter(Boolean),
       });
       setSuccess(true);
@@ -66,7 +67,7 @@ export default function AddStudentPage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Full Name</label><input className={FIELD} required value={form.name} onChange={e => set("name", e.target.value)} placeholder="e.g. Liam Chen" /></div>
           <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Grade</label><input className={FIELD} required value={form.grade} onChange={e => set("grade", e.target.value)} placeholder="Year 5" /></div>
-          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Student Phone</label><input className={FIELD} value={form.studentPhone} onChange={e => set("studentPhone", e.target.value)} placeholder="+61412000000" /></div>
+          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Student Phone</label><PhoneInput className={FIELD} value={form.studentPhone} onChange={v => set("studentPhone", v)} /></div>
           <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address</label><input className={FIELD} required value={form.stopAddress} onChange={e => set("stopAddress", e.target.value)} placeholder="12 Oak St, Parramatta NSW 2150" /></div>
           <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Assigned Route</label>
             <select className={FIELD} value={form.routeId} onChange={e => set("routeId", e.target.value)}>
@@ -81,9 +82,9 @@ export default function AddStudentPage() {
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Parent / Guardian Details</p>
           </div>
           <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Parent 1 Name</label><input className={FIELD} value={form.parentOneName} onChange={e => set("parentOneName", e.target.value)} placeholder="Emma Chen" /></div>
-          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Parent 1 Phone</label><input className={FIELD} value={form.parentOnePhone} onChange={e => set("parentOnePhone", e.target.value)} placeholder="+61400000001" /></div>
+          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Parent 1 Phone</label><PhoneInput className={FIELD} value={form.parentOnePhone} onChange={v => set("parentOnePhone", v)} /></div>
           <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Parent 2 Name (optional)</label><input className={FIELD} value={form.parentTwoName} onChange={e => set("parentTwoName", e.target.value)} placeholder="James Chen" /></div>
-          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Parent 2 Phone (optional)</label><input className={FIELD} value={form.parentTwoPhone} onChange={e => set("parentTwoPhone", e.target.value)} placeholder="+61400000002" /></div>
+          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Parent 2 Phone (optional)</label><PhoneInput className={FIELD} value={form.parentTwoPhone} onChange={v => set("parentTwoPhone", v)} /></div>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

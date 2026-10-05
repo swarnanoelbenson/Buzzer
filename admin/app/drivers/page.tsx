@@ -5,6 +5,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import type { Driver } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
+import PhoneInput, { stripPrefix } from "@/components/PhoneInput";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ const EMPTY_FORM: FormState = {
 
 function driverToForm(d: Driver): FormState {
   return {
-    name: d.name, phone: d.phone, age: String(d.age),
+    name: d.name, phone: stripPrefix(d.phone), age: String(d.age),
     gender: d.gender, address: d.address,
     childrenCheck: d.childrenCheck, driversLicense: d.driversLicense,
     licenseExpiry: d.licenseExpiry instanceof Date ? toInputDate(d.licenseExpiry) : "",
@@ -131,7 +132,7 @@ function DriverForm({ form, onChange }: { form: FormState; onChange: (key: keyof
       </div>
       <div>
         <label className={LABEL}>Phone Number</label>
-        <input className={FIELD} required value={form.phone} onChange={set("phone")} placeholder="+61412345678" />
+        <PhoneInput className={FIELD} required value={form.phone} onChange={v => onChange("phone", v)} />
       </div>
       <div>
         <label className={LABEL}>Age</label>
@@ -252,7 +253,7 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
     setSaving(true);
     try {
       const ref = await addDoc(collection(db, "drivers"), {
-        name: form.name.trim(), phone: form.phone.trim(),
+        name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0, gender: form.gender,
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
@@ -261,7 +262,7 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
         imageUrl: "", isActive: true, createdAt: Timestamp.now(),
       });
       const newDriver: Driver = {
-        id: ref.id, name: form.name.trim(), phone: form.phone.trim(),
+        id: ref.id, name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0, gender: form.gender,
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
@@ -335,7 +336,7 @@ function EditDriverModal({ driver, onClose, onSaved }: {
     setSaving(true);
     try {
       await updateDoc(doc(db, "drivers", driver.id), {
-        name: form.name.trim(), phone: form.phone.trim(),
+        name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0, gender: form.gender,
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
@@ -343,7 +344,7 @@ function EditDriverModal({ driver, onClose, onSaved }: {
         busRegistration: form.busRegistration.trim(),
       });
       const updated: Driver = {
-        ...driver, name: form.name.trim(), phone: form.phone.trim(),
+        ...driver, name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0, gender: form.gender,
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
@@ -509,7 +510,7 @@ function ReactivateDriverModal({ driver, onClose, onReactivated, user }: {
     try {
       await updateDoc(doc(db, "drivers", driver.id), {
         isActive: true,
-        name: form.name.trim(), phone: form.phone.trim(),
+        name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0, gender: form.gender,
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
@@ -521,7 +522,7 @@ function ReactivateDriverModal({ driver, onClose, onReactivated, user }: {
         actorId: user?.uid ?? "admin",
         actorName: user?.displayName ?? user?.email ?? "Admin",
         targetId: driver.id, targetName: form.name.trim(),
-        details: `Driver reactivated: ${form.name.trim()} (${form.phone.trim()}, Bus: ${form.busRegistration.trim()})`,
+        details: `Driver reactivated: ${form.name.trim()} (+61${form.phone.trim()}, Bus: ${form.busRegistration.trim()})`,
         timestamp: Timestamp.now(),
         year: now.getFullYear(),
         term: Math.ceil((now.getMonth() + 1) / 3),
@@ -529,7 +530,7 @@ function ReactivateDriverModal({ driver, onClose, onReactivated, user }: {
       });
       const updated: Driver = {
         ...driver, isActive: true,
-        name: form.name.trim(), phone: form.phone.trim(),
+        name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0, gender: form.gender,
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
