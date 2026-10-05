@@ -2,7 +2,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { signInWithCustomToken, updateProfile } from "firebase/auth";
-import { collection, addDoc, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -61,6 +61,18 @@ export default function AuthCallbackPage() {
       }
 
       const now = new Date();
+
+      // Write a session token to the school doc so concurrent sessions can be detected
+      const sessionToken = crypto.randomUUID();
+      sessionStorage.setItem("sessionToken", sessionToken);
+
+      // Find the school doc id to write the token
+      const schoolSnapForToken = await getDocs(
+        query(collection(db, "schools"), where("adminUid", "==", user.uid))
+      );
+      if (!schoolSnapForToken.empty) {
+        await updateDoc(doc(db, "schools", schoolSnapForToken.docs[0].id), { sessionToken });
+      }
 
       if (isSignup) {
         // Log the signup (school doc is already created by the verify route)

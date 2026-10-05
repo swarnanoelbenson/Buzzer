@@ -11,6 +11,7 @@ export default function AddDriverPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [ageError, setAgeError] = useState("");
   const [form, setForm] = useState({
     name: "", phone: "", age: "", gender: "Male", address: "",
     childrenCheck: "", driversLicense: "", licenseExpiry: "",
@@ -21,6 +22,12 @@ export default function AddDriverPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const age = parseInt(form.age) || 0;
+    if (age < 21) {
+      setAgeError("Driver must be at least 21 years old.");
+      return;
+    }
+    setAgeError("");
     setSaving(true);
     try {
       await addDoc(collection(db, "drivers"), {
@@ -71,7 +78,16 @@ export default function AddDriverPage() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Age</label>
-            <input className={FIELD} type="number" required value={form.age} onChange={e => set("age", e.target.value)} placeholder="45" />
+            <input
+              className={`${FIELD} ${ageError ? "border-red-400 focus:border-red-400 focus:ring-red-200" : ""}`}
+              type="number"
+              required
+              min={21}
+              value={form.age}
+              onChange={e => { set("age", e.target.value); if (ageError) setAgeError(""); }}
+              placeholder="45"
+            />
+            {ageError && <p className="mt-1 text-xs text-red-600 font-medium">{ageError}</p>}
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Gender</label>

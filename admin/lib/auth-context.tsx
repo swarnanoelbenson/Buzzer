@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
 
@@ -20,6 +20,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [schoolId, setSchoolId] = useState("");
 
   useEffect(() => {
+    // Tab-close logout: sessionStorage is wiped when the tab is closed (not on refresh).
+    // If the tab was closed while logged in, Firebase persists the token but sessionStorage
+    // is empty — sign the user out immediately so they can't resume the session.
+    if (typeof window !== "undefined" && !sessionStorage.getItem("tabOpen")) {
+      // Mark this tab as open
+      sessionStorage.setItem("tabOpen", "1");
+      // If Firebase still has a user from a previous closed tab, sign them out
+      if (auth.currentUser) {
+        signOut(auth).catch(() => {});
+      }
+    }
+
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
