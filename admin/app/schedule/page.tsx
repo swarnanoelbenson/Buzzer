@@ -299,7 +299,15 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
       const wb = XLSX.read(data, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
-      const parsed: XlsxRow[] = rows.slice(1).filter(r => r[0]).map(r => ({
+      // Fill down merged cells: carry the last non-empty value for stop/parent columns
+      let lastStop = "", lastPhone = "", lastParent = "";
+      const filled = rows.map(r => {
+        if (r[4]) lastStop = String(r[4]);
+        if (r[5]) lastPhone = String(r[5]);
+        if (r[6]) lastParent = String(r[6]);
+        return [r[0], r[1], r[2], r[3], lastStop, lastPhone, lastParent];
+      });
+      const parsed: XlsxRow[] = filled.slice(1).filter(r => r[0]).map(r => ({
         name: String(r[0] ?? ""), grade: String(r[1] ?? ""),
         pickupTime: String(r[2] ?? ""), dropoffTime: String(r[3] ?? ""),
         stop: String(r[4] ?? ""),
