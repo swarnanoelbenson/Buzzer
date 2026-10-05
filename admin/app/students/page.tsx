@@ -248,8 +248,8 @@ function StudentForm({ form, onChange, onParentChange, onAddParent, onRemovePare
                     <option value="">— select —</option>
                     <option>Mother</option>
                     <option>Father</option>
-                    <option>Step Mother</option>
-                    <option>Step Father</option>
+                    <option>Stepmother</option>
+                    <option>Stepfather</option>
                     <option>Guardian</option>
                   </select>
                 </div>

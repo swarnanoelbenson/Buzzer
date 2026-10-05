@@ -4,6 +4,7 @@ import { collection, getDocs, doc, updateDoc, writeBatch, query, orderBy, Timest
 import { db } from "@/lib/firebase";
 import type { Route, Driver } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
+import SubstituteDriverModal from "./SubstituteDriverModal";
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -655,7 +656,8 @@ type Modal =
   | { type: "add" }
   | { type: "preview"; route: Route }
   | { type: "edit"; route: Route }
-  | { type: "remove"; route: Route };
+  | { type: "remove"; route: Route }
+  | { type: "substitute"; route: Route };
 
 export default function SchedulePage() {
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -673,7 +675,7 @@ export default function SchedulePage() {
         startDate: toDate(d.data().startDate),
         endDate: toDate(d.data().endDate),
       } as Route)));
-      setDrivers(dSnap.docs.map(d => ({ id: d.id, ...d.data() } as Driver)));
+      setDrivers(dSnap.docs.map(d => ({ id: d.id, ...d.data() } as Driver)).filter(d => d.isActive));
       setLoading(false);
     });
   }, []);
@@ -711,15 +713,15 @@ export default function SchedulePage() {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           {/* Table header */}
-          <div className="grid grid-cols-[2fr_0.6fr_0.6fr_1fr_0.7fr_90px_100px_80px] px-5 py-3 border-b border-gray-100">
-            {["Route", "Term", "Year", "Period", "Students", "Status", "", ""].map((h, i) => (
+          <div className="grid grid-cols-[2fr_0.6fr_0.6fr_1fr_0.7fr_90px_100px_110px_80px] px-5 py-3 border-b border-gray-100">
+            {["Route", "Term", "Year", "Period", "Students", "Status", "", "", ""].map((h, i) => (
               <span key={i} className="text-xs font-bold tracking-widest text-gray-900 uppercase">{h}</span>
             ))}
           </div>
           {/* Rows */}
           <div className="divide-y divide-gray-50">
             {routes.map(route => (
-              <div key={route.id} className="grid grid-cols-[2fr_0.6fr_0.6fr_1fr_0.7fr_90px_100px_80px] items-center px-5 py-3.5 hover:bg-gray-50 transition-colors">
+              <div key={route.id} className="grid grid-cols-[2fr_0.6fr_0.6fr_1fr_0.7fr_90px_100px_110px_80px] items-center px-5 py-3.5 hover:bg-gray-50 transition-colors">
                 {/* Route name */}
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 text-xs font-bold flex-shrink-0">
@@ -757,6 +759,17 @@ export default function SchedulePage() {
                     Preview
                   </button>
                 </div>
+                {/* Substitute */}
+                <div>
+                  {route.isActive && (
+                    <button
+                      onClick={() => setModal({ type: "substitute", route })}
+                      className="px-3 py-2 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg hover:bg-amber-100 transition-colors"
+                    >
+                      Substitute
+                    </button>
+                  )}
+                </div>
                 {/* Remove */}
                 <div>
                   {route.isActive && (
@@ -788,6 +801,9 @@ export default function SchedulePage() {
       )}
       {modal?.type === "remove" && (
         <RemoveScheduleModal route={modal.route} onClose={closeModal} onRemoved={handleRemoved} />
+      )}
+      {modal?.type === "substitute" && (
+        <SubstituteDriverModal route={modal.route} drivers={drivers} onClose={closeModal} onCompleted={closeModal} />
       )}
     </div>
   );
