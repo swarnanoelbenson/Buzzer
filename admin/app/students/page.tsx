@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { collection, getDocs, doc, addDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
@@ -787,9 +787,9 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal | null>(null);
   const [showInactive, setShowInactive] = useState(false);
-  // Track which row is revealed + its auto-hide timer
+  // Track which row is revealed + activity-based auto-hide
   const [revealedId, setRevealedId] = useState<string | null>(null);
-  const [revealTimer, setRevealTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(() => {
     Promise.all([
@@ -804,22 +804,40 @@ export default function StudentsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Clear timer on unmount
-  useEffect(() => { return () => { if (revealTimer) clearTimeout(revealTimer); }; }, [revealTimer]);
+  // Auto-hide revealed row after 15 minutes of browser inactivity.
+  // Any mouse/keyboard activity resets the idle countdown.
+  const REVEAL_IDLE_MS = 15 * 60 * 1000; // 15 minutes
+  const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "click"] as const;
 
-  const handleRowClick = (id: string) => {
-    if (revealTimer) clearTimeout(revealTimer);
-    if (revealedId === id) {
+  const clearRevealTimer = useCallback(() => {
+    if (revealTimerRef.current) { clearTimeout(revealTimerRef.current); revealTimerRef.current = null; }
+  }, []);
+
+  const resetRevealTimer = useCallback(() => {
+    clearRevealTimer();
+    revealTimerRef.current = setTimeout(() => {
       setRevealedId(null);
-      setRevealTimer(null);
+    }, REVEAL_IDLE_MS);
+  }, [clearRevealTimer]);
+
+  // Attach/detach activity listeners whenever a row is revealed
+  useEffect(() => {
+    if (!revealedId) {
+      clearRevealTimer();
+      ACTIVITY_EVENTS.forEach(e => window.removeEventListener(e, resetRevealTimer));
       return;
     }
-    setRevealedId(id);
-    const timer = setTimeout(() => {
-      setRevealedId(null);
-      setRevealTimer(null);
-    }, 5 * 60 * 1000); // 5 minutes
-    setRevealTimer(timer);
+    resetRevealTimer();
+    ACTIVITY_EVENTS.forEach(e => window.addEventListener(e, resetRevealTimer, { passive: true }));
+    return () => {
+      clearRevealTimer();
+      ACTIVITY_EVENTS.forEach(e => window.removeEventListener(e, resetRevealTimer));
+    };
+  }, [revealedId, resetRevealTimer, clearRevealTimer]);
+
+  const handleRowClick = (id: string) => {
+    // Toggle: clicking revealed row hides it
+    setRevealedId(prev => prev === id ? null : id);
   };
 
   const closeModal = () => setModal(null);
