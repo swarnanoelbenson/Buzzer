@@ -62,6 +62,10 @@ export default function AuthCallbackPage() {
 
       const now = new Date();
 
+      // Mark this tab as open so the auth-context tab-close detection doesn't
+      // immediately sign the user back out (the magic link opens a fresh tab).
+      sessionStorage.setItem("tabOpen", "1");
+
       // Write a session token to the school doc so concurrent sessions can be detected
       const sessionToken = crypto.randomUUID();
       sessionStorage.setItem("sessionToken", sessionToken);
