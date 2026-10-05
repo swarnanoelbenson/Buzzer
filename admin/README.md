@@ -245,6 +245,21 @@ All writes use a Firestore batch for atomicity.
 Uses SheetJS to build the file in the browser.
 The template contains the correct 12 column headers.
 
+### `app/students/page.tsx`
+The main student management page.
+Lists all active and inactive students in a sortable table.
+Sensitive fields (stop address, phone, pick-up time) are redacted by default; clicking a row reveals them. Auto-redacts after 15 minutes of inactivity.
+
+**Key components in this file:**
+
+`PreviewModal` — Displays all student details: grade, route name, Stop AM/PM, Order AM/PM, pick-up/drop-off times, student phone, status, and all linked parents with name, relationship, phone, and app access status.
+
+`AddStudentModal` — Form to add a new student and store parent info in Firestore.
+
+`EditStudentModal` — Form to edit an existing student. Shows a Before/After confirmation step before saving.
+
+`ReactivateStudentModal` — Form to reactivate an inactive student with optional detail updates.
+
 ### `app/layout.tsx`
 Root layout for all pages.
 Wraps all content with the `AuthContext` provider.
@@ -401,7 +416,7 @@ handleSubmit() runs a Firestore batch write:
 
 ### SheetJS (XLSX)
 - **Purpose:** Parse uploaded .xlsx files. Generate downloadable .xlsx templates.
-- **Used in:** `app/schedule/page.tsx`
+- **Used in:** `app/schedule/page.tsx`, `app/schedule/add/page.tsx`
 
 ---
 
