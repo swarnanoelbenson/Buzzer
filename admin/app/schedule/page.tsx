@@ -251,13 +251,21 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
   const [selectedDays, setSelectedDays] = useState<string[]>(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]);
   const [preview, setPreview] = useState<XlsxRow[]>([]);
   const [fileError, setFileError] = useState("");
+  const [dateError, setDateError] = useState("");
+  const [daysError, setDaysError] = useState("");
   const [saving, setSaving] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
   const [templateCount, setTemplateCount] = useState("10");
 
   const isDirty = formChanged(EMPTY_FORM, form) || preview.length > 0;
-  const onChange = (key: keyof RouteForm, val: string) => setForm(f => ({ ...f, [key]: val }));
-  const toggleDay = (day: string) => setSelectedDays(p => p.includes(day) ? p.filter(d => d !== day) : [...p, day]);
+  const onChange = (key: keyof RouteForm, val: string) => {
+    setForm(f => ({ ...f, [key]: val }));
+    if (key === "startDate" || key === "endDate") setDateError("");
+  };
+  const toggleDay = (day: string) => {
+    setSelectedDays(p => p.includes(day) ? p.filter(d => d !== day) : [...p, day]);
+    setDaysError("");
+  };
 
   const downloadTemplate = async () => {
     const count = Math.max(1, Math.min(200, parseInt(templateCount) || 10));
@@ -273,7 +281,6 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Students");
     XLSX.writeFile(wb, "student_template.xlsx");
-    setShowTemplatePrompt(false);
   };
 
   const handleClose = () => {
@@ -317,11 +324,31 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
 
   const doSave = async () => {
     if (!form.driverId || !form.startDate || !form.endDate) return;
+
+    // Date validation
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const startDate = new Date(form.startDate);
+    const endDate = new Date(form.endDate);
+    if (startDate < today) {
+      setDateError("Start date cannot be in the past.");
+      return;
+    }
+    if (endDate < startDate) {
+      setDateError("End date must be after start date.");
+      return;
+    }
+    setDateError("");
+
+    // Days validation
+    if (selectedDays.length === 0) {
+      setDaysError("Select at least one scheduled day.");
+      return;
+    }
+    setDaysError("");
+
     setSaving(true);
     try {
       const batch = writeBatch(db);
-      const startDate = new Date(form.startDate);
-      const endDate = new Date(form.endDate);
       const scheduledDates = getScheduledDates(startDate, endDate, selectedDays);
 
       const studentIds: string[] = [];
@@ -388,6 +415,8 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
             <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
               <RouteFormFields form={form} onChange={onChange} drivers={drivers} selectedDays={selectedDays} onToggleDay={toggleDay} />
+              {dateError && <p className="text-xs text-red-500 -mt-2">{dateError}</p>}
+              {daysError && <p className="text-xs text-red-500 -mt-2">{daysError}</p>}
               {/* Student upload */}
               <div className="border-t border-gray-100 pt-4">
                 <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-3">Student List (.xlsx)</p>

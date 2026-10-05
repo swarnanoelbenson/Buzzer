@@ -233,9 +233,15 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
+  const [ageError, setAgeError] = useState("");
+  const [licenceWarning, setLicenceWarning] = useState("");
 
   const isDirty = formChanged(EMPTY_FORM, form);
-  const onChange = (key: keyof FormState, val: string) => setForm(f => ({ ...f, [key]: val }));
+  const onChange = (key: keyof FormState, val: string) => {
+    setForm(f => ({ ...f, [key]: val }));
+    if (key === "age") setAgeError("");
+    if (key === "licenseExpiry") setLicenceWarning("");
+  };
 
   const handleClose = () => {
     if (isDirty) { setShowUnsaved(true); return; }
@@ -243,6 +249,12 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
   };
 
   const doSave = async () => {
+    const age = parseInt(form.age) || 0;
+    if (age < 21) { setAgeError("Driver must be at least 21 years old."); return; }
+    setAgeError("");
+    if (form.licenseExpiry && new Date(form.licenseExpiry) < new Date()) {
+      setLicenceWarning("Licence expiry date is in the past.");
+    }
     setSaving(true);
     try {
       const ref = await addDoc(collection(db, "drivers"), {
@@ -282,8 +294,10 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
             </button>
           </div>
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-            <div className="overflow-y-auto flex-1 px-6 py-5">
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-3">
               <DriverForm form={form} onChange={onChange} />
+              {ageError && <p className="text-xs text-red-500">{ageError}</p>}
+              {licenceWarning && <p className="text-xs text-amber-600">{licenceWarning}</p>}
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
               <button type="button" onClick={handleClose} className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
@@ -314,9 +328,15 @@ function EditDriverModal({ driver, onClose, onSaved }: {
   const [showUnsaved, setShowUnsaved] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [ageError, setAgeError] = useState("");
+  const [licenceWarning, setLicenceWarning] = useState("");
 
   const isDirty = formChanged(original, form);
-  const onChange = (key: keyof FormState, val: string) => setForm(f => ({ ...f, [key]: val }));
+  const onChange = (key: keyof FormState, val: string) => {
+    setForm(f => ({ ...f, [key]: val }));
+    if (key === "age") setAgeError("");
+    if (key === "licenseExpiry") setLicenceWarning("");
+  };
 
   const handleClose = () => {
     if (isDirty) { setShowUnsaved(true); return; }
@@ -348,6 +368,14 @@ function EditDriverModal({ driver, onClose, onSaved }: {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isDirty) return;
+    const age = parseInt(form.age) || 0;
+    if (age < 21) { setAgeError("Driver must be at least 21 years old."); return; }
+    setAgeError("");
+    if (form.licenseExpiry && new Date(form.licenseExpiry) < new Date()) {
+      setLicenceWarning("Licence expiry date is in the past.");
+    } else {
+      setLicenceWarning("");
+    }
     setShowConfirm(true);
   };
 
@@ -376,8 +404,10 @@ function EditDriverModal({ driver, onClose, onSaved }: {
             </button>
           </div>
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-            <div className="overflow-y-auto flex-1 px-6 py-5">
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-3">
               <DriverForm form={form} onChange={onChange} />
+              {ageError && <p className="text-xs text-red-500">{ageError}</p>}
+              {licenceWarning && <p className="text-xs text-amber-600">{licenceWarning}</p>}
             </div>
             <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
               <button type="button" onClick={handleClose} className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
