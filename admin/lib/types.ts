@@ -25,6 +25,8 @@ export interface Student {
   grade: string;
   stopAddressAM: string;  // morning pickup stop
   stopAddressPM: string;  // afternoon dropoff stop
+  orderAM?: number;       // stop sequence order for morning route
+  orderPM?: number;       // stop sequence order for afternoon route
   routeId: string;
   scheduledPickupTime: string;
   scheduledDropoffTime: string;
@@ -76,6 +78,8 @@ export interface StudentTripRecord {
   studentName: string;
   stopAddressAM: string;
   stopAddressPM: string;
+  orderAM?: number;       // stop sequence order for morning route
+  orderPM?: number;       // stop sequence order for afternoon route
   status: "pending" | "onBus" | "offBus" | "absent";
   timestamp?: Date;
 }

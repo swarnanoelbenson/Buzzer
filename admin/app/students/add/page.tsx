@@ -15,7 +15,9 @@ export default function AddStudentPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({
-    name: "", grade: "", stopAddressAM: "", stopAddressPM: "", routeId: "",
+    name: "", grade: "", stopAddressAM: "", stopAddressPM: "",
+    orderAM: "", orderPM: "",
+    routeId: "",
     scheduledPickupTime: "", scheduledDropoffTime: "",
     parentOneName: "", parentOnePhone: "",
     parentTwoName: "", parentTwoPhone: "",
@@ -39,6 +41,8 @@ export default function AddStudentPage() {
         grade: form.grade.trim(),
         stopAddressAM: form.stopAddressAM.trim(),
         stopAddressPM: form.stopAddressPM.trim(),
+        orderAM: parseInt(form.orderAM) || null,
+        orderPM: parseInt(form.orderPM) || null,
         routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
@@ -71,6 +75,8 @@ export default function AddStudentPage() {
           <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Student Phone</label><PhoneInput className={FIELD} value={form.studentPhone} onChange={v => set("studentPhone", v)} /></div>
           <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address AM (Morning Pick-up)</label><input className={FIELD} required value={form.stopAddressAM} onChange={e => set("stopAddressAM", e.target.value)} placeholder="12 Oak St, Parramatta NSW 2150" /></div>
           <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Address PM (Afternoon Drop-off)</label><input className={FIELD} required value={form.stopAddressPM} onChange={e => set("stopAddressPM", e.target.value)} placeholder="12 Oak St, Parramatta NSW 2150" /></div>
+          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Order AM</label><input className={FIELD} type="number" min="1" value={form.orderAM} onChange={e => set("orderAM", e.target.value)} placeholder="e.g. 3" /></div>
+          <div><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Stop Order PM</label><input className={FIELD} type="number" min="1" value={form.orderPM} onChange={e => set("orderPM", e.target.value)} placeholder="e.g. 5" /></div>
           <div className="col-span-2"><label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Assigned Route</label>
             <select className={FIELD} value={form.routeId} onChange={e => set("routeId", e.target.value)}>
               <option value="">— select a route —</option>

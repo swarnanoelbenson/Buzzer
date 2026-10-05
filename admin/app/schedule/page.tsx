@@ -360,7 +360,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
       const scheduledDates = getScheduledDates(startDate, endDate, selectedDays);
 
       const studentIds: string[] = [];
-      const studentRecordTemplate: { id: string; studentName: string; stopAddressAM: string; stopAddressPM: string; status: string; timestamp: null }[] = [];
+      const studentRecordTemplate: { id: string; studentName: string; stopAddressAM: string; stopAddressPM: string; orderAM: number | null; orderPM: number | null; status: string; timestamp: null }[] = [];
 
       // Create route ref first so we have the ID for student routeId
       const routeRef = doc(collection(db, "routes"));
@@ -370,9 +370,12 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
         const parents = row.parentName || row.parentPhone
           ? [{ name: row.parentName, phone: row.parentPhone, canAccess: true, relationship: row.relationship || "Guardian" }]
           : [];
+        const orderAM = parseInt(row.orderAM) || null;
+        const orderPM = parseInt(row.orderPM) || null;
         batch.set(studentRef, {
           name: row.name, grade: row.grade,
           stopAddressAM: row.stopAM, stopAddressPM: row.stopPM,
+          orderAM, orderPM,
           routeId: routeRef.id,
           scheduledPickupTime: row.pickupTime, scheduledDropoffTime: row.dropoffTime,
           phone: row.studentPhone || "",
@@ -380,7 +383,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
           authorisedParentIds: [], isActive: true, createdAt: Timestamp.now(),
         });
         studentIds.push(studentRef.id);
-        studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, status: "pending", timestamp: null });
+        studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, orderAM, orderPM, status: "pending", timestamp: null });
       }
       batch.set(routeRef, {
         name: form.name.trim(), driverId: form.driverId,

@@ -115,23 +115,26 @@ export default function AddSchedulePage() {
 
       // 2. Create student docs and collect IDs
       const studentIds: string[] = [];
-      const studentRecordTemplate: { id: string; studentName: string; stopAddressAM: string; stopAddressPM: string; status: string; timestamp: null }[] = [];
+      const studentRecordTemplate: { id: string; studentName: string; stopAddressAM: string; stopAddressPM: string; orderAM: number | null; orderPM: number | null; status: string; timestamp: null }[] = [];
 
       for (const row of preview) {
         const studentRef = doc(collection(db, "students"));
         const parents = row.parentName || row.parentPhone
           ? [{ name: row.parentName, phone: row.parentPhone, canAccess: true, relationship: row.relationship }]
           : [];
+        const orderAM = parseInt(row.orderAM) || null;
+        const orderPM = parseInt(row.orderPM) || null;
         batch.set(studentRef, {
           name: row.name, grade: row.grade,
           stopAddressAM: row.stopAM, stopAddressPM: row.stopPM,
+          orderAM, orderPM,
           routeId: routeRef.id,
           scheduledPickupTime: row.pickupTime, scheduledDropoffTime: row.dropoffTime,
           phone: row.studentPhone, parents, authorisedParentIds: [],
           isActive: true, createdAt: Timestamp.now(),
         });
         studentIds.push(studentRef.id);
-        studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, status: "pending", timestamp: null });
+        studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, orderAM, orderPM, status: "pending", timestamp: null });
       }
       batch.set(routeRef, {
         name: form.routeName.trim(), driverId: form.driverId,

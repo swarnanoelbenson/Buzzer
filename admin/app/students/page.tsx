@@ -13,14 +13,18 @@ const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 tex
 const LABEL = "block text-[10px] font-black tracking-widest text-gray-400 uppercase mb-1.5";
 
 type FormState = {
-  name: string; grade: string; stopAddressAM: string; stopAddressPM: string; routeId: string;
+  name: string; grade: string; stopAddressAM: string; stopAddressPM: string;
+  orderAM: string; orderPM: string;
+  routeId: string;
   scheduledPickupTime: string; scheduledDropoffTime: string;
   studentPhone: string;
   parents: ParentContact[];
 };
 
 const EMPTY_FORM: FormState = {
-  name: "", grade: "", stopAddressAM: "", stopAddressPM: "", routeId: "",
+  name: "", grade: "", stopAddressAM: "", stopAddressPM: "",
+  orderAM: "", orderPM: "",
+  routeId: "",
   scheduledPickupTime: "", scheduledDropoffTime: "",
   studentPhone: "",
   parents: [{ name: "", phone: "", canAccess: true, relationship: "" }],
@@ -31,6 +35,8 @@ function studentToForm(s: Student): FormState {
     name: s.name, grade: s.grade,
     stopAddressAM: s.stopAddressAM ?? "",
     stopAddressPM: s.stopAddressPM ?? "",
+    orderAM: s.orderAM != null ? String(s.orderAM) : "",
+    orderPM: s.orderPM != null ? String(s.orderPM) : "",
     routeId: s.routeId ?? "",
     scheduledPickupTime: s.scheduledPickupTime,
     scheduledDropoffTime: s.scheduledDropoffTime,
@@ -42,7 +48,7 @@ function studentToForm(s: Student): FormState {
 }
 
 function formChanged(original: FormState, current: FormState): boolean {
-  const simpleKeys: (keyof FormState)[] = ["name", "grade", "stopAddressAM", "stopAddressPM", "routeId", "scheduledPickupTime", "scheduledDropoffTime", "studentPhone"];
+  const simpleKeys: (keyof FormState)[] = ["name", "grade", "stopAddressAM", "stopAddressPM", "orderAM", "orderPM", "routeId", "scheduledPickupTime", "scheduledDropoffTime", "studentPhone"];
   if (simpleKeys.some(k => original[k] !== current[k])) return true;
   if (original.parents.length !== current.parents.length) return true;
   return original.parents.some((p, i) =>
@@ -58,6 +64,8 @@ const DIFF_FIELDS: { key: keyof Omit<FormState, "parents">; label: string }[] = 
   { key: "grade",                label: "Grade" },
   { key: "stopAddressAM",        label: "Stop Address AM" },
   { key: "stopAddressPM",        label: "Stop Address PM" },
+  { key: "orderAM",              label: "Order AM" },
+  { key: "orderPM",              label: "Order PM" },
   { key: "routeId",              label: "Route" },
   { key: "scheduledPickupTime",  label: "Pick-up Time" },
   { key: "scheduledDropoffTime", label: "Drop-off Time" },
@@ -180,6 +188,14 @@ function StudentForm({ form, onChange, onParentChange, onAddParent, onRemovePare
       <div className="col-span-2">
         <label className={LABEL}>Stop Address PM (Afternoon Drop-off)</label>
         <input className={FIELD} required value={form.stopAddressPM} onChange={set("stopAddressPM")} placeholder="12 Oak St, Parramatta NSW 2150" />
+      </div>
+      <div>
+        <label className={LABEL}>Stop Order AM</label>
+        <input className={FIELD} type="number" min="1" value={form.orderAM} onChange={set("orderAM")} placeholder="e.g. 3" />
+      </div>
+      <div>
+        <label className={LABEL}>Stop Order PM</label>
+        <input className={FIELD} type="number" min="1" value={form.orderPM} onChange={set("orderPM")} placeholder="e.g. 5" />
       </div>
       <div className="col-span-2">
         <label className={LABEL}>Assigned Route</label>
@@ -425,6 +441,7 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
       const ref = await addDoc(collection(db, "students"), {
         name: form.name.trim(), grade: form.grade.trim(),
         stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+        orderAM: parseInt(form.orderAM) || null, orderPM: parseInt(form.orderPM) || null,
         routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
@@ -463,6 +480,7 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
       const newStudent: Student = {
         id: studentId, name: form.name.trim(), grade: form.grade.trim(),
         stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+        orderAM: parseInt(form.orderAM) || undefined, orderPM: parseInt(form.orderPM) || undefined,
         routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
@@ -541,6 +559,7 @@ function EditStudentModal({ student, routes, onClose, onSaved }: {
       await updateDoc(doc(db, "students", student.id), {
         name: form.name.trim(), grade: form.grade.trim(),
         stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+        orderAM: parseInt(form.orderAM) || null, orderPM: parseInt(form.orderPM) || null,
         routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
@@ -549,6 +568,7 @@ function EditStudentModal({ student, routes, onClose, onSaved }: {
       const updated: Student = {
         ...student, name: form.name.trim(), grade: form.grade.trim(),
         stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+        orderAM: parseInt(form.orderAM) || undefined, orderPM: parseInt(form.orderPM) || undefined,
         routeId: form.routeId,
         scheduledPickupTime: form.scheduledPickupTime,
         scheduledDropoffTime: form.scheduledDropoffTime,
@@ -717,6 +737,7 @@ function ReactivateStudentModal({ student, routes, onClose, onReactivated, user 
       isActive: true,
       name: form.name.trim(), grade: form.grade.trim(),
       stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+      orderAM: parseInt(form.orderAM) || null, orderPM: parseInt(form.orderPM) || null,
       routeId: form.routeId,
       scheduledPickupTime: form.scheduledPickupTime,
       scheduledDropoffTime: form.scheduledDropoffTime,
@@ -737,6 +758,7 @@ function ReactivateStudentModal({ student, routes, onClose, onReactivated, user 
       ...student, isActive: true,
       name: form.name.trim(), grade: form.grade.trim(),
       stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
+      orderAM: parseInt(form.orderAM) || undefined, orderPM: parseInt(form.orderPM) || undefined,
       routeId: form.routeId,
       scheduledPickupTime: form.scheduledPickupTime,
       scheduledDropoffTime: form.scheduledDropoffTime,
