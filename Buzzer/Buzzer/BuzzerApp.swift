@@ -10,6 +10,8 @@ import FirebaseCore
 import FirebaseMessaging
 import UserNotifications
 
+private let magicLinkVerifyURL = "https://busmate-admin.vercel.app/api/admin-signin-link/verify"
+
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, MessagingDelegate {
 
     func application(
@@ -90,6 +92,21 @@ struct BuzzerApp: App {
             .task {
                 if authManager == nil {
                     authManager = AuthManager()
+                }
+            }
+            .onOpenURL { url in
+                // Intercept Universal Links from the admin magic-link email.
+                // Expected URL: https://busmate-admin.vercel.app/auth-callback?token=...&email=...
+                guard
+                    let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                    components.path == "/auth-callback",
+                    let token = components.queryItems?.first(where: { $0.name == "token" })?.value,
+                    let email = components.queryItems?.first(where: { $0.name == "email" })?.value,
+                    let mgr = authManager
+                else { return }
+
+                Task {
+                    await mgr.signInWithMagicLink(token: token, email: email)
                 }
             }
         }

@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "8H5C36M3T9.self.Buzzer",
+        "paths": ["/auth-callback*"]
+      }
+    ]
+  }
+}

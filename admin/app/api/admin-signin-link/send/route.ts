@@ -21,7 +21,7 @@ function generateToken(): string {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { email, pendingSignup, origin } = body as {
+  const { email, pendingSignup, origin, source } = body as {
     email: string;
     pendingSignup?: {
       schoolName: string;
@@ -30,13 +30,20 @@ export async function POST(req: NextRequest) {
       email: string;
       isSignup: boolean;
     };
-    origin: string;
+    origin?: string;
+    source?: "ios" | "web";
   };
 
   if (!email || typeof email !== "string") {
     return NextResponse.json({ error: "Email is required." }, { status: 400 });
   }
-  if (!origin || typeof origin !== "string") {
+
+  // iOS requests don't pass an origin — use the production URL instead.
+  const resolvedOrigin = source === "ios"
+    ? "https://busmate-admin.vercel.app"
+    : origin;
+
+  if (!resolvedOrigin || typeof resolvedOrigin !== "string") {
     return NextResponse.json({ error: "Origin is required." }, { status: 400 });
   }
 
@@ -61,7 +68,7 @@ export async function POST(req: NextRequest) {
     ...(pendingSignup ? { pendingSignup } : {}),
   });
 
-  const linkUrl = `${origin}/auth-callback?token=${token}&email=${encodeURIComponent(normalised)}`;
+  const linkUrl = `${resolvedOrigin}/auth-callback?token=${token}&email=${encodeURIComponent(normalised)}`;
 
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {

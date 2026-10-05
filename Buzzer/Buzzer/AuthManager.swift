@@ -159,6 +159,28 @@ class AuthManager {
         try await Auth.auth().signIn(withCustomToken: token)
     }
 
+    // MARK: - Admin Login (Magic Link — Universal Link handler)
+
+    /// Called from BuzzerApp.onOpenURL when the admin taps the magic-link email on a real device.
+    /// Calls WAC /api/admin-signin-link/verify, gets a Firebase custom token, and signs in.
+    func signInWithMagicLink(token: String, email: String) async {
+        guard let url = URL(string: "https://busmate-admin.vercel.app/api/admin-signin-link/verify") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["token": token, "email": email])
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return }
+            let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            guard let customToken = json?["customToken"] as? String else { return }
+            try await Auth.auth().signIn(withCustomToken: customToken)
+        } catch {
+            // Silent failure — the admin will see they're not logged in and can retry
+        }
+    }
+
     // MARK: - FCM Token
 
     private func listenForTokenRefresh() {

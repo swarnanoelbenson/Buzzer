@@ -2,15 +2,30 @@
 //  AdminScheduleView.swift
 //  Buzzer
 //
-//  Admin view to create routes. Mirrors the web admin schedule creation flow:
-//  fill in route details + paste student data manually (no .xlsx on iOS).
-//  Students are entered one-by-one via a sub-form.
+//  Admin view — list of routes (name · term number).
+//  Tapping a route shows all trips, the assigned driver, student list,
+//  and a button to generate a report for a selected week.
 //
 
 import SwiftUI
 import FirebaseFirestore
 
 private let DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+// MARK: - Supporting type
+
+struct RouteListItem: Identifiable {
+    let id: String
+    let name: String
+    let term: Int
+    let year: Int
+    let studentCount: Int
+    let startDate: Date?
+    let endDate: Date?
+    let driverId: String
+}
+
+// MARK: - Main list
 
 struct AdminScheduleView: View {
     @Environment(AuthManager.self) private var authManager
@@ -26,12 +41,16 @@ struct AdminScheduleView: View {
                 if isLoading {
                     ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if routes.isEmpty {
-                    ContentUnavailableView("No Routes", systemImage: "calendar", description: Text("Create a route to get started."))
+                    ContentUnavailableView("No Routes", systemImage: "calendar",
+                                          description: Text("Create a route to get started."))
                 } else {
                     List(routes) { route in
-                        RouteListRow(route: route)
+                        NavigationLink(destination: AdminRouteDetailView(route: route)) {
+                            RouteListRow(route: route)
+                        }
                     }
                     .listStyle(.insetGrouped)
+                    .refreshable { loadRoutes() }
                 }
             }
             .navigationTitle("Schedule")
@@ -57,11 +76,15 @@ struct AdminScheduleView: View {
                 let loaded: [RouteListItem] = snap.documents.compactMap { doc in
                     let d = doc.data()
                     guard let name = d["name"] as? String else { return nil }
-                    let term = d["term"] as? Int ?? 0
-                    let year = d["year"] as? Int ?? 0
+                    let term       = d["term"] as? Int ?? 0
+                    let year       = d["year"] as? Int ?? 0
                     let studentIds = d["studentIds"] as? [String] ?? []
-                    let startDate = (d["startDate"] as? Timestamp)?.dateValue()
-                    return RouteListItem(id: doc.documentID, name: name, term: term, year: year, studentCount: studentIds.count, startDate: startDate)
+                    let startDate  = (d["startDate"] as? Timestamp)?.dateValue()
+                    let endDate    = (d["endDate"] as? Timestamp)?.dateValue()
+                    let driverId   = d["driverId"] as? String ?? ""
+                    return RouteListItem(id: doc.documentID, name: name, term: term, year: year,
+                                        studentCount: studentIds.count, startDate: startDate,
+                                        endDate: endDate, driverId: driverId)
                 }
                 await MainActor.run {
                     routes = loaded.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
@@ -74,16 +97,7 @@ struct AdminScheduleView: View {
     }
 }
 
-// MARK: - Supporting Types
-
-private struct RouteListItem: Identifiable {
-    let id: String
-    let name: String
-    let term: Int
-    let year: Int
-    let studentCount: Int
-    let startDate: Date?
-}
+// MARK: - Route list row
 
 private struct RouteListRow: View {
     let route: RouteListItem
@@ -100,7 +114,275 @@ private struct RouteListRow: View {
     }
 }
 
-// MARK: - Create Route Sheet
+// MARK: - Route Detail
+
+struct AdminRouteDetailView: View {
+    let route: RouteListItem
+
+    @State private var driver: Driver? = nil
+    @State private var students: [Student] = []
+    @State private var trips: [Trip] = []
+    @State private var isLoading = true
+
+    // Report generation
+    @State private var showReportPicker = false
+    @State private var reportWeekStart: Date = Calendar.current.startOfWeek(for: Date())
+
+    private let db = Firestore.db
+
+    private var pastTrips: [Trip]   { trips.filter { $0.status == .completed } }
+    private var todayTrips: [Trip]  { trips.filter { Calendar.current.isDateInToday($0.date) && $0.status != .completed } }
+    private var futureTrips: [Trip] { trips.filter { $0.date > Date() && !Calendar.current.isDateInToday($0.date) } }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+
+                // MARK: Route meta card
+                routeMetaCard
+
+                // MARK: Driver card
+                driverCard
+
+                if isLoading {
+                    HStack { Spacer(); ProgressView(); Spacer() }.padding(.top, 20)
+                } else {
+                    // MARK: Students
+                    if !students.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Students (\(students.count))")
+                                .font(.headline).foregroundStyle(.secondary)
+                            ForEach(students) { student in
+                                StudentSummaryCard(student: student)
+                            }
+                        }
+                    }
+
+                    // MARK: Trips
+                    if !todayTrips.isEmpty  { TripSection(title: "Today",     trips: todayTrips,  routeNames: [route.id: route.name]) }
+                    if !futureTrips.isEmpty { TripSection(title: "Upcoming",  trips: futureTrips, routeNames: [route.id: route.name]) }
+                    if !pastTrips.isEmpty   { TripSection(title: "Completed", trips: pastTrips,   routeNames: [route.id: route.name]) }
+                    if trips.isEmpty {
+                        ContentUnavailableView("No Trips", systemImage: "calendar",
+                                              description: Text("No trips found for this route."))
+                    }
+
+                    // MARK: Generate Report
+                    Divider()
+                    generateReportSection
+                }
+            }
+            .padding()
+        }
+        .navigationTitle(route.name)
+        .navigationBarTitleDisplayMode(.large)
+        .task { await load() }
+        .refreshable { await load() }
+    }
+
+    // MARK: - Route meta
+
+    private var routeMetaCard: some View {
+        HStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Term \(route.term) · \(route.year)")
+                    .font(.headline)
+                if let start = route.startDate, let end = route.endDate {
+                    Text(routeDateRange(start: start, end: end))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(route.studentCount)")
+                    .font(.title2.bold())
+                Text("students")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    // MARK: - Driver card
+
+    private var driverCard: some View {
+        Group {
+            if let driver {
+                HStack(spacing: 14) {
+                    Image(systemName: "person.circle.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.purple)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(driver.name).font(.headline)
+                        Text(driver.phone).font(.caption).foregroundStyle(.secondary)
+                        Text(driver.busRegistration).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func routeDateRange(start: Date, end: Date) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "d MMM"
+        return "\(f.string(from: start)) – \(f.string(from: end))"
+    }
+
+    // MARK: - Generate Report
+
+    private var generateReportSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Generate Report")
+                .font(.headline).foregroundStyle(.secondary)
+
+            DatePicker("Select week starting",
+                       selection: $reportWeekStart,
+                       displayedComponents: .date)
+                .datePickerStyle(.compact)
+
+            Button {
+                generateReport()
+            } label: {
+                Label("Generate Weekly Report", systemImage: "doc.text.fill")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.purple)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    // MARK: - Load
+
+    private func load() async {
+        isLoading = true
+
+        async let driverTask: Driver? = route.driverId.isEmpty ? nil :
+            (try? await FirestoreService.shared.fetchDriver(id: route.driverId))
+
+        async let tripsTask: [Trip] = {
+            let snap = try? await Firestore.db.collection("trips")
+                .whereField("routeId", isEqualTo: route.id)
+                .order(by: "date", descending: false)
+                .getDocuments()
+            return (snap?.documents ?? []).compactMap { try? $0.data(as: Trip.self) }
+        }()
+
+        async let studentsTask: [Student] = {
+            let snap = try? await Firestore.db.collection("students")
+                .whereField("routeId", isEqualTo: route.id)
+                .whereField("isActive", isEqualTo: true)
+                .getDocuments()
+            return (snap?.documents ?? []).compactMap { try? $0.data(as: Student.self) }
+        }()
+
+        let (d, t, s) = await (driverTask, tripsTask, studentsTask)
+        await MainActor.run {
+            driver   = d
+            trips    = t.sorted { $0.date > $1.date }
+            students = s.sorted { $0.name < $1.name }
+            isLoading = false
+        }
+    }
+
+    // MARK: - Report generation
+
+    private func generateReport() {
+        let weekEnd = Calendar.current.date(byAdding: .day, value: 6, to: reportWeekStart)!
+        let f = DateFormatter(); f.dateFormat = "d MMM"
+        let range = "\(f.string(from: reportWeekStart)) – \(f.string(from: weekEnd))"
+
+        // Filter completed trips in the selected week
+        let weekTrips = trips.filter { trip in
+            trip.status == .completed &&
+            trip.date >= reportWeekStart &&
+            trip.date <= weekEnd
+        }
+
+        var lines: [String] = []
+        lines.append("BUSMATE ROUTE REPORT")
+        lines.append("Route: \(route.name)")
+        lines.append("Term \(route.term) \(route.year)  |  Week: \(range)")
+        if let d = driver { lines.append("Driver: \(d.name)") }
+        lines.append("Students: \(students.count)")
+        lines.append(String(repeating: "-", count: 40))
+        lines.append("Completed trips this week: \(weekTrips.count)")
+        lines.append("")
+
+        for trip in weekTrips.sorted(by: { $0.date < $1.date }) {
+            let dayStr = DateFormatter()
+            dayStr.dateFormat = "EEEE d MMM"
+            lines.append("\(dayStr.string(from: trip.date)) – \(trip.type.rawValue.capitalized)")
+            let onBus = trip.studentRecords.filter { $0.status == .onBus || $0.status == .offBus }.count
+            let absent = trip.studentRecords.filter { $0.status == .absent }.count
+            lines.append("  Boarded: \(onBus)  Absent: \(absent)")
+        }
+
+        let report = lines.joined(separator: "\n")
+        // Share via share sheet
+        let av = UIActivityViewController(activityItems: [report], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let root = scene.windows.first?.rootViewController {
+            root.present(av, animated: true)
+        }
+    }
+}
+
+// MARK: - Student summary card
+
+private struct StudentSummaryCard: View {
+    let student: Student
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.fill")
+                .font(.system(size: 20))
+                .foregroundStyle(.purple.opacity(0.7))
+                .frame(width: 36, height: 36)
+                .background(Color.purple.opacity(0.1))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(student.name).font(.subheadline).fontWeight(.semibold)
+                HStack(spacing: 8) {
+                    Text("Grade \(student.grade)")
+                    Text("·")
+                    Text("AM: \(student.scheduledPickupTime)")
+                    Text("·")
+                    Text("PM: \(student.scheduledDropoffTime)")
+                }
+                .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// MARK: - Calendar extension
+
+extension Calendar {
+    func startOfWeek(for date: Date) -> Date {
+        let comps = dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+        return self.date(from: comps) ?? date
+    }
+}
+
+// MARK: - Create Route Sheet (unchanged from before)
 
 struct CreateRouteSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -245,7 +527,9 @@ struct CreateRouteSheet: View {
                         "createdAt": Timestamp(date: Date()),
                     ], forDocument: ref)
                     studentIds.append(ref.documentID)
-                    studentRecords.append(["id": ref.documentID, "studentName": s.name, "stopAddressAM": s.stopAddressAM, "stopAddressPM": s.stopAddressPM, "status": "pending", "timestamp": NSNull()])
+                    studentRecords.append(["id": ref.documentID, "studentName": s.name,
+                                           "stopAddressAM": s.stopAddressAM, "stopAddressPM": s.stopAddressPM,
+                                           "status": "pending", "timestamp": NSNull()])
                 }
 
                 let routeRef = db.collection("routes").document()
@@ -342,7 +626,10 @@ struct AddStudentEntrySheet: View {
                 ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Add") {
-                        onAdd(StudentEntry(name: name, grade: grade, pickupTime: pickupTime, dropoffTime: dropoffTime, stopAddressAM: stopAddressAM, stopAddressPM: stopAddressPM, parentPhone: parentPhone, parentName: parentName))
+                        onAdd(StudentEntry(name: name, grade: grade, pickupTime: pickupTime,
+                                          dropoffTime: dropoffTime, stopAddressAM: stopAddressAM,
+                                          stopAddressPM: stopAddressPM, parentPhone: parentPhone,
+                                          parentName: parentName))
                         dismiss()
                     }
                     .fontWeight(.bold)
