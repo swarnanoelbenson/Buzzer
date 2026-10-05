@@ -672,6 +672,7 @@ export default function SchedulePage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   const load = useCallback(() => {
     Promise.all([
@@ -702,7 +703,17 @@ export default function SchedulePage() {
         subtitle="All Routes"
         breadcrumbs={[{ label: "Dashboard", href: "/" }, { label: "Schedule" }]}
       />
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => setShowInactive(v => !v)}
+          className={`px-4 py-2 text-xs font-bold tracking-widest uppercase rounded-xl border transition-colors ${
+            showInactive
+              ? "bg-gray-900 text-white border-gray-900"
+              : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+          }`}
+        >
+          {showInactive ? "Hide Inactive" : `Show Inactive (${routes.filter(r => !r.isActive).length})`}
+        </button>
         <button
           onClick={() => setModal({ type: "add" })}
           className="px-5 py-2.5 bg-blue-600 text-white text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-colors"
@@ -713,7 +724,7 @@ export default function SchedulePage() {
 
       {loading ? (
         <p className="text-sm text-gray-300">Loading...</p>
-      ) : routes.length === 0 ? (
+      ) : routes.filter(r => showInactive || r.isActive).length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">
           No schedules yet.{" "}
           <button onClick={() => setModal({ type: "add" })} className="text-blue-500 hover:underline">Create one</button>.
@@ -728,7 +739,7 @@ export default function SchedulePage() {
           </div>
           {/* Rows */}
           <div className="divide-y divide-gray-50">
-            {routes.map(route => (
+            {routes.filter(r => showInactive || r.isActive).map(route => (
               <div key={route.id} className="grid grid-cols-[2fr_0.6fr_0.6fr_1fr_0.7fr_90px_100px_110px_80px] items-center px-5 py-3.5 hover:bg-gray-50 transition-colors">
                 {/* Route name */}
                 <div className="flex items-center gap-3 min-w-0">

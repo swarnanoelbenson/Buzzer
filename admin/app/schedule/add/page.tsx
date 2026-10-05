@@ -68,20 +68,22 @@ export default function AddSchedulePage() {
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
 
       // Skip header row, map columns by position:
-      // A: Student Name | B: Grade | C: Scheduled AM | D: Scheduled PM | E: STOP Location | F: Parent Contact | G: Parent Name
+      // A: Student Name | B: Grade | C: Scheduled AM | D: Scheduled PM | E: STOP Location
+      // F: Parent 1 Phone | G: Parent 1 Name | H: Student Phone | I: Parent 2 Name | J: Parent 2 Phone
       // Fill down merged cells: carry the last non-empty value for stop/parent columns
       let lastStop = "", lastPhone = "", lastParent = "";
       const filled = rows.map(r => {
         if (r[4]) lastStop = String(r[4]);
         if (r[5]) lastPhone = String(r[5]);
         if (r[6]) lastParent = String(r[6]);
-        return [r[0], r[1], r[2], r[3], lastStop, lastPhone, lastParent];
+        return [r[0], r[1], r[2], r[3], lastStop, lastPhone, lastParent, r[7], r[8], r[9]];
       });
       const parsed: XlsxRow[] = filled.slice(1).filter(r => r[0]).map(r => ({
         name: String(r[0] ?? ""), grade: String(r[1] ?? ""), stop: String(r[4] ?? ""),
         pickupTime: String(r[2] ?? ""), dropoffTime: String(r[3] ?? ""),
         parent1Phone: normalisePhone(String(r[5] ?? "")), parent1Name: String(r[6] ?? ""),
-        parent2Name: "", parent2Phone: "", studentPhone: "",
+        studentPhone: normalisePhone(String(r[7] ?? "")),
+        parent2Name: String(r[8] ?? ""), parent2Phone: normalisePhone(String(r[9] ?? "")),
       }));
       setPreview(parsed);
     } catch {
@@ -119,11 +121,17 @@ export default function AddSchedulePage() {
 
       for (const row of preview) {
         const studentRef = doc(collection(db, "students"));
+        const parents = [
+          { name: row.parent1Name, phone: row.parent1Phone, canAccess: true, relationship: "" },
+          ...(row.parent2Name || row.parent2Phone
+            ? [{ name: row.parent2Name, phone: row.parent2Phone, canAccess: true, relationship: "" }]
+            : []),
+        ];
         batch.set(studentRef, {
           name: row.name, grade: row.grade, stopAddress: row.stop,
           routeId: "", // filled in after route doc created
           scheduledPickupTime: row.pickupTime, scheduledDropoffTime: row.dropoffTime,
-          phone: row.studentPhone, authorisedParentIds: [],
+          phone: row.studentPhone, parents, authorisedParentIds: [],
           isActive: true, createdAt: Timestamp.now(),
         });
         studentIds.push(studentRef.id);
@@ -223,8 +231,8 @@ export default function AddSchedulePage() {
               />
               <button type="button" onClick={async () => {
                 const XLSX = await import("xlsx");
-                const headers = [["Student Name", "Grade", "Scheduled AM", "Scheduled PM", "STOP Location", "Parent Contact", "Parent Name"]];
-                const blankRows = Array.from({ length: templateCount }, () => Array(7).fill(""));
+                const headers = [["Student Name", "Grade", "Scheduled AM", "Scheduled PM", "STOP Location", "Parent 1 Phone", "Parent 1 Name", "Student Phone", "Parent 2 Name", "Parent 2 Phone"]];
+                const blankRows = Array.from({ length: templateCount }, () => Array(10).fill(""));
                 const ws = XLSX.utils.aoa_to_sheet([...headers, ...blankRows]);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Students");
@@ -237,7 +245,7 @@ export default function AddSchedulePage() {
 
           {/* Compact column list */}
           <p className="text-xs text-gray-400">
-            Columns: Name · Grade · Scheduled AM · Scheduled PM · STOP Location · Parent Contact · Parent Name
+            Columns: Name · Grade · Scheduled AM · Scheduled PM · STOP Location · Parent 1 Phone · Parent 1 Name · Student Phone · Parent 2 Name · Parent 2 Phone
           </p>
 
           {/* Upload zone */}

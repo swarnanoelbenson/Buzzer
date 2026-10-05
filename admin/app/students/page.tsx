@@ -787,6 +787,8 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [sortBy, setSortBy] = useState<"name" | "grade" | "stop" | "route">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   // Track which row is revealed + activity-based auto-hide
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -846,10 +848,23 @@ export default function StudentsPage() {
   const handleRemoved = (id: string) => { setStudents(prev => prev.map(s => s.id === id ? { ...s, isActive: false } : s)); closeModal(); };
   const handleReactivated = (updated: Student) => { setStudents(prev => prev.map(s => s.id === updated.id ? updated : s)); closeModal(); };
 
-  // Sort active first, then alphabetically within each group
+  const handleSort = (col: typeof sortBy) => {
+    if (sortBy === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortBy(col); setSortDir("asc"); }
+  };
+
+  const getRouteName = (routeId: string) =>
+    routes.find(r => r.id === routeId)?.name ?? "";
+
   const sorted = [...students].sort((a, b) => {
-    if (a.isActive === b.isActive) return a.name.localeCompare(b.name);
-    return a.isActive ? -1 : 1;
+    // Always put active before inactive
+    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+    let cmp = 0;
+    if (sortBy === "name") cmp = a.name.localeCompare(b.name);
+    else if (sortBy === "grade") cmp = a.grade.localeCompare(b.grade);
+    else if (sortBy === "stop") cmp = a.stopAddress.localeCompare(b.stopAddress);
+    else if (sortBy === "route") cmp = getRouteName(a.routeId).localeCompare(getRouteName(b.routeId));
+    return sortDir === "asc" ? cmp : -cmp;
   });
   const inactiveCount = students.filter(s => !s.isActive).length;
   const displayed = showInactive ? sorted : sorted.filter(s => s.isActive);
@@ -890,10 +905,37 @@ export default function StudentsPage() {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           {/* Table header */}
-          <div className="grid grid-cols-[2fr_0.7fr_1.2fr_0.8fr_0.8fr_90px_100px_110px] px-5 py-3 border-b border-gray-100">
-            {["Student", "Grade", "Stop Address", "Pick-up", "Drop-off", "Status", "", ""].map((h, i) => (
-              <span key={i} className="text-xs font-bold tracking-widest text-gray-900 uppercase">{h}</span>
-            ))}
+          <div className="grid grid-cols-[2fr_0.6fr_1fr_1fr_0.7fr_0.7fr_90px_100px_110px] px-5 py-3 border-b border-gray-100">
+            {(
+              [
+                { label: "Student", col: "name" as const },
+                { label: "Grade",   col: "grade" as const },
+                { label: "Route",   col: "route" as const },
+                { label: "Stop Address", col: "stop" as const },
+                { label: "Pick-up",  col: null },
+                { label: "Drop-off", col: null },
+                { label: "Status",   col: null },
+                { label: "",         col: null },
+                { label: "",         col: null },
+              ] as { label: string; col: typeof sortBy | null }[]
+            ).map(({ label, col }, i) =>
+              col ? (
+                <button
+                  key={i}
+                  onClick={() => handleSort(col)}
+                  className="flex items-center gap-1 text-xs font-bold tracking-widest text-gray-900 uppercase hover:text-blue-600 transition-colors text-left"
+                >
+                  {label}
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="flex-shrink-0 opacity-50">
+                    {sortBy === col && sortDir === "asc"  && <path d="M5 2l4 6H1z" fill="currentColor"/>}
+                    {sortBy === col && sortDir === "desc" && <path d="M5 8l4-6H1z" fill="currentColor"/>}
+                    {sortBy !== col && <><path d="M5 1.5l3 4H2z" fill="currentColor" opacity=".4"/><path d="M5 8.5l3-4H2z" fill="currentColor" opacity=".4"/></>}
+                  </svg>
+                </button>
+              ) : (
+                <span key={i} className="text-xs font-bold tracking-widest text-gray-900 uppercase">{label}</span>
+              )
+            )}
           </div>
           {/* Rows */}
           <div className="divide-y divide-gray-50">
@@ -904,7 +946,7 @@ export default function StudentsPage() {
                 <div
                   key={student.id}
                   onClick={() => handleRowClick(student.id)}
-                  className={`grid grid-cols-[2fr_0.7fr_1.2fr_0.8fr_0.8fr_90px_100px_110px] items-center px-5 py-3.5 cursor-pointer transition-colors ${
+                  className={`grid grid-cols-[2fr_0.6fr_1fr_1fr_0.7fr_0.7fr_90px_100px_110px] items-center px-5 py-3.5 cursor-pointer transition-colors ${
                     isInactive ? "opacity-60" : ""
                   } ${revealed ? "bg-blue-50/40" : "hover:bg-gray-50"}`}
                 >
@@ -926,6 +968,10 @@ export default function StudentsPage() {
                   </div>
                   {/* Grade */}
                   <span className="text-xs font-bold tracking-widest text-gray-600">{student.grade}</span>
+                  {/* Route */}
+                  <span className="text-xs font-bold tracking-widest text-gray-600 truncate">
+                    {getRouteName(student.routeId) || <span className="text-gray-300">—</span>}
+                  </span>
                   {/* Stop Address */}
                   <span className="text-xs font-bold tracking-widest text-gray-600 truncate">
                     {revealed ? student.stopAddress : redact(student.stopAddress)}
