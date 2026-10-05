@@ -41,6 +41,7 @@ export default function AddSchedulePage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [tripCount, setTripCount] = useState(0);
+  const [templateCount, setTemplateCount] = useState(10);
 
   useEffect(() => {
     getDocs(collection(db, "drivers")).then(snap => {
@@ -67,13 +68,12 @@ export default function AddSchedulePage() {
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
 
       // Skip header row, map columns by position:
-      // Student Name | Stop | Grade | Pick-up Time | Drop-off Time | Parent 1 | Phone 1 | Parent 2 | Phone 2 | Student Phone
+      // A: Student Name | B: Grade | C: Scheduled AM | D: Scheduled PM | E: STOP Location | F: Parent Contact | G: Parent Name
       const parsed: XlsxRow[] = rows.slice(1).filter(r => r[0]).map(r => ({
-        name: String(r[0] ?? ""), stop: String(r[1] ?? ""), grade: String(r[2] ?? ""),
-        pickupTime: String(r[3] ?? ""), dropoffTime: String(r[4] ?? ""),
-        parent1Name: String(r[5] ?? ""), parent1Phone: normalisePhone(String(r[6] ?? "")),
-        parent2Name: String(r[7] ?? ""), parent2Phone: normalisePhone(String(r[8] ?? "")),
-        studentPhone: normalisePhone(String(r[9] ?? "")),
+        name: String(r[0] ?? ""), grade: String(r[1] ?? ""), stop: String(r[4] ?? ""),
+        pickupTime: String(r[2] ?? ""), dropoffTime: String(r[3] ?? ""),
+        parent1Phone: normalisePhone(String(r[5] ?? "")), parent1Name: String(r[6] ?? ""),
+        parent2Name: "", parent2Phone: "", studentPhone: "",
       }));
       setPreview(parsed);
     } catch {
@@ -204,35 +204,33 @@ export default function AddSchedulePage() {
         <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Student List (.xlsx)</p>
 
-          {/* Fixed column spec */}
-          <div className="rounded-xl border border-gray-100 overflow-hidden">
-            <div className="bg-gray-50 px-3 py-2 border-b border-gray-100">
-              <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Required Column Order</p>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {[
-                { col: "A", name: "Student Name",    eg: "Liam Chen",                    req: true },
-                { col: "B", name: "Stop Address",    eg: "12 Oak St, Parramatta NSW 2150", req: true },
-                { col: "C", name: "Grade",           eg: "Year 5",                        req: true },
-                { col: "D", name: "Pick-up Time",    eg: "08:00 AM",                      req: true },
-                { col: "E", name: "Drop-off Time",   eg: "03:30 PM",                      req: true },
-                { col: "F", name: "Parent 1 Name",   eg: "Emma Chen",                     req: false },
-                { col: "G", name: "Parent 1 Phone",  eg: "0412 111 111",                  req: false },
-                { col: "H", name: "Parent 2 Name",   eg: "James Chen",                    req: false },
-                { col: "I", name: "Parent 2 Phone",  eg: "0412 222 222",                  req: false },
-                { col: "J", name: "Student Phone",   eg: "0412 000 000",                  req: false },
-              ].map(({ col, name, eg, req }) => (
-                <div key={col} className="grid grid-cols-[28px_1fr_1fr_48px] items-center px-3 py-2">
-                  <span className="text-[10px] font-black text-orange-400">{col}</span>
-                  <span className="text-xs font-semibold text-gray-700">{name}</span>
-                  <span className="text-xs text-gray-400">{eg}</span>
-                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full text-center ${req ? "bg-orange-100 text-orange-500" : "bg-gray-100 text-gray-400"}`}>
-                    {req ? "Req" : "Opt"}
-                  </span>
-                </div>
-              ))}
+          {/* Template download card */}
+          <div className="bg-blue-50 rounded-xl p-4">
+            <p className="text-sm font-bold text-blue-700 mb-3">How many students on this route?</p>
+            <div className="flex items-center gap-3">
+              <input
+                type="number" min={1} value={templateCount}
+                onChange={e => setTemplateCount(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-20 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+              <button type="button" onClick={async () => {
+                const XLSX = await import("xlsx");
+                const headers = [["Student Name", "Grade", "Scheduled AM", "Scheduled PM", "STOP Location", "Parent Contact", "Parent Name"]];
+                const blankRows = Array.from({ length: templateCount }, () => Array(7).fill(""));
+                const ws = XLSX.utils.aoa_to_sheet([...headers, ...blankRows]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Students");
+                XLSX.writeFile(wb, "schedule_template.xlsx");
+              }} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                Download
+              </button>
             </div>
           </div>
+
+          {/* Compact column list */}
+          <p className="text-xs text-gray-400">
+            Columns: Name · Grade · Scheduled AM · Scheduled PM · STOP Location · Parent Contact · Parent Name
+          </p>
 
           {/* Upload zone */}
           <button type="button" onClick={() => fileRef.current?.click()}
