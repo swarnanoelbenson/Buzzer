@@ -22,8 +22,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Tab-close logout: sessionStorage is wiped when the tab is closed (not on refresh).
     // We detect a fresh tab open by the absence of "tabOpen" in sessionStorage.
-    const isFreshTab = typeof window !== "undefined" && !sessionStorage.getItem("tabOpen");
-    if (isFreshTab) {
+    // Exception: /auth-callback is always a fresh legitimate login — skip the check there.
+    const isAuthCallback = typeof window !== "undefined" && window.location.pathname.startsWith("/auth-callback");
+    const isFreshTab = typeof window !== "undefined" && !sessionStorage.getItem("tabOpen") && !isAuthCallback;
+    if (typeof window !== "undefined" && !sessionStorage.getItem("tabOpen")) {
       sessionStorage.setItem("tabOpen", "1");
     }
 
