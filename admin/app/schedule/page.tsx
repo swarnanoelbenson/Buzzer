@@ -253,7 +253,6 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
   const [fileError, setFileError] = useState("");
   const [saving, setSaving] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
-  const [showTemplatePrompt, setShowTemplatePrompt] = useState(false);
   const [templateCount, setTemplateCount] = useState("10");
 
   const isDirty = formChanged(EMPTY_FORM, form) || preview.length > 0;
@@ -391,37 +390,22 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
               <RouteFormFields form={form} onChange={onChange} drivers={drivers} selectedDays={selectedDays} onToggleDay={toggleDay} />
               {/* Student upload */}
               <div className="border-t border-gray-100 pt-4">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Student List (.xlsx)</p>
-                  <button type="button" onClick={() => setShowTemplatePrompt(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-colors">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                    Download Template
-                  </button>
-                </div>
-                {showTemplatePrompt && (
-                  <div className="mb-4 p-4 bg-blue-50 border border-blue-100 rounded-xl">
-                    <p className="text-xs font-black text-blue-700 mb-3">How many students on this route?</p>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number" min="1" max="200"
-                        value={templateCount}
-                        onChange={e => setTemplateCount(e.target.value)}
-                        className="w-24 bg-white border border-blue-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
-                      />
-                      <button type="button" onClick={downloadTemplate}
-                        className="px-4 py-2 bg-blue-600 text-white text-xs font-black rounded-lg hover:bg-blue-700 transition-colors">
-                        Download
-                      </button>
-                      <button type="button" onClick={() => setShowTemplatePrompt(false)}
-                        className="px-4 py-2 text-xs font-bold text-gray-500 hover:text-gray-700">
-                        Cancel
-                      </button>
-                    </div>
+                <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-3">Student List (.xlsx)</p>
+                <div className="bg-blue-50 rounded-xl p-4 mb-3">
+                  <p className="text-sm font-bold text-blue-700 mb-3">How many students on this route?</p>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number" min="1" max="200"
+                      value={templateCount}
+                      onChange={e => setTemplateCount(e.target.value)}
+                      className="w-20 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                    <button type="button" onClick={downloadTemplate}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                      Download
+                    </button>
                   </div>
-                )}
+                </div>
                 <p className="text-xs text-gray-400 mb-3">
                   Columns: Name · Grade · Scheduled AM · Scheduled PM · STOP Location · Parent Contact · Parent Name
                 </p>
