@@ -202,23 +202,64 @@ export default function AddSchedulePage() {
 
         {/* Student upload */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Student List (.xlsx)</p>
-            <a href="#" onClick={e => e.preventDefault()} className="text-xs text-orange-500">Download template</a>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Student List (.xlsx)</p>
+
+          {/* Fixed column spec */}
+          <div className="rounded-xl border border-gray-100 overflow-hidden">
+            <div className="bg-gray-50 px-3 py-2 border-b border-gray-100">
+              <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Required Column Order</p>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {[
+                { col: "A", name: "Student Name",    eg: "Liam Chen",                    req: true },
+                { col: "B", name: "Stop Address",    eg: "12 Oak St, Parramatta NSW 2150", req: true },
+                { col: "C", name: "Grade",           eg: "Year 5",                        req: true },
+                { col: "D", name: "Pick-up Time",    eg: "08:00 AM",                      req: true },
+                { col: "E", name: "Drop-off Time",   eg: "03:30 PM",                      req: true },
+                { col: "F", name: "Parent 1 Name",   eg: "Emma Chen",                     req: false },
+                { col: "G", name: "Parent 1 Phone",  eg: "0412 111 111",                  req: false },
+                { col: "H", name: "Parent 2 Name",   eg: "James Chen",                    req: false },
+                { col: "I", name: "Parent 2 Phone",  eg: "0412 222 222",                  req: false },
+                { col: "J", name: "Student Phone",   eg: "0412 000 000",                  req: false },
+              ].map(({ col, name, eg, req }) => (
+                <div key={col} className="grid grid-cols-[28px_1fr_1fr_48px] items-center px-3 py-2">
+                  <span className="text-[10px] font-black text-orange-400">{col}</span>
+                  <span className="text-xs font-semibold text-gray-700">{name}</span>
+                  <span className="text-xs text-gray-400">{eg}</span>
+                  <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full text-center ${req ? "bg-orange-100 text-orange-500" : "bg-gray-100 text-gray-400"}`}>
+                    {req ? "Req" : "Opt"}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-          <p className="text-xs text-gray-400">
-            Columns: Student Name · Stop · Grade · Pick-up Time · Drop-off Time · Parent 1 Name · Parent 1 Phone · Parent 2 Name · Parent 2 Phone · Student Phone
-          </p>
+
+          {/* Upload zone */}
           <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
           <button type="button" onClick={() => fileRef.current?.click()}
             className="w-full border-2 border-dashed border-orange-200 rounded-xl py-8 text-sm text-orange-400 hover:border-orange-300 hover:text-orange-500 transition-colors">
-            Click to upload .xlsx file
+            {preview.length > 0 ? "Replace file — click to upload again" : "Click to upload .xlsx file"}
           </button>
           {fileError && <p className="text-xs text-red-500">{fileError}</p>}
 
+          {/* Student count stat + preview */}
           {preview.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 mb-2">{preview.length} students loaded — preview:</p>
+            <div className="space-y-3">
+              {/* Stat card */}
+              <div className="flex items-center gap-4 bg-orange-50 rounded-xl px-4 py-3">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black tracking-widest text-orange-400 uppercase">Students on this route</p>
+                  <p className="text-2xl font-black text-orange-600 leading-tight">{preview.length}</p>
+                </div>
+              </div>
+
+              {/* Preview table */}
               <div className="rounded-xl border border-gray-100 overflow-hidden">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-50">
@@ -240,7 +281,9 @@ export default function AddSchedulePage() {
                         <td className="px-3 py-2 text-gray-500">{r.dropoffTime}</td>
                       </tr>
                     ))}
-                    {preview.length > 5 && <tr><td colSpan={5} className="px-3 py-2 text-gray-400 text-center">…and {preview.length - 5} more</td></tr>}
+                    {preview.length > 5 && (
+                      <tr><td colSpan={5} className="px-3 py-2 text-gray-400 text-center">…and {preview.length - 5} more</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>
