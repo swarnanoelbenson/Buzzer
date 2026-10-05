@@ -105,7 +105,7 @@ private struct StudentRow: View {
             Text(student.name).font(.subheadline).fontWeight(.semibold)
             HStack(spacing: 12) {
                 Label("Grade \(student.grade)", systemImage: "graduationcap")
-                Label(student.stopAddress, systemImage: "mappin")
+                Label(student.stopAddressAM, systemImage: "mappin")
             }
             .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             HStack(spacing: 12) {

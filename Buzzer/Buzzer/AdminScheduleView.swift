@@ -160,7 +160,7 @@ struct CreateRouteSheet: View {
                     ForEach(students) { s in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(s.name).font(.subheadline).fontWeight(.semibold)
-                            Text("Grade \(s.grade) · \(s.stopAddress)").font(.caption).foregroundStyle(.secondary)
+                            Text("Grade \(s.grade) · AM: \(s.stopAddressAM)").font(.caption).foregroundStyle(.secondary)
                             Text("AM \(s.pickupTime) · PM \(s.dropoffTime)").font(.caption).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 2)
@@ -235,7 +235,8 @@ struct CreateRouteSheet: View {
                     batch.setData([
                         "name": s.name,
                         "grade": s.grade,
-                        "stopAddress": s.stopAddress,
+                        "stopAddressAM": s.stopAddressAM,
+                        "stopAddressPM": s.stopAddressPM,
                         "routeId": "",
                         "scheduledPickupTime": s.pickupTime,
                         "scheduledDropoffTime": s.dropoffTime,
@@ -244,7 +245,7 @@ struct CreateRouteSheet: View {
                         "createdAt": Timestamp(date: Date()),
                     ], forDocument: ref)
                     studentIds.append(ref.documentID)
-                    studentRecords.append(["id": ref.documentID, "studentName": s.name, "stopAddress": s.stopAddress, "status": "pending", "timestamp": NSNull()])
+                    studentRecords.append(["id": ref.documentID, "studentName": s.name, "stopAddressAM": s.stopAddressAM, "stopAddressPM": s.stopAddressPM, "status": "pending", "timestamp": NSNull()])
                 }
 
                 let routeRef = db.collection("routes").document()
@@ -295,7 +296,8 @@ struct StudentEntry: Identifiable {
     var grade: String
     var pickupTime: String
     var dropoffTime: String
-    var stopAddress: String
+    var stopAddressAM: String
+    var stopAddressPM: String
     var parentPhone: String
     var parentName: String
 }
@@ -310,7 +312,8 @@ struct AddStudentEntrySheet: View {
     @State private var grade = ""
     @State private var pickupTime = ""
     @State private var dropoffTime = ""
-    @State private var stopAddress = ""
+    @State private var stopAddressAM = ""
+    @State private var stopAddressPM = ""
     @State private var parentPhone = ""
     @State private var parentName = ""
 
@@ -322,9 +325,10 @@ struct AddStudentEntrySheet: View {
                     TextField("Grade", text: $grade)
                 }
                 Section("Schedule") {
-                    TextField("Scheduled AM (e.g. 08:00)", text: $pickupTime)
-                    TextField("Scheduled PM (e.g. 15:30)", text: $dropoffTime)
-                    TextField("STOP Location", text: $stopAddress)
+                    TextField("Scheduled AM (e.g. 08:00 AM)", text: $pickupTime)
+                    TextField("Scheduled PM (e.g. 03:30 PM)", text: $dropoffTime)
+                    TextField("Stop Location AM (Morning Pick-up)", text: $stopAddressAM)
+                    TextField("Stop Location PM (Afternoon Drop-off)", text: $stopAddressPM)
                 }
                 Section("Parent") {
                     TextField("Parent Name", text: $parentName)
@@ -338,11 +342,11 @@ struct AddStudentEntrySheet: View {
                 ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Add") {
-                        onAdd(StudentEntry(name: name, grade: grade, pickupTime: pickupTime, dropoffTime: dropoffTime, stopAddress: stopAddress, parentPhone: parentPhone, parentName: parentName))
+                        onAdd(StudentEntry(name: name, grade: grade, pickupTime: pickupTime, dropoffTime: dropoffTime, stopAddressAM: stopAddressAM, stopAddressPM: stopAddressPM, parentPhone: parentPhone, parentName: parentName))
                         dismiss()
                     }
                     .fontWeight(.bold)
-                    .disabled(name.isEmpty || stopAddress.isEmpty)
+                    .disabled(name.isEmpty || stopAddressAM.isEmpty)
                 }
             }
         }

@@ -85,17 +85,22 @@ function Overlay({ children }: { children: React.ReactNode }) {
 
 function PreviewModal({ student, routes, onClose, onEdit }: { student: Student; routes: Route[]; onClose: () => void; onEdit: () => void }) {
   const routeName = routes.find(r => r.id === student.routeId)?.name ?? "—";
+  const parent1 = student.parents?.[0];
   const fields = [
-    { label: "Grade",          value: student.grade },
-    { label: "Route",          value: routeName },
-    { label: "Stop AM",        value: student.stopAddressAM },
-    { label: "Order AM",       value: student.orderAM != null ? String(student.orderAM) : null },
-    { label: "Stop PM",        value: student.stopAddressPM },
-    { label: "Order PM",       value: student.orderPM != null ? String(student.orderPM) : null },
-    { label: "Pick-up",        value: student.scheduledPickupTime },
-    { label: "Drop-off",       value: student.scheduledDropoffTime },
-    { label: "Student Phone",  value: student.phone || null },
-    { label: "Status",         value: student.isActive ? "Active" : "Inactive" },
+    { label: "Grade",            value: student.grade },
+    { label: "Student Phone",    value: student.phone || null },
+    { label: "Order AM",         value: student.orderAM != null ? String(student.orderAM) : null },
+    { label: "Scheduled AM",     value: student.scheduledPickupTime },
+    { label: "Stop Location AM", value: student.stopAddressAM },
+    { label: "Order PM",         value: student.orderPM != null ? String(student.orderPM) : null },
+    { label: "Scheduled PM",     value: student.scheduledDropoffTime },
+    { label: "Stop Location PM", value: student.stopAddressPM },
+    { label: "Assigned Route",   value: routeName },
+    { label: "Parent Name",      value: parent1?.name || null },
+    { label: "Parent Phone",     value: parent1?.phone || null },
+    { label: "Relationship",     value: parent1?.relationship || null },
+    { label: "Status",           value: student.isActive ? "Active" : "Inactive" },
+    { label: "Created",          value: student.createdAt ? new Date(student.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : null },
   ];
   return (
     <Overlay>
@@ -121,12 +126,12 @@ function PreviewModal({ student, routes, onClose, onEdit }: { student: Student; 
               <span className="text-sm font-bold text-gray-900 text-right">{f.value || "—"}</span>
             </div>
           ))}
-          {/* Parents section */}
-          {student.parents && student.parents.length > 0 && (
+          {/* Additional parents (2nd parent onwards) */}
+          {student.parents && student.parents.length > 1 && (
             <div className="pt-2 border-t border-gray-100">
-              <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-3">Parents / Guardians</p>
+              <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-3">Additional Guardians</p>
               <div className="space-y-2">
-                {student.parents.map((p, i) => (
+                {student.parents.slice(1).map((p, i) => (
                   <div key={i} className="bg-gray-50 rounded-xl px-3 py-2.5 flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-bold text-gray-900">{p.name || "—"}</div>

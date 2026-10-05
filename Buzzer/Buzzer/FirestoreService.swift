@@ -205,7 +205,10 @@ class FirestoreService {
                 [
                     "id": record.id,
                     "studentName": record.studentName,
-                    "stopAddress": record.stopAddress,
+                    "stopAddressAM": record.stopAddressAM,
+                    "stopAddressPM": record.stopAddressPM,
+                    "orderAM": record.orderAM as Any,
+                    "orderPM": record.orderPM as Any,
                     "status": record.status.rawValue,
                     "timestamp": record.timestamp as Any
                 ]

@@ -151,9 +151,16 @@ struct StudentPortalView: View {
                 Divider().padding(.leading, 36)
                 infoRow(
                     icon: "mappin.circle.fill",
-                    iconColor: .red,
-                    label: "Stop",
-                    value: student.stopAddress
+                    iconColor: .green,
+                    label: "Stop AM",
+                    value: student.stopAddressAM
+                )
+                Divider().padding(.leading, 36)
+                infoRow(
+                    icon: "mappin.circle.fill",
+                    iconColor: .orange,
+                    label: "Stop PM",
+                    value: student.stopAddressPM
                 )
                 Divider().padding(.leading, 36)
                 infoRow(

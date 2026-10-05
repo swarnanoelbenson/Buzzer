@@ -211,7 +211,7 @@ struct StudentTripRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(record.studentName)
                     .font(.system(size: 16, weight: .semibold))
-                Text(record.stopAddress)
+                Text(tripType == .pickup ? record.stopAddressAM : record.stopAddressPM)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .lineLimit(1)

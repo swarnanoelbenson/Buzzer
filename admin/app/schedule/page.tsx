@@ -273,13 +273,15 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
   const downloadTemplate = async () => {
     const count = Math.max(1, Math.min(200, parseInt(templateCount) || 10));
     const XLSX = await import("xlsx");
-    const headers = ["Student Name", "Grade", "Order AM", "Scheduled AM", "Order PM", "Scheduled PM", "STOP Location AM", "STOP Location PM", "Parent 1 Phone", "Parent 1 Name", "Student Phone", "Relationship"];
+    // A: Student Name | B: Grade | C: Student Phone | D: Order AM | E: Scheduled AM | F: Stop Location AM
+    // G: Order PM | H: Scheduled PM | I: Stop Location PM | J: Parent 1 Name | K: Parent 1 Phone | L: Relationship
+    const headers = ["Student Name", "Grade", "Student Phone", "Order AM", "Scheduled AM", "Stop Location AM", "Order PM", "Scheduled PM", "Stop Location PM", "Parent 1 Name", "Parent 1 Phone", "Relationship"];
     const rows: string[][] = [headers];
     for (let i = 1; i <= count; i++) {
       rows.push([`Student ${i}`, "", "", "", "", "", "", "", "", "", "", ""]);
     }
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = [{ wch: 20 }, { wch: 8 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 30 }, { wch: 30 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 14 }];
+    ws["!cols"] = [{ wch: 20 }, { wch: 8 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 30 }, { wch: 10 }, { wch: 14 }, { wch: 30 }, { wch: 20 }, { wch: 16 }, { wch: 14 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Students");
     XLSX.writeFile(wb, "student_template.xlsx");
@@ -300,17 +302,18 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
       const wb = XLSX.read(data, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
-      // A: Student Name | B: Grade | C: Order AM | D: Scheduled AM | E: Order PM | F: Scheduled PM
-      // G: STOP Location AM | H: STOP Location PM | I: Parent 1 Phone | J: Parent 1 Name
-      // K: Student Phone | L: Relationship
+      // A: Student Name | B: Grade | C: Student Phone | D: Order AM | E: Scheduled AM | F: Stop Location AM
+      // G: Order PM | H: Scheduled PM | I: Stop Location PM | J: Parent 1 Name | K: Parent 1 Phone | L: Relationship
       const normalisePhone = (p: string) => p ? (p.startsWith("+61") ? p : `+61${p.replace(/^0/, "")}`) : "";
       const parsed: XlsxRow[] = rows.slice(1).filter(r => r[0]).map(r => ({
         name: String(r[0] ?? ""), grade: String(r[1] ?? ""),
-        orderAM: String(r[2] ?? ""), pickupTime: String(r[3] ?? ""),
-        orderPM: String(r[4] ?? ""), dropoffTime: String(r[5] ?? ""),
-        stopAM: String(r[6] ?? ""), stopPM: String(r[7] ?? ""),
-        parentPhone: normalisePhone(String(r[8] ?? "")), parentName: String(r[9] ?? ""),
-        studentPhone: normalisePhone(String(r[10] ?? "")), relationship: String(r[11] ?? ""),
+        studentPhone: normalisePhone(String(r[2] ?? "")),
+        orderAM: String(r[3] ?? ""), pickupTime: String(r[4] ?? ""),
+        stopAM: String(r[5] ?? ""),
+        orderPM: String(r[6] ?? ""), dropoffTime: String(r[7] ?? ""),
+        stopPM: String(r[8] ?? ""),
+        parentName: String(r[9] ?? ""), parentPhone: normalisePhone(String(r[10] ?? "")),
+        relationship: String(r[11] ?? ""),
       }));
       setPreview(parsed);
     } catch {
@@ -455,7 +458,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                  Columns: Student Name · Grade · Order AM · Scheduled AM · Order PM · Scheduled PM · STOP Location AM · STOP Location PM · Parent 1 Phone · Parent 1 Name · Student Phone · Relationship
+                  Columns: Student Name · Grade · Student Phone · Order AM · Scheduled AM · Stop Location AM · Order PM · Scheduled PM · Stop Location PM · Parent 1 Name · Parent 1 Phone · Relationship
                 </p>
                 <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
                 <button type="button" onClick={() => fileRef.current?.click()}

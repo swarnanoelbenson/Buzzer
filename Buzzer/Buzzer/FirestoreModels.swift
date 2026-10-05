@@ -45,7 +45,10 @@ struct Student: Identifiable, Codable {
     var grade: String
     var imageUrl: String?
     var phone: String?                  // Phone number — used for SMS OTP login
-    var stopAddress: String
+    var stopAddressAM: String           // Morning pick-up stop
+    var stopAddressPM: String           // Afternoon drop-off stop
+    var orderAM: Int?                   // Stop sequence order for morning route
+    var orderPM: Int?                   // Stop sequence order for afternoon route
     var routeId: String
     var scheduledPickupTime: String     // e.g. "08:15 AM"
     var scheduledDropoffTime: String    // e.g. "03:30 PM"
@@ -54,7 +57,8 @@ struct Student: Identifiable, Codable {
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id, name, grade, imageUrl, phone, stopAddress
+        case id, name, grade, imageUrl, phone
+        case stopAddressAM, stopAddressPM, orderAM, orderPM
         case routeId, scheduledPickupTime, scheduledDropoffTime
         case authorisedParentIds, isActive, createdAt
     }
@@ -148,12 +152,17 @@ enum TripStatus: String, Codable {
 struct StudentTripRecord: Codable, Identifiable {
     var id: String                      // studentId
     var studentName: String
-    var stopAddress: String
+    var stopAddressAM: String           // Morning pick-up stop
+    var stopAddressPM: String           // Afternoon drop-off stop
+    var orderAM: Int?                   // Stop sequence order for morning route
+    var orderPM: Int?                   // Stop sequence order for afternoon route
     var status: StudentTripStatus
     var timestamp: Date?               // When picked up or dropped off
 
     enum CodingKeys: String, CodingKey {
-        case id, studentName, stopAddress, status, timestamp
+        case id, studentName
+        case stopAddressAM, stopAddressPM, orderAM, orderPM
+        case status, timestamp
     }
 }
 

@@ -155,7 +155,10 @@ class DemoSeeder {
                 "grade": "Year 5",
                 "imageUrl": "",
                 "phone": "",
-                "stopAddress": "12 Oak St, Parramatta NSW 2150",
+                "stopAddressAM": "12 Oak St, Parramatta NSW 2150",
+                "stopAddressPM": "12 Oak St, Parramatta NSW 2150",
+                "orderAM": 1,
+                "orderPM": 3,
                 "routeId": routeId,
                 "scheduledPickupTime": "08:00 AM",
                 "scheduledDropoffTime": "03:30 PM",
@@ -168,7 +171,10 @@ class DemoSeeder {
                 "grade": "Year 3",
                 "imageUrl": "",
                 "phone": "",
-                "stopAddress": "45 Maple Dr, Blacktown NSW 2148",
+                "stopAddressAM": "45 Maple Dr, Blacktown NSW 2148",
+                "stopAddressPM": "45 Maple Dr, Blacktown NSW 2148",
+                "orderAM": 2,
+                "orderPM": 2,
                 "routeId": routeId,
                 "scheduledPickupTime": "08:10 AM",
                 "scheduledDropoffTime": "03:35 PM",
@@ -181,7 +187,10 @@ class DemoSeeder {
                 "grade": "Year 6",
                 "imageUrl": "",
                 "phone": "",
-                "stopAddress": "45 Maple Dr, Blacktown NSW 2148",
+                "stopAddressAM": "45 Maple Dr, Blacktown NSW 2148",
+                "stopAddressPM": "45 Maple Dr, Blacktown NSW 2148",
+                "orderAM": 3,
+                "orderPM": 1,
                 "routeId": routeId,
                 "scheduledPickupTime": "08:10 AM",
                 "scheduledDropoffTime": "03:35 PM",
@@ -277,9 +286,9 @@ class DemoSeeder {
         let today = Timestamp(date: Calendar.current.startOfDay(for: Date()))
 
         let studentRecords: [[String: Any]] = [
-            ["id": studentIds[0], "studentName": "Liam Chen",  "stopAddress": "12 Oak St, Parramatta NSW 2150",  "status": "pending", "timestamp": NSNull()],
-            ["id": studentIds[1], "studentName": "Mia Patel",  "stopAddress": "45 Maple Dr, Blacktown NSW 2148", "status": "pending", "timestamp": NSNull()],
-            ["id": studentIds[2], "studentName": "Noah Patel", "stopAddress": "45 Maple Dr, Blacktown NSW 2148", "status": "pending", "timestamp": NSNull()]
+            ["id": studentIds[0], "studentName": "Liam Chen",  "stopAddressAM": "12 Oak St, Parramatta NSW 2150",  "stopAddressPM": "12 Oak St, Parramatta NSW 2150",  "orderAM": 1, "orderPM": 3, "status": "pending", "timestamp": NSNull()],
+            ["id": studentIds[1], "studentName": "Mia Patel",  "stopAddressAM": "45 Maple Dr, Blacktown NSW 2148", "stopAddressPM": "45 Maple Dr, Blacktown NSW 2148", "orderAM": 2, "orderPM": 2, "status": "pending", "timestamp": NSNull()],
+            ["id": studentIds[2], "studentName": "Noah Patel", "stopAddressAM": "45 Maple Dr, Blacktown NSW 2148", "stopAddressPM": "45 Maple Dr, Blacktown NSW 2148", "orderAM": 3, "orderPM": 1, "status": "pending", "timestamp": NSNull()]
         ]
 
         let pickup: [String: Any] = [
