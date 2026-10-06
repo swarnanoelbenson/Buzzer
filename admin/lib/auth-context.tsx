@@ -1,8 +1,10 @@
 "use client";
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
+
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 interface AuthContextValue {
   user: User | null;
@@ -18,6 +20,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [schoolName, setSchoolName] = useState("");
   const [schoolId, setSchoolId] = useState("");
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reset the inactivity timer on any user activity
+  const resetInactivityTimer = useRef(() => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      sessionStorage.removeItem("sessionToken");
+      signOut(auth).catch(() => {});
+    }, INACTIVITY_TIMEOUT_MS);
+  });
+
+  // Attach / detach activity listeners whenever auth state changes
+  useEffect(() => {
+    if (!user) {
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+      return;
+    }
+    const reset = resetInactivityTimer.current;
+    const EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"];
+    EVENTS.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    reset(); // start the timer immediately on login
+    return () => {
+      EVENTS.forEach(e => window.removeEventListener(e, reset));
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, [user]);
 
   useEffect(() => {
     // Tab-session guard: a tab is considered "authenticated" only if it has a sessionToken

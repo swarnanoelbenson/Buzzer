@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { collection, getDocs, doc, updateDoc, writeBatch, query, where, orderBy, Timestamp } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, writeBatch, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import type { Route, Driver } from "@/lib/types";
@@ -1138,15 +1138,21 @@ export default function SchedulePage() {
   const load = useCallback(() => {
     if (!schoolId) return;
     Promise.all([
-      getDocs(query(collection(db, "routes"), where("schoolId", "==", schoolId), orderBy("startDate", "desc"))),
+      getDocs(query(collection(db, "routes"), where("schoolId", "==", schoolId))),
       getDocs(query(collection(db, "drivers"), where("schoolId", "==", schoolId))),
     ]).then(([rSnap, dSnap]) => {
-      setRoutes(rSnap.docs.map(d => ({
+      const loadedRoutes = rSnap.docs.map(d => ({
         id: d.id, ...d.data(),
         startDate: toDate(d.data().startDate),
         endDate: toDate(d.data().endDate),
-      } as Route)));
+      } as Route));
+      // Sort client-side — avoids needing a Firestore composite index
+      loadedRoutes.sort((a, b) => b.startDate.getTime() - a.startDate.getTime());
+      setRoutes(loadedRoutes);
       setDrivers(dSnap.docs.map(d => ({ id: d.id, ...d.data() } as Driver)).filter(d => d.isActive));
+    }).catch(err => {
+      console.error("schedule load error:", err);
+    }).finally(() => {
       setLoading(false);
     });
   }, [schoolId]);
