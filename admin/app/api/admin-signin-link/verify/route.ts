@@ -91,6 +91,13 @@ export async function POST(req: NextRequest) {
     adminUid = uid;
     schoolName = pendingSignup.schoolName;
     adminName = pendingSignup.adminName;
+
+    // Fire welcome email — non-blocking, don't let it break the login flow
+    fetch(`${req.nextUrl.origin}/api/welcome/admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalised, adminName, schoolName }),
+    }).catch(err => console.error("welcome/admin fire error:", err));
   } else {
     // Returning login — look up the school
     const snap = await db.collection("schools").where("email", "==", normalised).limit(1).get();

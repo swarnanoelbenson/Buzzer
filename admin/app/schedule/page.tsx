@@ -256,8 +256,8 @@ const EMPTY_MANUAL_ROW: XlsxRow = {
 
 const RELATIONSHIPS = ["Mother", "Father", "Step Mother", "Step Father", "Guardian"];
 
-function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
-  schoolId: string; drivers: Driver[]; onClose: () => void; onAdded: (r: Route) => void;
+function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
+  schoolId: string; schoolName: string; drivers: Driver[]; onClose: () => void; onAdded: (r: Route) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<RouteForm>(EMPTY_FORM);
@@ -494,6 +494,36 @@ function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
       }
 
       await batch.commit();
+
+      // Fire welcome emails — non-blocking, don't let failures affect the save flow
+      const term = parseInt(form.term);
+      const year = parseInt(form.year);
+      const routeName = form.name.trim().toUpperCase();
+      const students = preview
+        .filter(r => r.studentEmail)
+        .map(r => ({
+          studentName: r.name, studentEmail: r.studentEmail,
+          grade: r.grade, stopAM: r.stopAM, stopPM: r.stopPM,
+          pickupTime: r.pickupTime, dropoffTime: r.dropoffTime,
+          routeName, term, year,
+        }));
+      const parents = preview
+        .filter(r => r.parentEmail && r.parentName)
+        .map(r => ({
+          parentName: r.parentName, parentEmail: r.parentEmail,
+          studentName: r.name, grade: r.grade,
+          stopAM: r.stopAM, stopPM: r.stopPM,
+          pickupTime: r.pickupTime, dropoffTime: r.dropoffTime,
+          routeName, term, year, schoolName,
+        }));
+      if (students.length > 0 || parents.length > 0) {
+        fetch("/api/welcome/route", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ students, parents, routeName, term, year, schoolName }),
+        }).catch(err => console.error("welcome/route fire error:", err));
+      }
+
       const newRoute: Route = {
         id: routeRef.id, schoolId, name: form.name.trim().toUpperCase(), driverId: form.driverId,
         term: parseInt(form.term), year: parseInt(form.year),
@@ -849,7 +879,7 @@ type Modal =
   | { type: "substitute"; route: Route };
 
 export default function SchedulePage() {
-  const { schoolId } = useAuth();
+  const { schoolId, schoolName } = useAuth();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1080,7 +1110,7 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {modal?.type === "add" && <AddScheduleModal schoolId={schoolId} drivers={drivers} onClose={closeModal} onAdded={handleAdded} />}
+      {modal?.type === "add" && <AddScheduleModal schoolId={schoolId} schoolName={schoolName} drivers={drivers} onClose={closeModal} onAdded={handleAdded} />}
       {modal?.type === "preview" && (
         <PreviewModal
           route={modal.route}

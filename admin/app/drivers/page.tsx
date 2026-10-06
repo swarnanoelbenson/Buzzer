@@ -26,13 +26,13 @@ const LABEL = "block text-[10px] font-black tracking-widest text-gray-400 upperc
 type FormState = {
   name: string; phone: string; age: string; gender: string;
   address: string; childrenCheck: string; driversLicense: string;
-  licenseExpiry: string;
+  licenseExpiry: string; email: string;
 };
 
 const EMPTY_FORM: FormState = {
   name: "", phone: "", age: "", gender: "Male",
   address: "", childrenCheck: "", driversLicense: "",
-  licenseExpiry: "",
+  licenseExpiry: "", email: "",
 };
 
 function driverToForm(d: Driver): FormState {
@@ -41,6 +41,7 @@ function driverToForm(d: Driver): FormState {
     gender: d.gender, address: d.address,
     childrenCheck: d.childrenCheck, driversLicense: d.driversLicense,
     licenseExpiry: d.licenseExpiry instanceof Date ? toInputDate(d.licenseExpiry) : "",
+    email: d.email ?? "",
   };
 }
 
@@ -51,6 +52,7 @@ function formChanged(original: FormState, current: FormState): boolean {
 const DIFF_FIELDS: { key: keyof FormState; label: string }[] = [
   { key: "name",            label: "Full Name" },
   { key: "phone",           label: "Phone" },
+  { key: "email",           label: "Email" },
   { key: "age",             label: "Age" },
   { key: "gender",          label: "Gender" },
   { key: "address",         label: "Address" },
@@ -160,6 +162,10 @@ function DriverForm({ form, onChange }: { form: FormState; onChange: (key: keyof
         <label className={LABEL}>Licence Expiry Date</label>
         <input className={FIELD} type="date" required value={form.licenseExpiry} onChange={set("licenseExpiry")} />
       </div>
+      <div className="col-span-2">
+        <label className={LABEL}>Email Address <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "#d1d5db" }}>(optional — for welcome email)</span></label>
+        <input className={FIELD} type="email" value={form.email} onChange={set("email")} placeholder="e.g. john.mitchell@email.com" />
+      </div>
     </div>
   );
 }
@@ -229,7 +235,7 @@ function ConfirmEditModal({ original, updated, onConfirm, onBack, saving }: {
 
 // ── Add Driver Modal ──────────────────────────────────────────────────────────
 
-function AddDriverModal({ schoolId, onClose, onAdded }: { schoolId: string; onClose: () => void; onAdded: (d: Driver) => void }) {
+function AddDriverModal({ schoolId, schoolName, onClose, onAdded }: { schoolId: string; schoolName: string; onClose: () => void; onAdded: (d: Driver) => void }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
@@ -257,6 +263,7 @@ function AddDriverModal({ schoolId, onClose, onAdded }: { schoolId: string; onCl
     }
     setSaving(true);
     try {
+      const driverEmail = form.email.trim().toLowerCase();
       const ref = await addDoc(collection(db, "drivers"), {
         schoolId,
         name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
@@ -264,6 +271,7 @@ function AddDriverModal({ schoolId, onClose, onAdded }: { schoolId: string; onCl
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
+        ...(driverEmail ? { email: driverEmail } : {}),
         imageUrl: "", isActive: true, createdAt: Timestamp.now(),
       });
       const newDriver: Driver = {
@@ -272,8 +280,24 @@ function AddDriverModal({ schoolId, onClose, onAdded }: { schoolId: string; onCl
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? new Date(form.licenseExpiry) : new Date(),
+        ...(driverEmail ? { email: driverEmail } : {}),
         isActive: true, createdAt: new Date(),
       };
+
+      // Fire welcome email if email was provided — non-blocking
+      if (driverEmail) {
+        fetch("/api/welcome/driver", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: driverEmail,
+            driverName: form.name.trim(),
+            schoolName,
+            phone: form.phone.trim() ? `+61${form.phone.trim()}` : undefined,
+          }),
+        }).catch(err => console.error("welcome/driver fire error:", err));
+      }
+
       onAdded(newDriver);
     } catch (err) { console.error(err); }
     setSaving(false);
@@ -603,7 +627,7 @@ function redact(val: string) {
 }
 
 export default function DriversPage() {
-  const { user, schoolId } = useAuth();
+  const { user, schoolId, schoolName } = useAuth();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal | null>(null);
@@ -850,7 +874,7 @@ export default function DriversPage() {
         </div>
       )}
 
-      {modal?.type === "add" && <AddDriverModal schoolId={schoolId} onClose={closeModal} onAdded={handleAdded} />}
+      {modal?.type === "add" && <AddDriverModal schoolId={schoolId} schoolName={schoolName} onClose={closeModal} onAdded={handleAdded} />}
       {modal?.type === "preview" && (
         <PreviewModal
           driver={modal.driver}

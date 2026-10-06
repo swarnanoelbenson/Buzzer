@@ -18,6 +18,7 @@ export interface Driver {
   driversLicense: string;
   licenseExpiry: Date;
   busRegistration?: string;   // globally unique across all schools
+  email?: string;             // optional — used to send welcome email on profile creation
   isActive: boolean;
   createdAt: Date;
 }
