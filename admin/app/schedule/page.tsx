@@ -256,6 +256,88 @@ const EMPTY_MANUAL_ROW: XlsxRow = {
 
 const RELATIONSHIPS = ["Mother", "Father", "Step Mother", "Step Father", "Guardian"];
 
+// PDF column definitions for the schedule
+const PDF_COLS = [
+  "Student Name", "Grade", "Student Phone", "Student Email",
+  "Order AM", "Schedule AM", "Stop AM",
+  "Order PM", "Schedule PM", "Stop PM",
+  "Parent Name", "Parent Phone", "Parent Email", "Relationship",
+];
+
+async function buildSchedulePdf(
+  schoolName: string, routeName: string, term: number, year: number,
+  busRego: string, driverName: string, driverPhone: string,
+  rows: XlsxRow[],
+): Promise<{ blob: Blob; base64: string }> {
+  const pdfMake = (await import("pdfmake/build/pdfmake")).default;
+  const pdfFonts = (await import("pdfmake/build/vfs_fonts")).default;
+  pdfMake.vfs = pdfFonts.vfs;
+
+  const headerInfo = [
+    { text: `BusMate Schedule — ${schoolName}`, style: "title" },
+    {
+      columns: [
+        [
+          { text: `Route: ${routeName}`, style: "meta" },
+          { text: `Term ${term} · ${year}`, style: "meta" },
+          { text: `Bus Registration: ${busRego || "—"}`, style: "meta" },
+        ],
+        [
+          { text: `Driver: ${driverName}`, style: "meta" },
+          { text: `Driver Phone: ${driverPhone || "—"}`, style: "meta" },
+        ],
+      ],
+      margin: [0, 4, 0, 12],
+    },
+  ];
+
+  const tableBody = [
+    PDF_COLS.map(h => ({ text: h, style: "th" })),
+    ...rows.map(r => [
+      r.name, r.grade, r.studentPhone, r.studentEmail,
+      r.orderAM, r.pickupTime, r.stopAM,
+      r.orderPM, r.dropoffTime, r.stopPM,
+      r.parentName, r.parentPhone, r.parentEmail, r.relationship,
+    ].map(v => ({ text: v || "—", style: "td" }))),
+  ];
+
+  const docDef = {
+    pageOrientation: "landscape" as const,
+    pageMargins: [24, 24, 24, 24] as [number, number, number, number],
+    content: [
+      ...headerInfo,
+      {
+        table: { headerRows: 1, widths: Array(14).fill("*"), body: tableBody },
+        layout: {
+          hLineWidth: (i: number) => i === 0 || i === 1 ? 1.5 : 0.5,
+          vLineWidth: () => 0.5,
+          hLineColor: () => "#e5e7eb",
+          vLineColor: () => "#e5e7eb",
+          fillColor: (i: number) => i === 0 ? "#2563eb" : i % 2 === 0 ? "#f9fafb" : null,
+        },
+      },
+    ],
+    styles: {
+      title: { fontSize: 14, bold: true, color: "#111827", margin: [0, 0, 0, 6] as [number, number, number, number] },
+      meta: { fontSize: 9, color: "#6b7280", margin: [0, 1, 0, 1] as [number, number, number, number] },
+      th: { fontSize: 7, bold: true, color: "#ffffff", margin: [3, 4, 3, 4] as [number, number, number, number] },
+      td: { fontSize: 7, color: "#374151", margin: [3, 3, 3, 3] as [number, number, number, number] },
+    },
+  };
+
+  return new Promise(resolve => {
+    const pdf = pdfMake.createPdf(docDef);
+    pdf.getBlob(blob => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).split(",")[1];
+        resolve({ blob, base64 });
+      };
+      reader.readAsDataURL(blob);
+    });
+  });
+}
+
 function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
   schoolId: string; schoolName: string; drivers: Driver[]; onClose: () => void; onAdded: (r: Route) => void;
 }) {
@@ -271,6 +353,18 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
   const [templateCount, setTemplateCount] = useState("10");
   const [manualRow, setManualRow] = useState<XlsxRow>(EMPTY_MANUAL_ROW);
   const [manualError, setManualError] = useState("");
+
+  // ── 3-step flow state ──────────────────────────────────────────────────────
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfBase64, setPdfBase64] = useState<string>("");
+  const [pdfObjectUrl, setPdfObjectUrl] = useState<string>("");
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  // Revoke object URL on unmount to avoid memory leaks
+  const cleanupObjectUrl = useCallback(() => {
+    if (pdfObjectUrl) URL.revokeObjectURL(pdfObjectUrl);
+  }, [pdfObjectUrl]);
 
   const setManual = (key: keyof XlsxRow) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setManualRow(r => ({ ...r, [key]: e.target.value }));
@@ -304,8 +398,6 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
   const downloadTemplate = async () => {
     const count = Math.max(1, Math.min(200, parseInt(templateCount) || 10));
     const XLSX = await import("xlsx");
-    // A: Student Name | B: Grade | C: Student Phone | D: Student Email | E: Order AM | F: Scheduled AM | G: Stop Location AM
-    // H: Order PM | I: Scheduled PM | J: Stop Location PM | K: Parent 1 Name | L: Parent 1 Phone | M: Parent Email | N: Relationship
     const headers = ["Student Name", "Grade", "Student Phone", "Student Email", "Order AM", "Scheduled AM", "Stop Location AM", "Order PM", "Scheduled PM", "Stop Location PM", "Parent 1 Name", "Parent 1 Phone", "Parent Email", "Relationship"];
     const rows: string[][] = [headers];
     for (let i = 1; i <= count; i++) {
@@ -319,6 +411,7 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
   };
 
   const handleClose = () => {
+    cleanupObjectUrl();
     if (isDirty) { setShowUnsaved(true); return; }
     onClose();
   };
@@ -333,8 +426,6 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
       const wb = XLSX.read(data, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
-      // A: Student Name | B: Grade | C: Student Phone | D: Student Email | E: Order AM | F: Scheduled AM | G: Stop Location AM
-      // H: Order PM | I: Scheduled PM | J: Stop Location PM | K: Parent 1 Name | L: Parent 1 Phone | M: Parent Email | N: Relationship
       const normalisePhone = (p: string) => p ? (p.startsWith("+61") ? p : `+61${p.replace(/^0/, "")}`) : "";
       const parsed: XlsxRow[] = rows.slice(1).filter(r => r[0]).map(r => ({
         name: String(r[0] ?? ""), grade: String(r[1] ?? ""),
@@ -354,6 +445,47 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
     }
   };
 
+  // ── Step navigation ────────────────────────────────────────────────────────
+
+  const goToStep2 = () => {
+    // Validate required form fields before proceeding
+    if (!form.name.trim() || !form.driverId || !form.startDate || !form.endDate) return;
+    if (selectedDays.length === 0) { setDaysError("Select at least one scheduled day."); return; }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const start = new Date(form.startDate);
+    const end = new Date(form.endDate);
+    if (start < today) { setDateError("Start date cannot be in the past."); return; }
+    if (end < start) { setDateError("End date must be after start date."); return; }
+    setStep(2);
+  };
+
+  const goToStep3 = async () => {
+    setGeneratingPdf(true);
+    try {
+      const driver = drivers.find(d => d.id === form.driverId);
+      const { blob, base64 } = await buildSchedulePdf(
+        schoolName,
+        form.name.trim().toUpperCase(),
+        parseInt(form.term),
+        parseInt(form.year),
+        form.busRegistration.trim().toUpperCase(),
+        driver?.name ?? "",
+        driver?.phone ?? "",
+        preview,
+      );
+      setPdfBlob(blob);
+      setPdfBase64(base64);
+      const objUrl = URL.createObjectURL(blob);
+      setPdfObjectUrl(objUrl);
+      setStep(3);
+    } catch (err) {
+      console.error("PDF generation error:", err);
+    }
+    setGeneratingPdf(false);
+  };
+
+  // ── Firestore save (called from Step 3 confirm) ────────────────────────────
+
   const getScheduledDates = (start: Date, end: Date, days: string[]): Date[] => {
     const dayIndexMap: Record<string, number> = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
     const allowed = new Set(days.map(d => dayIndexMap[d]));
@@ -366,33 +498,14 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
     return dates;
   };
 
-  const doSave = async () => {
+  const doConfirm = async () => {
     if (!form.driverId || !form.startDate || !form.endDate) return;
-
-    // Date validation
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const startDate = new Date(form.startDate);
-    const endDate = new Date(form.endDate);
-    if (startDate < today) {
-      setDateError("Start date cannot be in the past.");
-      return;
-    }
-    if (endDate < startDate) {
-      setDateError("End date must be after start date.");
-      return;
-    }
-    setDateError("");
-
-    // Days validation
-    if (selectedDays.length === 0) {
-      setDaysError("Select at least one scheduled day.");
-      return;
-    }
-    setDaysError("");
-
     setSaving(true);
     try {
-      // Duplicate check — block if this school already has a route with same name + term + year
+      const startDate = new Date(form.startDate);
+      const endDate = new Date(form.endDate);
+
+      // Duplicate check
       const dupSnap = await getDocs(
         query(
           collection(db, "routes"),
@@ -409,7 +522,7 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
         return;
       }
 
-      // Bus rego uniqueness — globally unique across all schools
+      // Bus rego uniqueness
       if (form.busRegistration.trim()) {
         const regoSnap = await getDocs(
           query(
@@ -427,20 +540,16 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
 
       const batch = writeBatch(db);
       const scheduledDates = getScheduledDates(startDate, endDate, selectedDays);
-
       const studentIds: string[] = [];
       const studentRecordTemplate: { id: string; studentName: string; stopAddressAM: string; stopAddressPM: string; orderAM: number | null; orderPM: number | null; status: string; timestamp: null }[] = [];
-
-      // Create route ref first so we have the ID for student routeId
       const routeRef = doc(collection(db, "routes"));
 
       for (const row of preview) {
         const studentRef = doc(collection(db, "students"));
         const orderAM = parseInt(row.orderAM) || null;
         const orderPM = parseInt(row.orderPM) || null;
-
-        // Create parent doc in batch if parent name provided
         const authorisedParentIds: string[] = [];
+
         if (row.parentName.trim()) {
           const parentRef = doc(collection(db, "parents"));
           batch.set(parentRef, {
@@ -471,6 +580,7 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
         studentIds.push(studentRef.id);
         studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, orderAM, orderPM, status: "pending", timestamp: null });
       }
+
       batch.set(routeRef, {
         schoolId,
         name: form.name.trim().toUpperCase(), driverId: form.driverId,
@@ -495,11 +605,19 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
 
       await batch.commit();
 
-      // Fire welcome emails — non-blocking, don't let failures affect the save flow
+      // ── Download PDF locally ───────────────────────────────────────────────
+      if (pdfBlob) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(pdfBlob);
+        a.download = `BusMate_Schedule_${form.name.trim().toUpperCase().replace(/\s+/g, "_")}_Term${form.term}_${form.year}.pdf`;
+        a.click();
+      }
+
+      // ── Fire welcome emails (non-blocking) ────────────────────────────────
       const term = parseInt(form.term);
       const year = parseInt(form.year);
       const routeName = form.name.trim().toUpperCase();
-      const students = preview
+      const welcomeStudents = preview
         .filter(r => r.studentEmail)
         .map(r => ({
           studentName: r.name, studentEmail: r.studentEmail,
@@ -507,7 +625,7 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
           pickupTime: r.pickupTime, dropoffTime: r.dropoffTime,
           routeName, term, year,
         }));
-      const parents = preview
+      const welcomeParents = preview
         .filter(r => r.parentEmail && r.parentName)
         .map(r => ({
           parentName: r.parentName, parentEmail: r.parentEmail,
@@ -516,14 +634,41 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
           pickupTime: r.pickupTime, dropoffTime: r.dropoffTime,
           routeName, term, year, schoolName,
         }));
-      if (students.length > 0 || parents.length > 0) {
+      if (welcomeStudents.length > 0 || welcomeParents.length > 0) {
         fetch("/api/welcome/route", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ students, parents, routeName, term, year, schoolName }),
+          body: JSON.stringify({ students: welcomeStudents, parents: welcomeParents, routeName, term, year, schoolName }),
         }).catch(err => console.error("welcome/route fire error:", err));
       }
 
+      // ── Fire schedule notify emails with PDF attachment (non-blocking) ────
+      if (pdfBase64) {
+        const driver = drivers.find(d => d.id === form.driverId);
+        const notifyStudents = preview.map(r => ({
+          name: r.name, grade: r.grade,
+          studentPhone: r.studentPhone, studentEmail: r.studentEmail,
+          orderAM: r.orderAM, pickupTime: r.pickupTime, stopAM: r.stopAM,
+          orderPM: r.orderPM, dropoffTime: r.dropoffTime, stopPM: r.stopPM,
+          parentName: r.parentName, parentPhone: r.parentPhone,
+          parentEmail: r.parentEmail, relationship: r.relationship,
+        }));
+        fetch("/api/schedule/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            schoolName, routeName, term, year,
+            busRego: form.busRegistration.trim().toUpperCase(),
+            driverName: driver?.name ?? "",
+            driverPhone: driver?.phone ?? "",
+            driverEmail: driver?.email ?? "",
+            students: notifyStudents,
+            pdfBase64,
+          }),
+        }).catch(err => console.error("schedule/notify fire error:", err));
+      }
+
+      cleanupObjectUrl();
       const newRoute: Route = {
         id: routeRef.id, schoolId, name: form.name.trim().toUpperCase(), driverId: form.driverId,
         term: parseInt(form.term), year: parseInt(form.year),
@@ -534,182 +679,280 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
     setSaving(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); doSave(); };
+  // ── Step label helpers ─────────────────────────────────────────────────────
+  const stepLabel = step === 1 ? "Route Details" : step === 2 ? "Review Students" : "Preview & Confirm";
+  const stepSubtitle = step === 1
+    ? "Fill in route info and add students"
+    : step === 2
+    ? `${preview.length} student${preview.length !== 1 ? "s" : ""} ready — review before continuing`
+    : "Check the PDF and confirm to create the schedule";
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
       <Overlay>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden">
+
+          {/* ── Header ─────────────────────────────────────────────────────── */}
           <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <div>
-              <h3 className="text-base font-black text-gray-900">Add Schedule</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Create a new route and generate trips</p>
+              <div className="flex items-center gap-2 mb-0.5">
+                {[1, 2, 3].map(s => (
+                  <div key={s} className="flex items-center gap-1.5">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black transition-colors ${
+                      s < step ? "bg-green-500 text-white" :
+                      s === step ? "bg-blue-600 text-white" :
+                      "bg-gray-100 text-gray-400"
+                    }`}>
+                      {s < step ? "✓" : s}
+                    </div>
+                    {s < 3 && <div className={`w-6 h-px ${s < step ? "bg-green-400" : "bg-gray-200"}`} />}
+                  </div>
+                ))}
+              </div>
+              <h3 className="text-base font-black text-gray-900">{stepLabel}</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{stepSubtitle}</p>
             </div>
-            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+            <button onClick={handleClose} className="text-gray-400 hover:text-gray-600 ml-4">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-              <RouteFormFields form={form} onChange={onChange} drivers={drivers} selectedDays={selectedDays} onToggleDay={toggleDay} />
-              {dateError && <p className="text-xs text-red-500 -mt-2">{dateError}</p>}
-              {daysError && <p className="text-xs text-red-500 -mt-2">{daysError}</p>}
-              {/* Student List */}
-              <div className="border-t border-gray-100 pt-4 space-y-5">
-                <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Student List</p>
 
-                {/* ── Section 1: Manual Entry ── */}
-                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-black tracking-widest text-gray-500 uppercase">1 — Manual Entry</p>
-                  {/* Student details */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
-                      <label className={LABEL}>Student Name</label>
-                      <input className={FIELD} value={manualRow.name} onChange={setManual("name")} placeholder="e.g. Jane Smith" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Grade</label>
-                      <input className={FIELD} value={manualRow.grade} onChange={setManual("grade")} placeholder="e.g. Year 6" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Student Phone</label>
-                      <input className={FIELD} value={manualRow.studentPhone} onChange={setManual("studentPhone")} placeholder="e.g. 0412 345 678" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className={LABEL}>Stop Location AM</label>
-                      <input className={FIELD} value={manualRow.stopAM} onChange={setManual("stopAM")} placeholder="Morning pick-up address" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className={LABEL}>Stop Location PM</label>
-                      <input className={FIELD} value={manualRow.stopPM} onChange={setManual("stopPM")} placeholder="Afternoon drop-off address" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Order AM</label>
-                      <input className={FIELD} type="number" min="1" value={manualRow.orderAM} onChange={setManual("orderAM")} placeholder="1" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Order PM</label>
-                      <input className={FIELD} type="number" min="1" value={manualRow.orderPM} onChange={setManual("orderPM")} placeholder="1" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Scheduled AM</label>
-                      <input className={FIELD} value={manualRow.pickupTime} onChange={setManual("pickupTime")} placeholder="e.g. 08:15 AM" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Scheduled PM</label>
-                      <input className={FIELD} value={manualRow.dropoffTime} onChange={setManual("dropoffTime")} placeholder="e.g. 03:30 PM" />
-                    </div>
-                  </div>
-                  {/* Parent details */}
-                  <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase pt-1">Parent / Guardian</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
-                      <label className={LABEL}>Parent Name</label>
-                      <input className={FIELD} value={manualRow.parentName} onChange={setManual("parentName")} placeholder="e.g. John Smith" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Parent Phone</label>
-                      <input className={FIELD} value={manualRow.parentPhone} onChange={setManual("parentPhone")} placeholder="e.g. 0412 345 678" />
-                    </div>
-                    <div>
-                      <label className={LABEL}>Relationship</label>
-                      <select className={FIELD} value={manualRow.relationship} onChange={setManual("relationship")}>
-                        <option value="">— select —</option>
-                        {RELATIONSHIPS.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  {manualError && <p className="text-xs text-red-500">{manualError}</p>}
-                  <button type="button" onClick={addManualStudent}
-                    className="w-full py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 transition-colors">
-                    + Add Student
-                  </button>
-                </div>
+          {/* ── Step 1: Route form + students ──────────────────────────────── */}
+          {step === 1 && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+                <RouteFormFields form={form} onChange={onChange} drivers={drivers} selectedDays={selectedDays} onToggleDay={toggleDay} />
+                {dateError && <p className="text-xs text-red-500 -mt-2">{dateError}</p>}
+                {daysError && <p className="text-xs text-red-500 -mt-2">{daysError}</p>}
 
-                {/* ── Section 2: Upload .xlsx ── */}
-                <div className="space-y-3">
-                  <p className="text-xs font-black tracking-widest text-gray-500 uppercase">2 — Upload .xlsx</p>
-                  <div className="bg-blue-50 rounded-xl p-4">
-                    <p className="text-sm font-bold text-blue-700 mb-3">How many students on this route?</p>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="number" min="1" max="200"
-                        value={templateCount}
-                        onChange={e => setTemplateCount(e.target.value)}
-                        className="w-20 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                      />
-                      <button type="button" onClick={downloadTemplate}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                        Download Template
-                      </button>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    Columns: Student Name · Grade · Student Phone · Student Email · Order AM · Scheduled AM · Stop Location AM · Order PM · Scheduled PM · Stop Location PM · Parent 1 Name · Parent 1 Phone · Parent Email · Relationship
-                  </p>
-                  <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
-                  <button type="button" onClick={() => fileRef.current?.click()}
-                    className="w-full border-2 border-dashed border-gray-200 rounded-xl py-6 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors">
-                    Click to upload .xlsx file
-                  </button>
-                  {fileError && <p className="text-xs text-red-500">{fileError}</p>}
-                </div>
+                <div className="border-t border-gray-100 pt-4 space-y-5">
+                  <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Student List</p>
 
-                {/* ── Shared Preview Table ── */}
-                {preview.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 mb-2">{preview.length} student{preview.length !== 1 ? "s" : ""} added:</p>
-                    <div className="rounded-xl border border-gray-100 overflow-hidden">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50">
-                          <tr className="text-gray-400">
-                            <th className="px-3 py-2 text-left font-bold">Name</th>
-                            <th className="px-3 py-2 text-left font-bold">Grade</th>
-                            <th className="px-3 py-2 text-left font-bold">Stop AM</th>
-                            <th className="px-3 py-2 text-left font-bold">Stop PM</th>
-                            <th className="px-3 py-2 text-left font-bold">Pick-up</th>
-                            <th className="px-3 py-2 text-left font-bold">Drop-off</th>
-                            <th className="px-3 py-2"></th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-50">
-                          {preview.map((r, i) => (
-                            <tr key={i}>
-                              <td className="px-3 py-2 text-gray-700 font-medium">{r.name}</td>
-                              <td className="px-3 py-2 text-gray-500">{r.grade}</td>
-                              <td className="px-3 py-2 text-gray-500">{r.stopAM}</td>
-                              <td className="px-3 py-2 text-gray-500">{r.stopPM}</td>
-                              <td className="px-3 py-2 text-gray-500">{r.pickupTime}</td>
-                              <td className="px-3 py-2 text-gray-500">{r.dropoffTime}</td>
-                              <td className="px-3 py-2">
-                                <button type="button" onClick={() => setPreview(prev => prev.filter((_, j) => j !== i))}
-                                  className="text-red-400 hover:text-red-600 transition-colors">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                </button>
-                              </td>
+                  {/* Manual Entry */}
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                    <p className="text-xs font-black tracking-widest text-gray-500 uppercase">1 — Manual Entry</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className={LABEL}>Student Name</label>
+                        <input className={FIELD} value={manualRow.name} onChange={setManual("name")} placeholder="e.g. Jane Smith" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Grade</label>
+                        <input className={FIELD} value={manualRow.grade} onChange={setManual("grade")} placeholder="e.g. Year 6" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Student Phone</label>
+                        <input className={FIELD} value={manualRow.studentPhone} onChange={setManual("studentPhone")} placeholder="e.g. 0412 345 678" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className={LABEL}>Stop Location AM</label>
+                        <input className={FIELD} value={manualRow.stopAM} onChange={setManual("stopAM")} placeholder="Morning pick-up address" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className={LABEL}>Stop Location PM</label>
+                        <input className={FIELD} value={manualRow.stopPM} onChange={setManual("stopPM")} placeholder="Afternoon drop-off address" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Order AM</label>
+                        <input className={FIELD} type="number" min="1" value={manualRow.orderAM} onChange={setManual("orderAM")} placeholder="1" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Order PM</label>
+                        <input className={FIELD} type="number" min="1" value={manualRow.orderPM} onChange={setManual("orderPM")} placeholder="1" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Scheduled AM</label>
+                        <input className={FIELD} value={manualRow.pickupTime} onChange={setManual("pickupTime")} placeholder="e.g. 08:15 AM" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Scheduled PM</label>
+                        <input className={FIELD} value={manualRow.dropoffTime} onChange={setManual("dropoffTime")} placeholder="e.g. 03:30 PM" />
+                      </div>
+                    </div>
+                    <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase pt-1">Parent / Guardian</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="col-span-2">
+                        <label className={LABEL}>Parent Name</label>
+                        <input className={FIELD} value={manualRow.parentName} onChange={setManual("parentName")} placeholder="e.g. John Smith" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Parent Phone</label>
+                        <input className={FIELD} value={manualRow.parentPhone} onChange={setManual("parentPhone")} placeholder="e.g. 0412 345 678" />
+                      </div>
+                      <div>
+                        <label className={LABEL}>Relationship</label>
+                        <select className={FIELD} value={manualRow.relationship} onChange={setManual("relationship")}>
+                          <option value="">— select —</option>
+                          {RELATIONSHIPS.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    {manualError && <p className="text-xs text-red-500">{manualError}</p>}
+                    <button type="button" onClick={addManualStudent}
+                      className="w-full py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 transition-colors">
+                      + Add Student
+                    </button>
+                  </div>
+
+                  {/* Upload xlsx */}
+                  <div className="space-y-3">
+                    <p className="text-xs font-black tracking-widest text-gray-500 uppercase">2 — Upload .xlsx</p>
+                    <div className="bg-blue-50 rounded-xl p-4">
+                      <p className="text-sm font-bold text-blue-700 mb-3">How many students on this route?</p>
+                      <div className="flex items-center gap-3">
+                        <input type="number" min="1" max="200" value={templateCount}
+                          onChange={e => setTemplateCount(e.target.value)}
+                          className="w-20 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200" />
+                        <button type="button" onClick={downloadTemplate}
+                          className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                          Download Template
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Columns: Student Name · Grade · Student Phone · Student Email · Order AM · Scheduled AM · Stop Location AM · Order PM · Scheduled PM · Stop Location PM · Parent 1 Name · Parent 1 Phone · Parent Email · Relationship
+                    </p>
+                    <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
+                    <button type="button" onClick={() => fileRef.current?.click()}
+                      className="w-full border-2 border-dashed border-gray-200 rounded-xl py-6 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors">
+                      Click to upload .xlsx file
+                    </button>
+                    {fileError && <p className="text-xs text-red-500">{fileError}</p>}
+                  </div>
+
+                  {/* Preview list */}
+                  {preview.length > 0 && (
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 mb-2">{preview.length} student{preview.length !== 1 ? "s" : ""} added:</p>
+                      <div className="rounded-xl border border-gray-100 overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-50">
+                            <tr className="text-gray-400">
+                              <th className="px-3 py-2 text-left font-bold">Name</th>
+                              <th className="px-3 py-2 text-left font-bold">Grade</th>
+                              <th className="px-3 py-2 text-left font-bold">Stop AM</th>
+                              <th className="px-3 py-2 text-left font-bold">Stop PM</th>
+                              <th className="px-3 py-2 text-left font-bold">Pick-up</th>
+                              <th className="px-3 py-2 text-left font-bold">Drop-off</th>
+                              <th className="px-3 py-2"></th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {preview.map((r, i) => (
+                              <tr key={i}>
+                                <td className="px-3 py-2 text-gray-700 font-medium">{r.name}</td>
+                                <td className="px-3 py-2 text-gray-500">{r.grade}</td>
+                                <td className="px-3 py-2 text-gray-500">{r.stopAM}</td>
+                                <td className="px-3 py-2 text-gray-500">{r.stopPM}</td>
+                                <td className="px-3 py-2 text-gray-500">{r.pickupTime}</td>
+                                <td className="px-3 py-2 text-gray-500">{r.dropoffTime}</td>
+                                <td className="px-3 py-2">
+                                  <button type="button" onClick={() => setPreview(prev => prev.filter((_, j) => j !== i))}
+                                    className="text-red-400 hover:text-red-600 transition-colors">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
+                  )}
+                </div>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
+                <button type="button" onClick={handleClose} className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
+                <button type="button" onClick={goToStep2}
+                  disabled={preview.length === 0 || !form.name.trim() || !form.driverId || !form.startDate || !form.endDate}
+                  className="px-5 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  Continue — Review Students
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 2: Full read-only review table ────────────────────────── */}
+          {step === 2 && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-x-auto overflow-y-auto flex-1">
+                <table className="text-xs min-w-max w-full">
+                  <thead className="bg-blue-600 sticky top-0 z-10">
+                    <tr>
+                      {PDF_COLS.map(col => (
+                        <th key={col} className="px-3 py-3 text-left font-black text-white whitespace-nowrap tracking-wide">{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.map((r, i) => (
+                      <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <td className="px-3 py-2.5 text-gray-800 font-medium whitespace-nowrap">{r.name || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.grade || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.studentPhone || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.studentEmail || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.orderAM || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.pickupTime || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600">{r.stopAM || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.orderPM || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.dropoffTime || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600">{r.stopPM || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.parentName || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.parentPhone || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.parentEmail || "—"}</td>
+                        <td className="px-3 py-2.5 text-gray-600 whitespace-nowrap">{r.relationship || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-6 py-4 border-t border-gray-100 flex justify-between gap-3 flex-shrink-0">
+                <button type="button" onClick={() => setStep(1)} className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">
+                  ← Back
+                </button>
+                <button type="button" onClick={goToStep3} disabled={generatingPdf}
+                  className="px-5 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  {generatingPdf ? "Generating PDF…" : "Continue — Preview PDF"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Step 3: PDF preview + confirm ──────────────────────────────── */}
+          {step === 3 && (
+            <div className="flex flex-col flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden bg-gray-100 p-3">
+                {pdfObjectUrl ? (
+                  <iframe
+                    src={pdfObjectUrl}
+                    className="w-full h-full rounded-xl border border-gray-200 bg-white"
+                    title="Schedule PDF Preview"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                    PDF not available
                   </div>
                 )}
               </div>
+              <div className="px-6 py-4 border-t border-gray-100 flex justify-between gap-3 flex-shrink-0">
+                <button type="button" onClick={() => setStep(2)} disabled={saving} className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 disabled:opacity-50">
+                  ← Back
+                </button>
+                <button type="button" onClick={doConfirm} disabled={saving}
+                  className="px-6 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
+                  {saving ? "Creating schedule…" : "Confirm and Schedule"}
+                </button>
+              </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
-              <button type="button" onClick={handleClose} className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">Cancel</button>
-              <button type="submit" disabled={saving || preview.length === 0}
-                className="px-5 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                {saving ? "Creating..." : "Create Schedule & Generate Trips"}
-              </button>
-            </div>
-          </form>
+          )}
+
         </div>
       </Overlay>
       {showUnsaved && (
         <UnsavedModal
-          onSave={() => { setShowUnsaved(false); doSave(); }}
-          onDiscard={() => { setShowUnsaved(false); onClose(); }}
+          onSave={() => { setShowUnsaved(false); doConfirm(); }}
+          onDiscard={() => { setShowUnsaved(false); cleanupObjectUrl(); onClose(); }}
         />
       )}
     </>
