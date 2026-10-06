@@ -39,78 +39,10 @@ interface NotifyResult {
   students: { sent: number; skipped: number };
 }
 
-// ── PDF generation (server-side) ──────────────────────────────────────────────
-
-const PDF_COLS = [
-  "Student Name", "Grade", "Student Phone", "Student Email",
-  "Order AM", "Schedule AM", "Stop AM",
-  "Order PM", "Schedule PM", "Stop PM",
-  "Parent Name", "Parent Phone", "Parent Email", "Relationship",
-];
-
-async function buildPdfBase64(p: GenerateAndNotifyPayload): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfMake = require("pdfmake/build/pdfmake");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfFonts = require("pdfmake/build/vfs_fonts");
-  pdfMake.vfs = pdfFonts.vfs;
-
-  const tableBody = [
-    PDF_COLS.map(h => ({ text: h, style: "th" })),
-    ...p.students.map(r => [
-      r.name, r.grade, r.studentPhone, r.studentEmail,
-      r.orderAM, r.pickupTime, r.stopAM,
-      r.orderPM, r.dropoffTime, r.stopPM,
-      r.parentName, r.parentPhone, r.parentEmail, r.relationship,
-    ].map(v => ({ text: v || "—", style: "td" }))),
-  ];
-
-  const docDef = {
-    pageOrientation: "landscape",
-    pageMargins: [24, 24, 24, 24],
-    content: [
-      { text: `BusMate Schedule — ${p.schoolName}`, style: "title" },
-      {
-        columns: [
-          [
-            { text: `Route: ${p.routeName}`, style: "meta" },
-            { text: `Term ${p.term} · ${p.year}`, style: "meta" },
-            { text: `Bus Registration: ${p.busRego || "—"}`, style: "meta" },
-          ],
-          [
-            { text: `Driver: ${p.driverName}`, style: "meta" },
-            { text: `Driver Phone: ${p.driverPhone || "—"}`, style: "meta" },
-          ],
-        ],
-        margin: [0, 4, 0, 12],
-      },
-      {
-        table: { headerRows: 1, widths: Array(14).fill("*"), body: tableBody },
-        layout: {
-          hLineWidth: (i: number) => i === 0 || i === 1 ? 1.5 : 0.5,
-          vLineWidth: () => 0.5,
-          hLineColor: () => "#e5e7eb",
-          vLineColor: () => "#e5e7eb",
-          fillColor: (i: number) => i === 0 ? "#2563eb" : i % 2 === 0 ? "#f9fafb" : null,
-        },
-      },
-    ],
-    styles: {
-      title: { fontSize: 14, bold: true, color: "#111827", margin: [0, 0, 0, 6] },
-      meta: { fontSize: 9, color: "#6b7280", margin: [0, 1, 0, 1] },
-      th: { fontSize: 7, bold: true, color: "#ffffff", margin: [3, 4, 3, 4] },
-      td: { fontSize: 7, color: "#374151", margin: [3, 3, 3, 3] },
-    },
-  };
-
-  return new Promise((resolve, reject) => {
-    const pdf = pdfMake.createPdf(docDef);
-    pdf.getBase64((base64: string) => {
-      if (!base64) { reject(new Error("pdfmake returned empty base64")); return; }
-      resolve(base64);
-    });
-  });
-}
+// Note: PDF generation has been removed from this route.
+// Emails are sent as HTML-only to stay within Vercel's serverless function
+// timeout. Attaching a PDF to every email in a sequential loop causes the
+// function to exceed the 10-second limit for rosters with >3-4 students.
 
 // ── HTML email builders ───────────────────────────────────────────────────────
 
@@ -266,24 +198,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ skipped: true });
   }
 
-  // Generate PDF on the server
-  let pdfBase64: string;
-  try {
-    pdfBase64 = await buildPdfBase64(payload);
-  } catch (err) {
-    console.error("schedule/generate-and-notify PDF error:", err);
-    return NextResponse.json({ error: "PDF generation failed" }, { status: 500 });
-  }
-
   const resend = new Resend(resendKey);
-
-  const pdfFilename = `BusMate_Schedule_${payload.routeName.replace(/\s+/g, "_")}_Term${payload.term}_${payload.year}.pdf`;
-  const pdfAttachment = {
-    filename: pdfFilename,
-    content: pdfBase64,
-    type: "application/pdf",
-    disposition: "attachment" as const,
-  };
 
   const result: NotifyResult = {
     driver: { sent: false, skipped: true },
@@ -291,7 +206,7 @@ export async function POST(req: NextRequest) {
     students: { sent: 0, skipped: 0 },
   };
 
-  // ── Driver email (CC admin) ───────────────────────────────────────────────
+  // ── Driver email (CC admin) — sent first, awaited ─────────────────────────
   if (driverEmail) {
     try {
       const ccList: string[] = [];
@@ -302,7 +217,6 @@ export async function POST(req: NextRequest) {
         ...(ccList.length > 0 ? { cc: ccList } : {}),
         subject: `New schedule ready — ${payload.routeName} Term ${payload.term} ${payload.year}`,
         html: driverHtml(payload),
-        attachments: [pdfAttachment],
       });
       result.driver = { sent: true, skipped: false };
     } catch (err) {
@@ -311,47 +225,44 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Student emails ────────────────────────────────────────────────────────
-  for (const row of students) {
-    if (row.studentEmail) {
-      try {
-        await resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
-          to: [row.studentEmail],
-          subject: `Your schedule is ready — ${payload.schoolName} Term ${payload.term} ${payload.year} 🎉`,
-          html: studentHtml(payload, row),
-          attachments: [pdfAttachment],
-        });
-        result.students.sent++;
-      } catch (err) {
-        console.error("schedule/generate-and-notify student error:", err);
-        result.students.skipped++;
-      }
-    } else {
+  // ── Student + parent emails — sent in parallel ────────────────────────────
+  const studentJobs = students.map(row => {
+    if (!row.studentEmail) {
       result.students.skipped++;
+      return Promise.resolve();
     }
-  }
+    return resend.emails.send({
+      from: "BusMate <onboarding@resend.dev>",
+      to: [row.studentEmail],
+      subject: `Your schedule is ready — ${payload.schoolName} Term ${payload.term} ${payload.year} 🎉`,
+      html: studentHtml(payload, row),
+    }).then(() => {
+      result.students.sent++;
+    }).catch((err) => {
+      console.error("schedule/generate-and-notify student error:", err);
+      result.students.skipped++;
+    });
+  });
 
-  // ── Parent emails ─────────────────────────────────────────────────────────
-  for (const row of students) {
-    if (row.parentEmail && row.parentName) {
-      try {
-        await resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
-          to: [row.parentEmail],
-          subject: `${row.name}'s schedule is ready — ${payload.schoolName} Term ${payload.term} ${payload.year} 🎉`,
-          html: parentHtml(payload, row),
-          attachments: [pdfAttachment],
-        });
-        result.parents.sent++;
-      } catch (err) {
-        console.error("schedule/generate-and-notify parent error:", err);
-        result.parents.skipped++;
-      }
-    } else {
+  const parentJobs = students.map(row => {
+    if (!row.parentEmail || !row.parentName) {
       result.parents.skipped++;
+      return Promise.resolve();
     }
-  }
+    return resend.emails.send({
+      from: "BusMate <onboarding@resend.dev>",
+      to: [row.parentEmail],
+      subject: `${row.name}'s schedule is ready — ${payload.schoolName} Term ${payload.term} ${payload.year} 🎉`,
+      html: parentHtml(payload, row),
+    }).then(() => {
+      result.parents.sent++;
+    }).catch((err) => {
+      console.error("schedule/generate-and-notify parent error:", err);
+      result.parents.skipped++;
+    });
+  });
+
+  await Promise.allSettled([...studentJobs, ...parentJobs]);
 
   return NextResponse.json(result);
 }
