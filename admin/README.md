@@ -5,6 +5,7 @@
 **Deployed on:** Vercel — https://busmate-admin.vercel.app
 **Language:** TypeScript, React 19
 **Framework:** Next.js 15 (App Router)
+**WAC ER-Diagram:** https://lucid.app/lucidchart/2becc109-11cc-47b0-8df8-ba6618b4066e/edit?viewport_loc=2207%2C-273%2C2126%2C1499%2C0_0&invitationId=inv_fd83c033-c6de-4587-8a2c-38abec313bbc
 
 ---
 
@@ -24,20 +25,18 @@ admin/
 │   ├── signup/                 New admin registration
 │   ├── check-email/            Email verification prompt
 │   ├── drivers/                Driver management pages
-│   │   ├── page.tsx            List all drivers
-│   │   ├── add/                Add a new driver
-│   │   ├── modify/             Edit a driver
-│   │   └── remove/             Remove a driver
+│   │   ├── page.tsx            List all drivers. Add/edit/remove via inline modals.
+│   │   ├── add/                (legacy — superseded by inline modal)
+│   │   ├── modify/             (legacy — superseded by inline modal)
+│   │   └── remove/             (legacy — superseded by inline modal)
 │   ├── students/               Student management pages
-│   │   ├── page.tsx            List all students
-│   │   ├── add/                Add a new student
-│   │   ├── modify/             Edit a student
-│   │   └── remove/             Remove a student
+│   │   ├── page.tsx            List all students. Add/edit/remove via inline modals.
+│   │   ├── add/                (legacy — superseded by inline modal) TODO: delete
+│   │   ├── modify/             (legacy — superseded by inline modal) TODO: delete
+│   │   └── remove/             (legacy — superseded by inline modal) TODO: delete
 │   ├── schedule/               Route and schedule management
-│   │   ├── page.tsx            View all routes and trips
-│   │   ├── add/                Create a new route (with .xlsx upload)
-│   │   ├── modify/             Edit a route
-│   │   └── remove/             Remove a route
+│   │   ├── page.tsx            View all routes. Add/edit/remove/substitute via inline modals. .xlsx upload.
+│   │   └── SubstituteDriverModal.tsx  Substitute driver modal component
 │   ├── logs/                   Activity log viewers
 │   │   ├── admin/              Logs for admin actions
 │   │   ├── driver/             Logs for driver actions
@@ -98,14 +97,11 @@ admin/
 | `/drivers/add`     | `app/drivers/add/page.tsx`  | Form to add a new driver.                           |
 | `/drivers/modify`  | `app/drivers/modify/page.tsx` | Form to edit a driver's details.                  |
 | `/drivers/remove`  | `app/drivers/remove/page.tsx` | Confirm and remove a driver.                      |
-| `/students`        | `app/students/page.tsx`     | List all students.                                  |
-| `/students/add`    | `app/students/add/page.tsx` | Form to add a new student.                          |
-| `/students/modify` | `app/students/modify/page.tsx` | Form to edit a student's details.                |
-| `/students/remove` | `app/students/remove/page.tsx` | Confirm and remove a student.                    |
-| `/schedule`        | `app/schedule/page.tsx`     | View and create routes. Upload student .xlsx. Substitute drivers for a date range. |
-| `/schedule/add`    | `app/schedule/add/page.tsx` | Dedicated full-page route creation form.            |
-| `/schedule/modify` | `app/schedule/modify/page.tsx` | Edit a route.                                    |
-| `/schedule/remove` | `app/schedule/remove/page.tsx` | Remove a route and its trips.                    |
+| `/students`        | `app/students/page.tsx`     | List all students. Add/edit/remove/reactivate via inline modals. |
+| `/students/add`    | `app/students/add/page.tsx` | **TODO: delete** — legacy standalone page, superseded by inline modal. |
+| `/students/modify` | `app/students/modify/page.tsx` | **TODO: delete** — legacy standalone page, superseded by inline modal. |
+| `/students/remove` | `app/students/remove/page.tsx` | **TODO: delete** — legacy standalone page, superseded by inline modal. |
+| `/schedule`        | `app/schedule/page.tsx`     | View all routes. Add/edit/remove/substitute via inline modals. Upload student .xlsx. |
 | `/logs/admin`      | `app/logs/admin/page.tsx`   | View admin activity log.                            |
 | `/logs/driver`     | `app/logs/driver/page.tsx`  | View driver activity log.                           |
 | `/logs/student`    | `app/logs/student/page.tsx` | View student activity log.                          |
@@ -224,6 +220,9 @@ These match the Firestore document structure exactly.
 Key fields on `Student`: `stopAddressAM`, `stopAddressPM` (separate morning and afternoon stops), `orderAM`, `orderPM` (stop sequence numbers for the driver app).
 `StudentTripRecord` (embedded in each `Trip.studentRecords` array) mirrors `stopAddressAM`, `stopAddressPM`, `orderAM`, and `orderPM` as a snapshot at trip creation time.
 
+`Driver` includes `busRegistration` (the bus rego assigned to the driver).
+`Route` includes `busRegistration?` (optional — the bus rego assigned to this route).
+
 ### `app/schedule/page.tsx`
 The main schedule management page.
 Lists all existing routes.
@@ -232,7 +231,7 @@ Handles creation of a new route via a slide-out form.
 **Key functions in this file:**
 
 `handleFile(e)` — Parses an uploaded .xlsx file.
-Reads 12 columns: Student Name, Grade, Student Phone, Order AM, Scheduled AM, Stop Location AM, Order PM, Scheduled PM, Stop Location PM, Parent 1 Name, Parent 1 Phone, Relationship.
+Reads 14 columns: Student Name, Grade, Student Phone, Student Email, Order AM, Scheduled AM, Stop Location AM, Order PM, Scheduled PM, Stop Location PM, Parent 1 Name, Parent 1 Phone, Parent Email, Relationship.
 Stores the parsed rows in the `preview` state.
 
 `handleSubmit(e)` — Saves a new route to Firestore.
@@ -276,18 +275,22 @@ The schedule creation form accepts a `.xlsx` file with exactly these columns in 
 | A (0)  | Student Name      | `student.name`                       |
 | B (1)  | Grade             | `student.grade`                      |
 | C (2)  | Student Phone     | `student.phone`                      |
-| D (3)  | Order AM          | `student.orderAM`                    |
-| E (4)  | Scheduled AM      | `student.scheduledPickupTime`        |
-| F (5)  | Stop Location AM  | `student.stopAddressAM`              |
-| G (6)  | Order PM          | `student.orderPM`                    |
-| H (7)  | Scheduled PM      | `student.scheduledDropoffTime`       |
-| I (8)  | Stop Location PM  | `student.stopAddressPM`              |
-| J (9)  | Parent 1 Name     | `student.parents[0].name`            |
-| K (10) | Parent 1 Phone    | `student.parents[0].phone`           |
-| L (11) | Relationship      | `student.parents[0].relationship`    |
+| D (3)  | Student Email     | `student.email`                      |
+| E (4)  | Order AM          | `student.orderAM`                    |
+| F (5)  | Scheduled AM      | `student.scheduledPickupTime`        |
+| G (6)  | Stop Location AM  | `student.stopAddressAM`              |
+| H (7)  | Order PM          | `student.orderPM`                    |
+| I (8)  | Scheduled PM      | `student.scheduledDropoffTime`       |
+| J (9)  | Stop Location PM  | `student.stopAddressPM`              |
+| K (10) | Parent 1 Name     | `parent.name`                        |
+| L (11) | Parent 1 Phone    | `parent.phone`                       |
+| M (12) | Parent Email      | `parent.email`                       |
+| N (13) | Relationship      | `parent.relationship`                |
 
 Row 1 must be the header row. Data starts from row 2.
 Use the "Download Template" button in the schedule form to get a pre-formatted file.
+Each parent row creates a separate document in the `/parents` collection (not embedded in the student doc).
+Phone numbers are normalised to E.164 format (`+61...`) on upload.
 
 ---
 
@@ -416,7 +419,7 @@ handleSubmit() runs a Firestore batch write:
 
 ### SheetJS (XLSX)
 - **Purpose:** Parse uploaded .xlsx files. Generate downloadable .xlsx templates.
-- **Used in:** `app/schedule/page.tsx`, `app/schedule/add/page.tsx`
+- **Used in:** `app/schedule/page.tsx`
 
 ---
 

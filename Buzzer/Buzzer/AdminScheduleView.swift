@@ -23,6 +23,16 @@ struct RouteListItem: Identifiable {
     let startDate: Date?
     let endDate: Date?
     let driverId: String
+    let busRegistration: String?
+}
+
+// MARK: - Sort option
+
+private enum ScheduleSortOption: String, CaseIterable {
+    case dateNewest = "Newest First"
+    case dateOldest = "Oldest First"
+    case nameAZ     = "Name (A–Z)"
+    case nameZA     = "Name (Z–A)"
 }
 
 // MARK: - Main list
@@ -32,8 +42,27 @@ struct AdminScheduleView: View {
     @State private var routes: [RouteListItem] = []
     @State private var isLoading = true
     @State private var showCreateSheet = false
+    @State private var searchText = ""
+    @State private var sortOption: ScheduleSortOption = .dateNewest
+    @State private var filterTerm: Int = 0    // 0 = all terms
 
     private let db = Firestore.db
+
+    private var filtered: [RouteListItem] {
+        var base = routes
+        if !searchText.isEmpty {
+            base = base.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        if filterTerm != 0 {
+            base = base.filter { $0.term == filterTerm }
+        }
+        switch sortOption {
+        case .dateNewest: return base.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
+        case .dateOldest: return base.sorted { ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast) }
+        case .nameAZ:     return base.sorted { $0.name < $1.name }
+        case .nameZA:     return base.sorted { $0.name > $1.name }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -43,8 +72,10 @@ struct AdminScheduleView: View {
                 } else if routes.isEmpty {
                     ContentUnavailableView("No Routes", systemImage: "calendar",
                                           description: Text("Create a route to get started."))
+                } else if filtered.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
                 } else {
-                    List(routes) { route in
+                    List(filtered) { route in
                         NavigationLink(destination: AdminRouteDetailView(route: route)) {
                             RouteListRow(route: route)
                         }
@@ -54,7 +85,29 @@ struct AdminScheduleView: View {
                 }
             }
             .navigationTitle("Schedule")
+            .searchable(text: $searchText, prompt: "Search routes")
             .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Section("Sort") {
+                            Picker("Sort", selection: $sortOption) {
+                                ForEach(ScheduleSortOption.allCases, id: \.self) {
+                                    Text($0.rawValue).tag($0)
+                                }
+                            }
+                        }
+                        Section("Filter by Term") {
+                            Button("All Terms") { filterTerm = 0 }
+                            ForEach(1...4, id: \.self) { t in
+                                Button("Term \(t)") { filterTerm = t }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: filterTerm == 0
+                              ? "line.3.horizontal.decrease.circle"
+                              : "line.3.horizontal.decrease.circle.fill")
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showCreateSheet = true } label: { Image(systemName: "plus") }
                 }
@@ -81,10 +134,12 @@ struct AdminScheduleView: View {
                     let studentIds = d["studentIds"] as? [String] ?? []
                     let startDate  = (d["startDate"] as? Timestamp)?.dateValue()
                     let endDate    = (d["endDate"] as? Timestamp)?.dateValue()
-                    let driverId   = d["driverId"] as? String ?? ""
+                    let driverId        = d["driverId"] as? String ?? ""
+                    let busRegistration = d["busRegistration"] as? String
                     return RouteListItem(id: doc.documentID, name: name, term: term, year: year,
                                         studentCount: studentIds.count, startDate: startDate,
-                                        endDate: endDate, driverId: driverId)
+                                        endDate: endDate, driverId: driverId,
+                                        busRegistration: busRegistration)
                 }
                 await MainActor.run {
                     routes = loaded.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
@@ -124,8 +179,10 @@ struct AdminRouteDetailView: View {
     @State private var trips: [Trip] = []
     @State private var isLoading = true
 
+    // Substitute driver
+    @State private var showSubstituteSheet = false
+
     // Report generation
-    @State private var showReportPicker = false
     @State private var reportWeekStart: Date = Calendar.current.startOfWeek(for: Date())
 
     private let db = Firestore.db
@@ -133,6 +190,11 @@ struct AdminRouteDetailView: View {
     private var pastTrips: [Trip]   { trips.filter { $0.status == .completed } }
     private var todayTrips: [Trip]  { trips.filter { Calendar.current.isDateInToday($0.date) && $0.status != .completed } }
     private var futureTrips: [Trip] { trips.filter { $0.date > Date() && !Calendar.current.isDateInToday($0.date) } }
+
+    /// IDs of upcoming trips that currently have a substitute assigned.
+    private var substitutedTripIds: Set<String> {
+        Set(futureTrips.compactMap { $0.substituteDriverId != nil ? $0.id : nil })
+    }
 
     var body: some View {
         ScrollView {
@@ -147,6 +209,24 @@ struct AdminRouteDetailView: View {
                 if isLoading {
                     HStack { Spacer(); ProgressView(); Spacer() }.padding(.top, 20)
                 } else {
+                    // MARK: Substitute driver banner (if any upcoming trips have a sub)
+                    if !substitutedTripIds.isEmpty {
+                        substituteActiveBanner
+                    }
+
+                    // MARK: Assign substitute button
+                    Button {
+                        showSubstituteSheet = true
+                    } label: {
+                        Label("Assign Substitute Driver", systemImage: "arrow.left.arrow.right.circle.fill")
+                            .font(.subheadline.bold())
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.purple.opacity(0.12))
+                            .foregroundStyle(.purple)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+
                     // MARK: Students
                     if !students.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
@@ -175,9 +255,30 @@ struct AdminRouteDetailView: View {
             .padding()
         }
         .navigationTitle(route.name)
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }
+        .sheet(isPresented: $showSubstituteSheet) {
+            AssignSubstituteSheet(route: route, originalDriver: driver) {
+                Task { await load() }
+            }
+        }
+    }
+
+    // MARK: - Substitute active banner
+
+    private var substituteActiveBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text("\(substitutedTripIds.count) upcoming trip(s) have a substitute driver assigned.")
+                .font(.caption.bold())
+                .foregroundStyle(.orange)
+            Spacer()
+        }
+        .padding(12)
+        .background(Color.orange.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Route meta
@@ -189,6 +290,10 @@ struct AdminRouteDetailView: View {
                     .font(.headline)
                 if let start = route.startDate, let end = route.endDate {
                     Text(routeDateRange(start: start, end: end))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if let rego = route.busRegistration, !rego.isEmpty {
+                    Label(rego, systemImage: "bus")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -373,6 +478,209 @@ private struct StudentSummaryCard: View {
     }
 }
 
+// MARK: - Assign Substitute Sheet
+
+struct AssignSubstituteSheet: View {
+    let route: RouteListItem
+    let originalDriver: Driver?
+    let onDone: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var availableDrivers: [Driver] = []
+    @State private var selectedDriverId: String = ""
+    @State private var fromDate: Date = Date()
+    @State private var toDate: Date = Date()
+    @State private var isSaving = false
+    @State private var isClearing = false
+    @State private var errorMessage = ""
+    @State private var successMessage = ""
+
+    private let db = Firestore.db
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                // Context
+                Section {
+                    HStack(spacing: 12) {
+                        Image(systemName: "bus.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.purple)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(route.name)
+                                .font(.headline)
+                            if let orig = originalDriver {
+                                Text("Currently: \(orig.name)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                // Date range
+                Section {
+                    DatePicker("From", selection: $fromDate, in: Date()..., displayedComponents: .date)
+                    DatePicker("To",   selection: $toDate,   in: fromDate..., displayedComponents: .date)
+                } header: {
+                    Text("Substitution Period")
+                } footer: {
+                    Text("Only scheduled (not yet started) trips in this range will be updated.")
+                }
+
+                // Driver selection
+                Section("Substitute Driver") {
+                    if availableDrivers.isEmpty {
+                        Text("No other active drivers available.")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                    } else {
+                        Picker("Select Driver", selection: $selectedDriverId) {
+                            Text("— select —").tag("")
+                            ForEach(availableDrivers) { d in
+                                HStack {
+                                    Text(d.name)
+                                    Spacer()
+                                    Text(d.phone)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .tag(d.id ?? "")
+                            }
+                        }
+                        .pickerStyle(.inline)
+                        .labelsHidden()
+                    }
+                }
+
+                // Assign button
+                Section {
+                    Button {
+                        Task { await assign() }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if isSaving {
+                                ProgressView()
+                            } else {
+                                Text("Assign Substitute")
+                                    .fontWeight(.semibold)
+                            }
+                            Spacer()
+                        }
+                    }
+                    .disabled(selectedDriverId.isEmpty || isSaving || isClearing)
+                }
+
+                // Clear button
+                Section {
+                    Button(role: .destructive) {
+                        Task { await clearSubstitute() }
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if isClearing {
+                                ProgressView()
+                            } else {
+                                Text("Clear Substitute for This Period")
+                            }
+                            Spacer()
+                        }
+                    }
+                    .disabled(isSaving || isClearing)
+                } footer: {
+                    Text("Removes any substitute assignment from trips in the selected date range, restoring the original driver.")
+                }
+
+                if !errorMessage.isEmpty {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.caption)
+                    }
+                }
+
+                if !successMessage.isEmpty {
+                    Section {
+                        Text(successMessage)
+                            .foregroundStyle(.green)
+                            .font(.caption)
+                    }
+                }
+            }
+            .navigationTitle("Substitute Driver")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Done") { dismiss(); onDone() }
+                }
+            }
+            .task { await loadDrivers() }
+        }
+    }
+
+    private func loadDrivers() async {
+        let snap = try? await db.collection("drivers")
+            .whereField("isActive", isEqualTo: true)
+            .getDocuments()
+        let all = (snap?.documents ?? []).compactMap { try? $0.data(as: Driver.self) }
+        // Exclude the original driver from the substitute list
+        let origId = originalDriver?.id ?? route.driverId
+        await MainActor.run {
+            availableDrivers = all.filter { $0.id != origId }.sorted { $0.name < $1.name }
+        }
+    }
+
+    private func assign() async {
+        guard !selectedDriverId.isEmpty else { return }
+        isSaving = true
+        errorMessage = ""
+        successMessage = ""
+        do {
+            try await FirestoreService.shared.assignSubstituteDriver(
+                routeId: route.id,
+                substituteDriverId: selectedDriverId,
+                from: fromDate,
+                to: toDate
+            )
+            let subName = availableDrivers.first { $0.id == selectedDriverId }?.name ?? "Selected driver"
+            await MainActor.run {
+                successMessage = "\(subName) assigned as substitute for the selected period."
+                isSaving = false
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Failed to assign substitute: \(error.localizedDescription)"
+                isSaving = false
+            }
+        }
+    }
+
+    private func clearSubstitute() async {
+        isClearing = true
+        errorMessage = ""
+        successMessage = ""
+        do {
+            try await FirestoreService.shared.assignSubstituteDriver(
+                routeId: route.id,
+                substituteDriverId: nil,
+                from: fromDate,
+                to: toDate
+            )
+            await MainActor.run {
+                successMessage = "Substitute cleared. Original driver restored."
+                isClearing = false
+            }
+        } catch {
+            await MainActor.run {
+                errorMessage = "Failed to clear substitute: \(error.localizedDescription)"
+                isClearing = false
+            }
+        }
+    }
+}
+
 // MARK: - Calendar extension
 
 extension Calendar {
@@ -442,7 +750,7 @@ struct CreateRouteSheet: View {
                     ForEach(students) { s in
                         VStack(alignment: .leading, spacing: 2) {
                             Text(s.name).font(.subheadline).fontWeight(.semibold)
-                            Text("Grade \(s.grade) · AM: \(s.stopAddressAM)").font(.caption).foregroundStyle(.secondary)
+                            Text("Grade \(s.grade) · Stop Location AM: \(s.stopLocationAM)").font(.caption).foregroundStyle(.secondary)
                             Text("AM \(s.pickupTime) · PM \(s.dropoffTime)").font(.caption).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 2)
@@ -508,31 +816,75 @@ struct CreateRouteSheet: View {
         errorMessage = ""
         Task {
             do {
+                // Check for a duplicate route with the same name and term
+                let trimmedName = routeName.trimmingCharacters(in: .whitespaces)
+                let dupSnap = try await db.collection("routes")
+                    .whereField("name", isEqualTo: trimmedName)
+                    .whereField("term", isEqualTo: term)
+                    .whereField("year", isEqualTo: year)
+                    .whereField("isActive", isEqualTo: true)
+                    .getDocuments()
+                if !dupSnap.documents.isEmpty {
+                    await MainActor.run {
+                        isSaving = false
+                        errorMessage = "A route named \"\(trimmedName)\" already exists for Term \(term) \(year)."
+                    }
+                    return
+                }
+
                 let batch = db.batch()
+                let routeRef = db.collection("routes").document()
                 var studentIds: [String] = []
                 var studentRecords: [[String: Any]] = []
 
                 for s in students {
                     let ref = db.collection("students").document()
+                    let orderAM = Int(s.orderAM) as Any
+                    let orderPM = Int(s.orderPM) as Any
+
+                    // Create parent doc if parent info provided
+                    var authorisedParentIds: [String] = []
+                    if !s.parentName.trimmingCharacters(in: .whitespaces).isEmpty {
+                        let parentRef = db.collection("parents").document()
+                        batch.setData([
+                            "name": s.parentName.trimmingCharacters(in: .whitespaces),
+                            "relationship": s.relationship.trimmingCharacters(in: .whitespaces),
+                            "phone": s.parentPhone.trimmingCharacters(in: .whitespaces),
+                            "email": s.parentEmail.trimmingCharacters(in: .whitespaces),
+                            "fcmToken": NSNull(),
+                            "childIds": [ref.documentID],
+                            "isActive": true,
+                            "profileCompleted": false,
+                            "createdAt": Timestamp(date: Date()),
+                        ], forDocument: parentRef)
+                        authorisedParentIds.append(parentRef.documentID)
+                    }
+
                     batch.setData([
                         "name": s.name,
                         "grade": s.grade,
-                        "stopAddressAM": s.stopAddressAM,
-                        "stopAddressPM": s.stopAddressPM,
-                        "routeId": "",
+                        "phone": s.studentPhone.trimmingCharacters(in: .whitespaces),
+                        "email": s.studentEmail.trimmingCharacters(in: .whitespaces),
+                        "stopAddressAM": s.stopLocationAM,
+                        "stopAddressPM": s.stopLocationPM,
+                        "orderAM": orderAM,
+                        "orderPM": orderPM,
+                        "routeId": routeRef.documentID,
                         "scheduledPickupTime": s.pickupTime,
                         "scheduledDropoffTime": s.dropoffTime,
-                        "authorisedParentIds": [String](),
+                        "authorisedParentIds": authorisedParentIds,
                         "isActive": true,
                         "createdAt": Timestamp(date: Date()),
                     ], forDocument: ref)
                     studentIds.append(ref.documentID)
-                    studentRecords.append(["id": ref.documentID, "studentName": s.name,
-                                           "stopAddressAM": s.stopAddressAM, "stopAddressPM": s.stopAddressPM,
-                                           "status": "pending", "timestamp": NSNull()])
+                    studentRecords.append([
+                        "id": ref.documentID, "studentName": s.name,
+                        "stopAddressAM": s.stopLocationAM, "stopAddressPM": s.stopLocationPM,
+                        "orderAM": orderAM, "orderPM": orderPM,
+                        "status": "pending", "timestamp": NSNull()
+                    ])
                 }
 
-                let routeRef = db.collection("routes").document()
                 batch.setData([
                     "name": routeName.trimmingCharacters(in: .whitespaces),
                     "driverId": selectedDriverId,
@@ -578,12 +930,18 @@ struct StudentEntry: Identifiable {
     let id = UUID()
     var name: String
     var grade: String
+    var studentPhone: String
+    var studentEmail: String
+    var orderAM: String
     var pickupTime: String
+    var stopLocationAM: String
+    var orderPM: String
     var dropoffTime: String
-    var stopAddressAM: String
-    var stopAddressPM: String
-    var parentPhone: String
+    var stopLocationPM: String
     var parentName: String
+    var parentPhone: String
+    var parentEmail: String
+    var relationship: String
 }
 
 // MARK: - Add Student Entry Sheet
@@ -594,12 +952,18 @@ struct AddStudentEntrySheet: View {
 
     @State private var name = ""
     @State private var grade = ""
+    @State private var studentPhone = ""
+    @State private var studentEmail = ""
+    @State private var orderAM = ""
     @State private var pickupTime = ""
+    @State private var stopLocationAM = ""
+    @State private var orderPM = ""
     @State private var dropoffTime = ""
-    @State private var stopAddressAM = ""
-    @State private var stopAddressPM = ""
-    @State private var parentPhone = ""
+    @State private var stopLocationPM = ""
     @State private var parentName = ""
+    @State private var parentPhone = ""
+    @State private var parentEmail = ""
+    @State private var relationship = ""
 
     var body: some View {
         NavigationStack {
@@ -607,17 +971,32 @@ struct AddStudentEntrySheet: View {
                 Section("Student") {
                     TextField("Full Name", text: $name)
                     TextField("Grade", text: $grade)
-                }
-                Section("Schedule") {
-                    TextField("Scheduled AM (e.g. 08:00 AM)", text: $pickupTime)
-                    TextField("Scheduled PM (e.g. 03:30 PM)", text: $dropoffTime)
-                    TextField("Stop Location AM (Morning Pick-up)", text: $stopAddressAM)
-                    TextField("Stop Location PM (Afternoon Drop-off)", text: $stopAddressPM)
-                }
-                Section("Parent") {
-                    TextField("Parent Name", text: $parentName)
-                    TextField("Parent Contact", text: $parentPhone)
+                    TextField("Phone (e.g. 0412 345 678)", text: $studentPhone)
                         .keyboardType(.phonePad)
+                    TextField("Email (optional)", text: $studentEmail)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                }
+                Section("Morning Pick-up") {
+                    TextField("Order AM (stop sequence)", text: $orderAM)
+                        .keyboardType(.numberPad)
+                    TextField("Scheduled AM (e.g. 08:00 AM)", text: $pickupTime)
+                    TextField("Stop Location AM", text: $stopLocationAM)
+                }
+                Section("Afternoon Drop-off") {
+                    TextField("Order PM (stop sequence)", text: $orderPM)
+                        .keyboardType(.numberPad)
+                    TextField("Scheduled PM (e.g. 03:30 PM)", text: $dropoffTime)
+                    TextField("Stop Location PM", text: $stopLocationPM)
+                }
+                Section("Parent / Guardian") {
+                    TextField("Parent Name", text: $parentName)
+                    TextField("Parent Phone (e.g. 0412 345 678)", text: $parentPhone)
+                        .keyboardType(.phonePad)
+                    TextField("Parent Email (optional)", text: $parentEmail)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                    TextField("Relationship (e.g. Mother, Father, Guardian)", text: $relationship)
                 }
             }
             .navigationTitle("Add Student")
@@ -626,14 +1005,18 @@ struct AddStudentEntrySheet: View {
                 ToolbarItem(placement: .navigationBarLeading) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Add") {
-                        onAdd(StudentEntry(name: name, grade: grade, pickupTime: pickupTime,
-                                          dropoffTime: dropoffTime, stopAddressAM: stopAddressAM,
-                                          stopAddressPM: stopAddressPM, parentPhone: parentPhone,
-                                          parentName: parentName))
+                        onAdd(StudentEntry(
+                            name: name, grade: grade,
+                            studentPhone: studentPhone, studentEmail: studentEmail,
+                            orderAM: orderAM, pickupTime: pickupTime, stopLocationAM: stopLocationAM,
+                            orderPM: orderPM, dropoffTime: dropoffTime, stopLocationPM: stopLocationPM,
+                            parentName: parentName, parentPhone: parentPhone,
+                            parentEmail: parentEmail, relationship: relationship
+                        ))
                         dismiss()
                     }
                     .fontWeight(.bold)
-                    .disabled(name.isEmpty || stopAddressAM.isEmpty)
+                    .disabled(name.isEmpty || stopLocationAM.isEmpty)
                 }
             }
         }

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { collection, getDocs, doc, updateDoc, writeBatch, query, orderBy, Timestamp } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, writeBatch, query, where, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Route, Driver } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
@@ -58,11 +58,11 @@ const DIFF_FIELDS: { key: keyof RouteForm; label: string }[] = [
 
 interface XlsxRow {
   name: string; grade: string;
-  orderAM: string; pickupTime: string;
-  orderPM: string; dropoffTime: string;
-  stopAM: string; stopPM: string;
-  parentPhone: string; parentName: string;
-  studentPhone: string; relationship: string;
+  studentPhone: string; studentEmail: string;
+  orderAM: string; pickupTime: string; stopAM: string;
+  orderPM: string; dropoffTime: string; stopPM: string;
+  parentName: string; parentPhone: string;
+  parentEmail: string; relationship: string;
 }
 
 // ── Overlay ──────────────────────────────────────────────────────────────────
@@ -273,15 +273,15 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
   const downloadTemplate = async () => {
     const count = Math.max(1, Math.min(200, parseInt(templateCount) || 10));
     const XLSX = await import("xlsx");
-    // A: Student Name | B: Grade | C: Student Phone | D: Order AM | E: Scheduled AM | F: Stop Location AM
-    // G: Order PM | H: Scheduled PM | I: Stop Location PM | J: Parent 1 Name | K: Parent 1 Phone | L: Relationship
-    const headers = ["Student Name", "Grade", "Student Phone", "Order AM", "Scheduled AM", "Stop Location AM", "Order PM", "Scheduled PM", "Stop Location PM", "Parent 1 Name", "Parent 1 Phone", "Relationship"];
+    // A: Student Name | B: Grade | C: Student Phone | D: Student Email | E: Order AM | F: Scheduled AM | G: Stop Location AM
+    // H: Order PM | I: Scheduled PM | J: Stop Location PM | K: Parent 1 Name | L: Parent 1 Phone | M: Parent Email | N: Relationship
+    const headers = ["Student Name", "Grade", "Student Phone", "Student Email", "Order AM", "Scheduled AM", "Stop Location AM", "Order PM", "Scheduled PM", "Stop Location PM", "Parent 1 Name", "Parent 1 Phone", "Parent Email", "Relationship"];
     const rows: string[][] = [headers];
     for (let i = 1; i <= count; i++) {
-      rows.push([`Student ${i}`, "", "", "", "", "", "", "", "", "", "", ""]);
+      rows.push(Array(14).fill("").map((_, j) => j === 0 ? `Student ${i}` : "") as string[]);
     }
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = [{ wch: 20 }, { wch: 8 }, { wch: 16 }, { wch: 10 }, { wch: 14 }, { wch: 30 }, { wch: 10 }, { wch: 14 }, { wch: 30 }, { wch: 20 }, { wch: 16 }, { wch: 14 }];
+    ws["!cols"] = [{ wch: 20 }, { wch: 8 }, { wch: 16 }, { wch: 24 }, { wch: 10 }, { wch: 14 }, { wch: 30 }, { wch: 10 }, { wch: 14 }, { wch: 30 }, { wch: 20 }, { wch: 16 }, { wch: 24 }, { wch: 14 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Students");
     XLSX.writeFile(wb, "student_template.xlsx");
@@ -302,18 +302,20 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
       const wb = XLSX.read(data, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 }) as string[][];
-      // A: Student Name | B: Grade | C: Student Phone | D: Order AM | E: Scheduled AM | F: Stop Location AM
-      // G: Order PM | H: Scheduled PM | I: Stop Location PM | J: Parent 1 Name | K: Parent 1 Phone | L: Relationship
+      // A: Student Name | B: Grade | C: Student Phone | D: Student Email | E: Order AM | F: Scheduled AM | G: Stop Location AM
+      // H: Order PM | I: Scheduled PM | J: Stop Location PM | K: Parent 1 Name | L: Parent 1 Phone | M: Parent Email | N: Relationship
       const normalisePhone = (p: string) => p ? (p.startsWith("+61") ? p : `+61${p.replace(/^0/, "")}`) : "";
       const parsed: XlsxRow[] = rows.slice(1).filter(r => r[0]).map(r => ({
         name: String(r[0] ?? ""), grade: String(r[1] ?? ""),
         studentPhone: normalisePhone(String(r[2] ?? "")),
-        orderAM: String(r[3] ?? ""), pickupTime: String(r[4] ?? ""),
-        stopAM: String(r[5] ?? ""),
-        orderPM: String(r[6] ?? ""), dropoffTime: String(r[7] ?? ""),
-        stopPM: String(r[8] ?? ""),
-        parentName: String(r[9] ?? ""), parentPhone: normalisePhone(String(r[10] ?? "")),
-        relationship: String(r[11] ?? ""),
+        studentEmail: String(r[3] ?? "").trim(),
+        orderAM: String(r[4] ?? ""), pickupTime: String(r[5] ?? ""),
+        stopAM: String(r[6] ?? ""),
+        orderPM: String(r[7] ?? ""), dropoffTime: String(r[8] ?? ""),
+        stopPM: String(r[9] ?? ""),
+        parentName: String(r[10] ?? ""), parentPhone: normalisePhone(String(r[11] ?? "")),
+        parentEmail: String(r[12] ?? "").trim(),
+        relationship: String(r[13] ?? ""),
       }));
       setPreview(parsed);
     } catch {
@@ -359,6 +361,22 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
 
     setSaving(true);
     try {
+      // Duplicate check — block if a route with same name + term + year already exists
+      const dupSnap = await getDocs(
+        query(
+          collection(db, "routes"),
+          where("name", "==", form.name.trim()),
+          where("term", "==", parseInt(form.term)),
+          where("year", "==", parseInt(form.year)),
+          where("isActive", "==", true)
+        )
+      );
+      if (!dupSnap.empty) {
+        alert(`A route named "${form.name.trim()}" already exists for Term ${form.term} ${form.year}.`);
+        setSaving(false);
+        return;
+      }
+
       const batch = writeBatch(db);
       const scheduledDates = getScheduledDates(startDate, endDate, selectedDays);
 
@@ -370,20 +388,35 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
 
       for (const row of preview) {
         const studentRef = doc(collection(db, "students"));
-        const parents = row.parentName || row.parentPhone
-          ? [{ name: row.parentName, phone: row.parentPhone, canAccess: true, relationship: row.relationship || "Guardian" }]
-          : [];
         const orderAM = parseInt(row.orderAM) || null;
         const orderPM = parseInt(row.orderPM) || null;
+
+        // Create parent doc in batch if parent name provided
+        const authorisedParentIds: string[] = [];
+        if (row.parentName.trim()) {
+          const parentRef = doc(collection(db, "parents"));
+          batch.set(parentRef, {
+            name: row.parentName.trim(),
+            relationship: row.relationship.trim() || "Guardian",
+            phone: row.parentPhone.trim() || "",
+            email: row.parentEmail.trim() || "",
+            fcmToken: null,
+            childIds: [studentRef.id],
+            isActive: true, profileCompleted: false,
+            createdAt: Timestamp.now(),
+          });
+          authorisedParentIds.push(parentRef.id);
+        }
+
         batch.set(studentRef, {
           name: row.name, grade: row.grade,
           stopAddressAM: row.stopAM, stopAddressPM: row.stopPM,
           orderAM, orderPM,
           routeId: routeRef.id,
           scheduledPickupTime: row.pickupTime, scheduledDropoffTime: row.dropoffTime,
-          phone: row.studentPhone || "",
-          parents,
-          authorisedParentIds: [], isActive: true, createdAt: Timestamp.now(),
+          phone: row.studentPhone.trim() || "",
+          email: row.studentEmail.trim() || "",
+          authorisedParentIds, isActive: true, createdAt: Timestamp.now(),
         });
         studentIds.push(studentRef.id);
         studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, orderAM, orderPM, status: "pending", timestamp: null });
@@ -458,7 +491,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                  Columns: Student Name · Grade · Student Phone · Order AM · Scheduled AM · Stop Location AM · Order PM · Scheduled PM · Stop Location PM · Parent 1 Name · Parent 1 Phone · Relationship
+                  Columns: Student Name · Grade · Student Phone · Student Email · Order AM · Scheduled AM · Stop Location AM · Order PM · Scheduled PM · Stop Location PM · Parent 1 Name · Parent 1 Phone · Parent Email · Relationship
                 </p>
                 <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
                 <button type="button" onClick={() => fileRef.current?.click()}
@@ -688,6 +721,10 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "term" | "year" | "students">("year");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [filterTerm, setFilterTerm] = useState<number | null>(null);
 
   const load = useCallback(() => {
     Promise.all([
@@ -711,6 +748,35 @@ export default function SchedulePage() {
   const handleSaved = (updated: Route) => { setRoutes(prev => prev.map(r => r.id === updated.id ? updated : r)); closeModal(); };
   const handleRemoved = (id: string) => { setRoutes(prev => prev.map(r => r.id === id ? { ...r, isActive: false } : r)); closeModal(); };
 
+  const handleSort = (col: typeof sortBy) => {
+    if (sortBy === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortBy(col); setSortDir("asc"); }
+  };
+
+  const getDriverName = (driverId: string) => drivers.find(d => d.id === driverId)?.name ?? "";
+
+  const q = searchText.trim().toLowerCase();
+  const displayedRoutes = [...routes]
+    .filter(r => showInactive || r.isActive)
+    .filter(r => filterTerm === null || r.term === filterTerm)
+    .filter(r => {
+      if (!q) return true;
+      return (
+        r.name.toLowerCase().includes(q) ||
+        getDriverName(r.driverId).toLowerCase().includes(q) ||
+        String(r.term).includes(q) ||
+        String(r.year).includes(q)
+      );
+    })
+    .sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "name") cmp = a.name.localeCompare(b.name);
+      else if (sortBy === "term") cmp = a.term - b.term;
+      else if (sortBy === "year") cmp = a.year - b.year;
+      else if (sortBy === "students") cmp = (a.studentIds?.length ?? 0) - (b.studentIds?.length ?? 0);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
   return (
     <div className="max-w-5xl mx-auto">
       <PageHeader
@@ -718,43 +784,101 @@ export default function SchedulePage() {
         subtitle="All Routes"
         breadcrumbs={[{ label: "Dashboard", href: "/" }, { label: "Schedule" }]}
       />
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => setShowInactive(v => !v)}
-          className={`px-4 py-2 text-xs font-bold tracking-widest uppercase rounded-xl border transition-colors ${
-            showInactive
-              ? "bg-gray-900 text-white border-gray-900"
-              : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
-          }`}
-        >
-          {showInactive ? "Hide Inactive" : `Show Inactive (${routes.filter(r => !r.isActive).length})`}
-        </button>
-        <button
-          onClick={() => setModal({ type: "add" })}
-          className="px-5 py-2.5 bg-blue-600 text-white text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-colors"
-        >
-          Add Schedule
-        </button>
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowInactive(v => !v)}
+              className={`px-4 py-2 text-xs font-bold tracking-widest uppercase rounded-xl border transition-colors ${
+                showInactive
+                  ? "bg-gray-900 text-white border-gray-900"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+              }`}
+            >
+              {showInactive ? "Hide Inactive" : `Show Inactive (${routes.filter(r => !r.isActive).length})`}
+            </button>
+            {/* Term filter pills */}
+            {[1, 2, 3, 4].map(t => (
+              <button
+                key={t}
+                onClick={() => setFilterTerm(f => f === t ? null : t)}
+                className={`px-3 py-1.5 text-xs font-bold tracking-widest uppercase rounded-xl border transition-colors ${
+                  filterTerm === t
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+                }`}
+              >
+                T{t}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setModal({ type: "add" })}
+            className="px-5 py-2.5 bg-blue-600 text-white text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            Add Schedule
+          </button>
+        </div>
+        <div className="relative">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input
+            type="text"
+            placeholder="Search by route name, driver, term or year…"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
+          />
+          {searchText && (
+            <button onClick={() => setSearchText("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <p className="text-sm text-gray-300">Loading...</p>
-      ) : routes.filter(r => showInactive || r.isActive).length === 0 ? (
+      ) : displayedRoutes.length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">
-          No schedules yet.{" "}
-          <button onClick={() => setModal({ type: "add" })} className="text-blue-500 hover:underline">Create one</button>.
+          {q || filterTerm !== null ? "No schedules match your filters." : "No schedules yet."}{" "}
+          {!q && filterTerm === null && <button onClick={() => setModal({ type: "add" })} className="text-blue-500 hover:underline">Create one</button>}
+          {!q && filterTerm === null && "."}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           {/* Table header */}
           <div className="grid grid-cols-[2fr_0.6fr_0.6fr_1fr_0.7fr_90px_100px_110px_80px] px-5 py-3 border-b border-gray-100">
-            {["Route", "Term", "Year", "Period", "Students", "Status", "", "", ""].map((h, i) => (
-              <span key={i} className="text-xs font-bold tracking-widest text-gray-900 uppercase">{h}</span>
-            ))}
+            {(
+              [
+                { label: "Route",    col: "name" as const },
+                { label: "Term",     col: "term" as const },
+                { label: "Year",     col: "year" as const },
+                { label: "Period",   col: null },
+                { label: "Students", col: "students" as const },
+                { label: "Status",   col: null },
+                { label: "",         col: null },
+                { label: "",         col: null },
+                { label: "",         col: null },
+              ] as { label: string; col: typeof sortBy | null }[]
+            ).map(({ label, col }, i) =>
+              col ? (
+                <button key={i} onClick={() => handleSort(col)}
+                  className="flex items-center gap-1 text-xs font-bold tracking-widest text-gray-900 uppercase hover:text-blue-600 transition-colors text-left">
+                  {label}
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="flex-shrink-0 opacity-50">
+                    {sortBy === col && sortDir === "asc"  && <path d="M5 2l4 6H1z" fill="currentColor"/>}
+                    {sortBy === col && sortDir === "desc" && <path d="M5 8l4-6H1z" fill="currentColor"/>}
+                    {sortBy !== col && <><path d="M5 1.5l3 4H2z" fill="currentColor" opacity=".4"/><path d="M5 8.5l3-4H2z" fill="currentColor" opacity=".4"/></>}
+                  </svg>
+                </button>
+              ) : (
+                <span key={i} className="text-xs font-bold tracking-widest text-gray-900 uppercase">{label}</span>
+              )
+            )}
           </div>
           {/* Rows */}
           <div className="divide-y divide-gray-50">
-            {routes.filter(r => showInactive || r.isActive).map(route => (
+            {displayedRoutes.map(route => (
               <div key={route.id} className="grid grid-cols-[2fr_0.6fr_0.6fr_1fr_0.7fr_90px_100px_110px_80px] items-center px-5 py-3.5 hover:bg-gray-50 transition-colors">
                 {/* Route name */}
                 <div className="flex items-center gap-3 min-w-0">

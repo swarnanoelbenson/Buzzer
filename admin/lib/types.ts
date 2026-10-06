@@ -8,6 +8,7 @@ export interface Driver {
   childrenCheck: string;
   driversLicense: string;
   licenseExpiry: Date;
+  busRegistration: string;
   isActive: boolean;
   createdAt: Date;
 }
@@ -57,6 +58,7 @@ export interface Route {
   scheduledDays: string[];
   startDate: Date;
   endDate: Date;
+  busRegistration?: string;
   studentIds: string[];
   isActive: boolean;
 }

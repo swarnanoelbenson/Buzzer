@@ -45,8 +45,9 @@ struct Student: Identifiable, Codable {
     var grade: String
     var imageUrl: String?
     var phone: String?                  // Phone number — used for SMS OTP login
-    var stopAddressAM: String           // Morning pick-up stop
-    var stopAddressPM: String           // Afternoon drop-off stop
+    var email: String?                  // Student email address
+    var stopAddressAM: String           // Morning pick-up stop location
+    var stopAddressPM: String           // Afternoon drop-off stop location
     var orderAM: Int?                   // Stop sequence order for morning route
     var orderPM: Int?                   // Stop sequence order for afternoon route
     var routeId: String
@@ -57,7 +58,7 @@ struct Student: Identifiable, Codable {
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id, name, grade, imageUrl, phone
+        case id, name, grade, imageUrl, phone, email
         case stopAddressAM, stopAddressPM, orderAM, orderPM
         case routeId, scheduledPickupTime, scheduledDropoffTime
         case authorisedParentIds, isActive, createdAt
@@ -73,6 +74,7 @@ struct Parent: Identifiable, Codable {
     var name: String
     var relationship: ParentRelationship
     var phone: String                   // Phone number — used for SMS OTP login
+    var email: String?                  // Parent email address
     var fcmToken: String?               // For push notifications
     var childIds: [String]              // Student IDs linked to this parent
     var isActive: Bool
@@ -80,7 +82,7 @@ struct Parent: Identifiable, Codable {
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id, name, relationship, phone, fcmToken
+        case id, name, relationship, phone, email, fcmToken
         case childIds, isActive, profileCompleted, createdAt
     }
 }
@@ -100,6 +102,7 @@ struct Route: Identifiable, Codable {
     @DocumentID var id: String?
     var name: String
     var driverId: String
+    var busRegistration: String?        // Bus rego assigned to this route
     var term: Int                       // 1, 2, 3, or 4
     var year: Int                       // e.g. 2026
     var scheduledDays: [String]         // e.g. ["Monday", "Wednesday", "Friday"]
@@ -110,7 +113,7 @@ struct Route: Identifiable, Codable {
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id, name, driverId, term, year
+        case id, name, driverId, busRegistration, term, year
         case scheduledDays, startDate, endDate
         case studentIds, isActive, createdAt
     }
@@ -123,7 +126,8 @@ struct Route: Identifiable, Codable {
 struct Trip: Identifiable, Codable {
     @DocumentID var id: String?
     var routeId: String
-    var driverId: String
+    var driverId: String                    // The originally assigned driver
+    var substituteDriverId: String?         // Set when a substitute covers this trip
     var date: Date
     var type: TripType
     var status: TripStatus
@@ -131,8 +135,11 @@ struct Trip: Identifiable, Codable {
     var startedAt: Date?
     var completedAt: Date?
 
+    /// The driver who will actually run this trip (substitute takes priority).
+    var effectiveDriverId: String { substituteDriverId ?? driverId }
+
     enum CodingKeys: String, CodingKey {
-        case id, routeId, driverId, date, type, status
+        case id, routeId, driverId, substituteDriverId, date, type, status
         case studentRecords, startedAt, completedAt
     }
 }

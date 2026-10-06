@@ -223,6 +223,42 @@ class FirestoreService {
         try await db.collection("trips").document(tripId).updateData(updateData)
     }
 
+    // MARK: - Substitute Driver
+
+    /// Assigns a substitute driver to all scheduled/future trips on a route within a date range.
+    /// Passes nil substituteDriverId to clear an existing substitution.
+    func assignSubstituteDriver(
+        routeId: String,
+        substituteDriverId: String?,
+        from fromDate: Date,
+        to toDate: Date
+    ) async throws {
+        let startOfFrom = Calendar.current.startOfDay(for: fromDate)
+        let endOfTo     = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: toDate))!
+
+        let snap = try await db.collection("trips")
+            .whereField("routeId", isEqualTo: routeId)
+            .whereField("date", isGreaterThanOrEqualTo: startOfFrom)
+            .whereField("date", isLessThan: endOfTo)
+            .getDocuments()
+
+        // Only affect trips that haven't started yet
+        let eligible = snap.documents.filter {
+            let status = $0.data()["status"] as? String ?? ""
+            return status == TripStatus.scheduled.rawValue
+        }
+
+        let batch = db.batch()
+        for doc in eligible {
+            if let subId = substituteDriverId {
+                batch.updateData(["substituteDriverId": subId], forDocument: doc.reference)
+            } else {
+                batch.updateData(["substituteDriverId": FieldValue.delete()], forDocument: doc.reference)
+            }
+        }
+        try await batch.commit()
+    }
+
     // MARK: - Passenger Notes
 
     /// Fetches active (non-deleted) passenger notes for a specific student within a date range.

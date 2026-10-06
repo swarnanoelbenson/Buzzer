@@ -607,6 +607,9 @@ export default function DriversPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "expiry">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   // Track which row is revealed + activity-based auto-hide
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -667,12 +670,28 @@ export default function DriversPage() {
   const handleRemoved = (id: string) => { setDrivers(prev => prev.map(d => d.id === id ? { ...d, isActive: false } : d)); closeModal(); };
   const handleReactivated = (updated: Driver) => { setDrivers(prev => prev.map(d => d.id === updated.id ? updated : d)); closeModal(); };
 
-  // Sort: active first, then inactive
+  const handleSort = (col: typeof sortBy) => {
+    if (sortBy === col) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortBy(col); setSortDir("asc"); }
+  };
+
+  // Sort: active first, then by chosen column
   const sorted = [...drivers].sort((a, b) => {
-    if (a.isActive === b.isActive) return 0;
-    return a.isActive ? -1 : 1;
+    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+    let cmp = 0;
+    if (sortBy === "name") cmp = a.name.localeCompare(b.name);
+    else if (sortBy === "expiry") {
+      const aT = a.licenseExpiry instanceof Date ? a.licenseExpiry.getTime() : 0;
+      const bT = b.licenseExpiry instanceof Date ? b.licenseExpiry.getTime() : 0;
+      cmp = aT - bT;
+    }
+    return sortDir === "asc" ? cmp : -cmp;
   });
-  const displayed = showInactive ? sorted : sorted.filter(d => d.isActive);
+  const q = searchText.trim().toLowerCase();
+  const displayed = (showInactive ? sorted : sorted.filter(d => d.isActive)).filter(d => {
+    if (!q) return true;
+    return d.name.toLowerCase().includes(q) || d.phone.toLowerCase().includes(q);
+  });
   const inactiveCount = drivers.filter(d => !d.isActive).length;
 
   return (
@@ -682,39 +701,78 @@ export default function DriversPage() {
         subtitle="All Drivers"
         breadcrumbs={[{ label: "Dashboard", href: "/" }, { label: "Drivers" }]}
       />
-      <div className="flex items-center justify-between mb-4">
-        {/* Show inactive toggle */}
-        <button
-          onClick={() => setShowInactive(v => !v)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-widest uppercase transition-colors ${
-            showInactive ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-          }`}
-        >
-          <span className={`w-2 h-2 rounded-full ${showInactive ? "bg-orange-500" : "bg-gray-400"}`} />
-          {showInactive ? "Hiding Inactive" : `Show Inactive${inactiveCount > 0 ? ` (${inactiveCount})` : ""}`}
-        </button>
-        <button
-          onClick={() => setModal({ type: "add" })}
-          className="px-5 py-2.5 bg-blue-600 text-white text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-colors"
-        >
-          Add Driver
-        </button>
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex items-center justify-between">
+          {/* Show inactive toggle */}
+          <button
+            onClick={() => setShowInactive(v => !v)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold tracking-widest uppercase transition-colors ${
+              showInactive ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${showInactive ? "bg-orange-500" : "bg-gray-400"}`} />
+            {showInactive ? "Hiding Inactive" : `Show Inactive${inactiveCount > 0 ? ` (${inactiveCount})` : ""}`}
+          </button>
+          <button
+            onClick={() => setModal({ type: "add" })}
+            className="px-5 py-2.5 bg-blue-600 text-white text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            Add Driver
+          </button>
+        </div>
+        <div className="relative">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input
+            type="text"
+            placeholder="Search by name or phone…"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
+          />
+          {searchText && (
+            <button onClick={() => setSearchText("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <p className="text-sm text-gray-300">Loading...</p>
       ) : displayed.length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">
-          No drivers yet.{" "}
-          <button onClick={() => setModal({ type: "add" })} className="text-blue-500 hover:underline">Add one</button>.
+          {q ? `No drivers match "${searchText}".` : "No drivers yet."}{" "}
+          {!q && <button onClick={() => setModal({ type: "add" })} className="text-blue-500 hover:underline">Add one</button>}
+          {!q && "."}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           {/* Table header */}
           <div className="grid grid-cols-[2fr_1fr_1fr_100px_100px_100px] px-5 py-3 border-b border-gray-100">
-            {["Driver", "Phone", "Lic. Expiry", "Status", "", ""].map((h, i) => (
-              <span key={i} className="text-xs font-bold tracking-widest text-gray-900 uppercase">{h}</span>
-            ))}
+            {(
+              [
+                { label: "Driver",      col: "name" as const },
+                { label: "Phone",       col: null },
+                { label: "Lic. Expiry", col: "expiry" as const },
+                { label: "Status",      col: null },
+                { label: "",            col: null },
+                { label: "",            col: null },
+              ] as { label: string; col: typeof sortBy | null }[]
+            ).map(({ label, col }, i) =>
+              col ? (
+                <button key={i} onClick={() => handleSort(col)}
+                  className="flex items-center gap-1 text-xs font-bold tracking-widests text-gray-900 uppercase hover:text-blue-600 transition-colors text-left">
+                  {label}
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="flex-shrink-0 opacity-50">
+                    {sortBy === col && sortDir === "asc"  && <path d="M5 2l4 6H1z" fill="currentColor"/>}
+                    {sortBy === col && sortDir === "desc" && <path d="M5 8l4-6H1z" fill="currentColor"/>}
+                    {sortBy !== col && <><path d="M5 1.5l3 4H2z" fill="currentColor" opacity=".4"/><path d="M5 8.5l3-4H2z" fill="currentColor" opacity=".4"/></>}
+                  </svg>
+                </button>
+              ) : (
+                <span key={i} className="text-xs font-bold tracking-widest text-gray-900 uppercase">{label}</span>
+              )
+            )}
           </div>
           {/* Rows */}
           <div className="divide-y divide-gray-50">

@@ -11,13 +11,34 @@ import FirebaseFirestore
 
 // MARK: - Main list
 
+private enum DriverSortOption: String, CaseIterable {
+    case nameAZ = "Name (A–Z)"
+    case nameZA = "Name (Z–A)"
+    case routeCount = "Most Routes"
+}
+
 struct AdminDriversView: View {
     @State private var drivers: [Driver] = []
     @State private var routesByDriver: [String: [Route]] = [:]
     @State private var isLoading = true
     @State private var showAddSheet = false
+    @State private var searchText = ""
+    @State private var sortOption: DriverSortOption = .nameAZ
 
     private let db = Firestore.db
+
+    private var filtered: [Driver] {
+        let base = searchText.isEmpty ? drivers : drivers.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.phone.localizedCaseInsensitiveContains(searchText) ||
+            (routesByDriver[$0.id ?? ""] ?? []).contains { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        switch sortOption {
+        case .nameAZ:    return base.sorted { $0.name < $1.name }
+        case .nameZA:    return base.sorted { $0.name > $1.name }
+        case .routeCount: return base.sorted { (routesByDriver[$0.id ?? ""] ?? []).count > (routesByDriver[$1.id ?? ""] ?? []).count }
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -28,8 +49,10 @@ struct AdminDriversView: View {
                 } else if drivers.isEmpty {
                     ContentUnavailableView("No Drivers", systemImage: "person.2",
                                           description: Text("Add a driver to get started."))
+                } else if filtered.isEmpty {
+                    ContentUnavailableView.search(text: searchText)
                 } else {
-                    List(drivers) { driver in
+                    List(filtered) { driver in
                         NavigationLink(destination: AdminDriverDetailView(driver: driver)) {
                             AdminDriverRow(driver: driver, routes: routesByDriver[driver.id ?? ""] ?? [])
                         }
@@ -39,7 +62,19 @@ struct AdminDriversView: View {
                 }
             }
             .navigationTitle("Drivers")
+            .searchable(text: $searchText, prompt: "Search by name, phone or route")
             .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Picker("Sort", selection: $sortOption) {
+                            ForEach(DriverSortOption.allCases, id: \.self) {
+                                Text($0.rawValue).tag($0)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down.circle")
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showAddSheet = true } label: {
                         Image(systemName: "plus")

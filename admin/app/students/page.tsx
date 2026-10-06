@@ -62,8 +62,8 @@ function formChanged(original: FormState, current: FormState): boolean {
 const DIFF_FIELDS: { key: keyof Omit<FormState, "parents">; label: string }[] = [
   { key: "name",                 label: "Full Name" },
   { key: "grade",                label: "Grade" },
-  { key: "stopAddressAM",        label: "Stop Address AM" },
-  { key: "stopAddressPM",        label: "Stop Address PM" },
+  { key: "stopAddressAM",        label: "Stop Location AM" },
+  { key: "stopAddressPM",        label: "Stop Location PM" },
   { key: "orderAM",              label: "Order AM" },
   { key: "orderPM",              label: "Order PM" },
   { key: "routeId",              label: "Route" },
@@ -193,11 +193,11 @@ function StudentForm({ form, onChange, onParentChange, onAddParent, onRemovePare
         </div>
       </div>
       <div className="col-span-2">
-        <label className={LABEL}>Stop Address AM (Morning Pick-up)</label>
+        <label className={LABEL}>Stop Location AM (Morning Pick-up)</label>
         <input className={FIELD} required value={form.stopAddressAM} onChange={set("stopAddressAM")} placeholder="12 Oak St, Parramatta NSW 2150" />
       </div>
       <div className="col-span-2">
-        <label className={LABEL}>Stop Address PM (Afternoon Drop-off)</label>
+        <label className={LABEL}>Stop Location PM (Afternoon Drop-off)</label>
         <input className={FIELD} required value={form.stopAddressPM} onChange={set("stopAddressPM")} placeholder="12 Oak St, Parramatta NSW 2150" />
       </div>
       <div>
@@ -834,6 +834,7 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [searchText, setSearchText] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "grade" | "stop" | "route">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   // Track which row is revealed + activity-based auto-hide
@@ -914,7 +915,17 @@ export default function StudentsPage() {
     return sortDir === "asc" ? cmp : -cmp;
   });
   const inactiveCount = students.filter(s => !s.isActive).length;
-  const displayed = showInactive ? sorted : sorted.filter(s => s.isActive);
+  const q = searchText.trim().toLowerCase();
+  const displayed = (showInactive ? sorted : sorted.filter(s => s.isActive)).filter(s => {
+    if (!q) return true;
+    return (
+      s.name.toLowerCase().includes(q) ||
+      s.grade.toLowerCase().includes(q) ||
+      getRouteName(s.routeId).toLowerCase().includes(q) ||
+      (s.stopAddressAM ?? "").toLowerCase().includes(q) ||
+      (s.parents ?? []).some(p => p.name.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -923,31 +934,49 @@ export default function StudentsPage() {
         subtitle="All Students"
         breadcrumbs={[{ label: "Dashboard", href: "/" }, { label: "Students" }]}
       />
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => setShowInactive(v => !v)}
-          className={`px-4 py-2 text-xs font-bold tracking-widest uppercase rounded-xl border transition-colors ${
-            showInactive
-              ? "bg-gray-900 text-white border-gray-900"
-              : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
-          }`}
-        >
-          {showInactive ? "Hide Inactive" : `Show Inactive (${inactiveCount})`}
-        </button>
-        <button
-          onClick={() => setModal({ type: "add" })}
-          className="px-5 py-2.5 bg-blue-600 text-white text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-colors"
-        >
-          Add Student
-        </button>
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setShowInactive(v => !v)}
+            className={`px-4 py-2 text-xs font-bold tracking-widest uppercase rounded-xl border transition-colors ${
+              showInactive
+                ? "bg-gray-900 text-white border-gray-900"
+                : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"
+            }`}
+          >
+            {showInactive ? "Hide Inactive" : `Show Inactive (${inactiveCount})`}
+          </button>
+          <button
+            onClick={() => setModal({ type: "add" })}
+            className="px-5 py-2.5 bg-blue-600 text-white text-xs font-bold tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            Add Student
+          </button>
+        </div>
+        <div className="relative">
+          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input
+            type="text"
+            placeholder="Search by name, grade, route or stop location…"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
+          />
+          {searchText && (
+            <button onClick={() => setSearchText("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <p className="text-sm text-gray-300">Loading...</p>
       ) : displayed.length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">
-          No students yet.{" "}
-          <button onClick={() => setModal({ type: "add" })} className="text-blue-500 hover:underline">Add one</button>.
+          {q ? `No students match "${searchText}".` : "No students yet."}{" "}
+          {!q && <button onClick={() => setModal({ type: "add" })} className="text-blue-500 hover:underline">Add one</button>}
+          {!q && "."}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">

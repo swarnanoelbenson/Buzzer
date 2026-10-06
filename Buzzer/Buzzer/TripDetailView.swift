@@ -157,6 +157,18 @@ struct TripDetailView: View {
            let driver = try? await FirestoreService.shared.fetchDriver(id: uid) {
             driverName = driver.name
         }
+        // Sort students by their stop order for this trip type.
+        // orderAM = pickup sequence, orderPM = dropoff sequence.
+        // Students without an order value are placed at the end.
+        if trip.type == .pickup {
+            trip.studentRecords.sort {
+                ($0.orderAM ?? Int.max) < ($1.orderAM ?? Int.max)
+            }
+        } else {
+            trip.studentRecords.sort {
+                ($0.orderPM ?? Int.max) < ($1.orderPM ?? Int.max)
+            }
+        }
     }
 
     private func startTrip() async {
