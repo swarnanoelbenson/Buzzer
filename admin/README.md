@@ -227,16 +227,18 @@ Key fields on `Student`: `stopAddressAM`, `stopAddressPM` (separate morning and 
 ### `app/schedule/page.tsx`
 The main schedule management page.
 Lists all existing routes.
-Handles creation of a new route via a slide-out form.
+Handles creation of a new route via the Add Schedule modal.
 
 **Key functions in this file:**
 
+`addManualStudent()` — Validates and appends a manually-entered student row to the shared `preview` state. Normalises phone numbers to `+61` format. Resets the form on success.
+
 `handleFile(e)` — Parses an uploaded .xlsx file.
 Reads 14 columns: Student Name, Grade, Student Phone, Student Email, Order AM, Scheduled AM, Stop Location AM, Order PM, Scheduled PM, Stop Location PM, Parent 1 Name, Parent 1 Phone, Parent Email, Relationship.
-Stores the parsed rows in the `preview` state.
+Appends the parsed rows to the shared `preview` state (does not replace — both manual entry and xlsx upload accumulate into the same list).
 
-`handleSubmit(e)` — Saves a new route to Firestore.
-Creates one student document per row in the preview.
+`doSave()` — Saves a new route to Firestore.
+Creates one student document per row in the preview (regardless of whether rows came from manual entry or xlsx upload).
 Creates one route document with all student IDs.
 Creates two trip documents per scheduled day (one pickup, one dropoff).
 All writes use a Firestore batch for atomicity.
@@ -244,6 +246,11 @@ All writes use a Firestore batch for atomicity.
 `downloadTemplate()` — Generates and downloads a blank .xlsx template file.
 Uses SheetJS to build the file in the browser.
 The template contains the correct 14 column headers.
+
+**Student list — two entry methods (both feed the same `preview` state):**
+- **Section 1 — Manual Entry:** Form fields for student name, grade, phone, stop AM/PM, order AM/PM, scheduled AM/PM, parent name/phone/relationship. Click "+ Add Student" to append a row.
+- **Section 2 — Upload .xlsx:** Download a blank template, fill it in externally, upload to bulk-add many students at once.
+Both methods display rows in the shared preview table with per-row remove buttons.
 
 ### `app/students/page.tsx`
 The main student management page.
@@ -393,12 +400,13 @@ authManager.signInWithCustomToken() signs in on the device
 ### Schedule Creation Flow
 ```
 Admin fills route form (name, driver, term, dates, days)
-Admin uploads .xlsx file or manually adds students
+Admin adds students via manual entry form OR .xlsx upload (or both)
 Admin clicks Save
        │
        ▼
-handleSubmit() runs a Firestore batch write:
-   ├── Creates one student document per .xlsx row
+doSave() runs a Firestore batch write:
+   ├── Creates one parent document per student (if parent info provided)
+   ├── Creates one student document per preview row
    ├── Creates one route document with all student IDs
    └── Creates 2 trips (pickup + dropoff) per scheduled day
 ```

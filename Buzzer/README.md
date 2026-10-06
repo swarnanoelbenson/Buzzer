@@ -14,7 +14,7 @@
 ```
 Buzzer/                             Xcode project root
 ├── Buzzer.xcodeproj/               Xcode project file
-├── Buzzer/                         Main app source code (71 Swift files)
+├── Buzzer/                         Main app source code
 │   ├── BuzzerApp.swift             App entry point
 │   ├── RootView.swift              Role-based navigation root
 │   ├── AuthManager.swift           Authentication state manager
@@ -26,48 +26,33 @@ Buzzer/                             Xcode project root
 │   ├── Login Views
 │   │   ├── LoginSelectionView.swift    Choose user type (Driver/Parent/Student/Admin)
 │   │   ├── DriverLoginView.swift       Phone OTP login for drivers
-│   │   ├── ParentLoginView.swift       Email + password login for parents
-│   │   ├── AdminLoginView.swift        Email OTP login for admins (via WAC API)
+│   │   ├── ParentLoginView.swift       Phone OTP login for parents
+│   │   ├── AdminLoginView.swift        Email magic link (real device) or OTP (simulator)
 │   │   └── StudentLoginView.swift      Phone OTP login for students (file lives at project root)
 │   │
 │   ├── Driver Portal
-│   │   ├── DriverPortalView.swift      Main driver hub. Shows today's routes.
-│   │   ├── DriverScheduleView.swift    Driver's assigned routes.
-│   │   ├── DriverAllRoutesView.swift   Expanded view of all route details.
-│   │   ├── TripDetailView.swift        Detailed view of a single trip.
-│   │   ├── SessionSelectionView.swift  Choose pickup or dropoff session.
-│   │   ├── AttendanceTrackingView.swift Mark students on/off bus.
-│   │   ├── SessionDetailView.swift     View a completed session's records.
-│   │   ├── SessionHistoryView.swift    List of past sessions.
-│   │   ├── SessionReviewView.swift     Post-session review screen.
-│   │   ├── UnmarkedReviewView.swift    Review students not yet marked.
-│   │   └── FinalCheckView.swift        Final confirmation before closing session.
+│   │   ├── DriverPortalView.swift      Main driver hub. Two tabs: Schedule and All Routes.
+│   │   ├── DriverScheduleView.swift    Today's assigned trips.
+│   │   ├── DriverAllRoutesView.swift   All trips across all dates, grouped by date.
+│   │   └── TripDetailView.swift        Detailed view of a single trip. Mark students on/off bus.
 │   │
 │   ├── Parent Portal
-│   │   ├── ParentPortalView.swift      Main parent hub. Shows children's bus status.
+│   │   ├── ParentPortalView.swift      Main parent hub. Real-time child bus status.
 │   │   ├── PassengerNoteView.swift     Create a note for the driver.
 │   │   ├── PassengerNotesListView.swift List all notes created by this parent.
 │   │   ├── PassengerNoteManager.swift  Core Data storage for passenger notes.
 │   │   └── ProfileView.swift           Parent account settings.
 │   │
 │   ├── Student Portal
-│   │   └── StudentPortalView.swift     Student's view of their route, driver, schedule, and parent notes. (file lives at project root)
+│   │   └── StudentPortalView.swift     Student's view of their route, driver, schedule, and notes. (file lives at project root)
 │   │
 │   ├── Admin Portal
-│   │   ├── AdminPortalView.swift       Admin hub. Four tabs.
-│   │   ├── AdminDriversView.swift      List and add drivers.
-│   │   ├── AdminScheduleView.swift     List and create routes with student entries.
+│   │   ├── AdminPortalView.swift       Admin hub. Sidebar navigation.
+│   │   ├── AdminDashboardView.swift    Today's operations overview.
+│   │   ├── AdminDriversView.swift      List, add, and view drivers.
+│   │   ├── AdminScheduleView.swift     List, create, and manage routes with inline student entry.
 │   │   ├── AdminStudentsView.swift     Read-only view of all students by route.
 │   │   └── AdminLogsView.swift         View activity log with role filter.
-│   │
-│   ├── Shared Components
-│   │   ├── ListsView.swift             Manage attendance lists (legacy local use).
-│   │   ├── ListDetailView.swift        View a list's attendees.
-│   │   ├── CreateListView.swift        Create a new list.
-│   │   ├── AddAttendeeView.swift       Add a student to a list.
-│   │   ├── EditAttendeeView.swift      Edit a student in a list.
-│   │   ├── AttendeeProfileView.swift   View a student's profile.
-│   │   └── IncompleteSessionSheet.swift Sheet shown when a session was interrupted.
 │   │
 │   ├── Developer / Admin Tools
 │   │   ├── DeveloperMenuView.swift     Hidden debug menu for developers.
@@ -127,7 +112,7 @@ All dependencies are managed via Swift Package Manager (SPM).
 | Library                   | Purpose                                                   |
 |---------------------------|-----------------------------------------------------------|
 | FirebaseCore              | Firebase SDK initialisation                               |
-| FirebaseAuth              | User authentication (phone OTP, email, custom token)      |
+| FirebaseAuth              | User authentication (phone OTP, custom token)             |
 | FirebaseFirestore         | Cloud database reads and writes                           |
 | FirebaseMessaging         | Push notifications via FCM                                |
 | Core Data                 | Local on-device data storage (Apple framework)            |
@@ -142,12 +127,12 @@ All dependencies are managed via Swift Package Manager (SPM).
 
 The app supports four roles. Each role sees a different portal after login.
 
-| Role    | Login Method                          | Portal                   |
-|---------|---------------------------------------|--------------------------|
-| Driver  | Phone number + SMS OTP (Firebase)     | `DriverPortalView`       |
-| Parent  | Email + password (Firebase)           | `ParentPortalView`       |
-| Student | Phone number + SMS OTP (Firebase)     | `StudentPortalView`      |
-| Admin   | Email + 6-digit OTP (via WAC API)     | `AdminPortalView`        |
+| Role    | Login Method                                            | Portal                   |
+|---------|---------------------------------------------------------|--------------------------|
+| Driver  | Phone number + SMS OTP (Firebase PhoneAuth)             | `DriverPortalView`       |
+| Parent  | Phone number + SMS OTP (Firebase PhoneAuth)             | `ParentPortalView`       |
+| Student | Phone number + SMS OTP (Firebase PhoneAuth)             | `StudentPortalView`      |
+| Admin   | Email magic link (real device) or email OTP (simulator) | `AdminPortalView`        |
 
 `RootView.swift` reads `authManager.currentRole` and shows the correct portal.
 `AuthManager.swift` determines the role by checking Firestore collections after login.
@@ -160,6 +145,7 @@ The app supports four roles. Each role sees a different portal after login.
 The app entry point.
 Initialises Firebase.
 Sets up FCM (Firebase Cloud Messaging) for push notifications.
+Handles universal links for admin magic-link sign-in.
 Injects `AuthManager` into the SwiftUI environment.
 Renders `RootView` as the first screen.
 
@@ -183,13 +169,9 @@ Shows `LoginSelectionView` when no user is signed in.
 
 `resolveRole(for uid: String)` — Checks Firestore collections in order (drivers → parents → students → schools) to find the user's role. Sets `currentRole` and `currentUserId`.
 
-`sendOTP(to phoneNumber: String)` — Step 1 of driver login. Sends an SMS OTP using Firebase PhoneAuthProvider.
+`sendOTP(to phoneNumber: String)` — Step 1 of driver/parent/student login. Sends an SMS OTP using Firebase PhoneAuthProvider.
 
-`verifyOTP(verificationID:code:)` — Step 2 of driver login. Creates a phone auth credential and signs in.
-
-`signInParent(email:password:)` — Signs in a parent with email and password.
-
-`signInStudent(email:password:)` — Signs in a student with email and password.
+`verifyOTP(verificationID:code:)` — Step 2 of phone OTP login. Creates a phone auth credential and signs in.
 
 `signInWithCustomToken(_:)` — Signs in an admin using a custom token returned by the WAC API.
 
@@ -203,56 +185,52 @@ Accessed via `FirestoreService.shared` singleton.
 
 **Key functions:**
 
-`fetchDriverRoutes(driverId:)` — Returns all active routes assigned to a driver.
+`fetchAllDrivers(schoolId:)` — Returns all active drivers for a school.
 
-`fetchTodayTrips(for routeId:)` — Returns today's pickup and dropoff trip documents for a route.
+`fetchRoutes(for driverId:schoolId:)` — Returns all active routes assigned to a driver.
 
-`startTrip(tripId:)` — Sets a trip's status to `inProgress` and records `startedAt`.
+`fetchTodaysTrips(for driverId:schoolId:)` — Returns today's trips for a driver.
 
-`updateStudentStatus(tripId:studentId:status:)` — Updates a student's status in a trip's `studentRecords` array. If all students are marked, sets the trip status to `completed`.
+`fetchTodaysTrips(forStudentIds:schoolId:)` — Returns today's trips containing any of the given student IDs (used in parent portal).
 
-`fetchStudentsForParent(parentId:)` — Returns all student documents linked to a parent.
+`startTrip(id:)` — Sets a trip's status to `inProgress` and records `startedAt`.
 
-`createPassengerNote(_:)` — Writes a passenger note to Firestore.
+`updateStudentStatus(tripId:studentId:status:)` — Updates a student's status in a trip's `studentRecords` array. If all students are resolved, auto-sets the trip status to `completed`.
 
-`logActivity(actorId:actorName:actorRole:action:metadata:)` — Writes an entry to the `activityLog` collection.
+`fetchStudents(for parentId:childIds:)` — Returns all student documents linked to a parent.
+
+`fetchActiveNotes(for studentId:)` — Returns non-deleted passenger notes for a student that haven't expired yet.
+
+`addPassengerNote(_:)` — Writes a passenger note to the `passengerNotes` collection.
+
+`logActivity(schoolId:actorId:actorName:actorRole:action:metadata:)` — Writes an entry to the `activityLog` collection.
 
 ### `FirestoreModels.swift`
 Swift structs that map to Firestore documents. All structs conform to `Codable` and `Identifiable`.
+Every entity has a required `schoolId: String` field (FK → `schools/{schoolId}`) so data is fully isolated between schools.
 
-| Struct                 | Firestore Collection | Purpose                                   |
-|------------------------|----------------------|-------------------------------------------|
-| `Driver`               | `drivers`            | Driver profile and status                 |
-| `Student`              | `students`           | Student profile, route, and schedule      |
-| `Parent`               | `parents`            | Parent profile and linked children        |
-| `Route`                | `routes`             | Bus route with driver and student IDs     |
-| `Trip`                 | `trips`              | One trip instance (pickup or dropoff)     |
-| `StudentTripRecord`    | (inside Trip)        | One student's status within a trip        |
-| `FirestorePassengerNote` | `passengerNotes`  | Note from a parent to a driver            |
-| `ActivityLog`          | `activityLog`        | Audit log entry                           |
+| Struct                    | Firestore Collection | Purpose                                        |
+|---------------------------|----------------------|------------------------------------------------|
+| `School`                  | `schools`            | Root entity. One per school.                   |
+| `Driver`                  | `drivers`            | Driver profile, bus registration, and status   |
+| `Student`                 | `students`           | Student profile, route, stop locations, and schedule |
+| `Parent`                  | `parents`            | Parent profile, linked children, FCM token     |
+| `Route`                   | `routes`             | Bus route with driver ID, student IDs, and dates |
+| `Trip`                    | `trips`              | One trip instance (pickup or dropoff) per day  |
+| `StudentTripRecord`       | (embedded in Trip)   | One student's status snapshot within a trip    |
+| `FirestorePassengerNote`  | `passengerNotes`     | Note from a parent (or admin) to a driver      |
+| `ActivityLog`             | `activityLog`        | Audit log entry                                |
+
+Key fields on `Student`: `stopAddressAM`, `stopAddressPM` (separate morning and afternoon stops), `orderAM`, `orderPM` (stop sequence numbers for the driver app).
+`StudentTripRecord` mirrors `stopAddressAM`, `stopAddressPM`, `orderAM`, `orderPM` as a snapshot at trip-creation time.
+`Driver` includes `busRegistration` (the bus assigned to that driver). `Route` also includes `busRegistration?` (the bus running this route). Bus rego is globally unique across all schools.
 
 ### `NotificationService.swift`
 Handles sending push notifications via FCM.
-Does not send directly to FCM. Writes a document to the `notificationQueue` Firestore collection.
-A Firebase Cloud Function watches this collection and sends the actual FCM message.
+Does not call FCM directly. Writes a document to the `notificationQueue` Firestore collection.
+A Firebase Cloud Function watches this collection and sends the actual FCM message to the parent's device.
 
-`sendNotification(studentId:studentName:status:tripType:driverName:parentTokens:)` — Builds the notification payload and writes it to `notificationQueue`.
-
-### `SessionManager.swift`
-Manages the state of an active attendance session (pickup or dropoff).
-Tracks the current attendee index, attendance records, and session progress.
-
-`startSession(for list:type:)` — Begins a new session.
-
-`recordAttendance(for attendee:status:)` — Records present or absent for a student.
-
-`advanceToNext()` — Moves to the next student in the list.
-
-`stopSession()` — Ends the session and saves to Core Data.
-
-### `DataManager.swift`
-Manages the Core Data stack for local storage.
-Handles creating, reading, updating, and deleting attendance lists, sessions, and passenger notes locally.
+`notifyParents(studentId:studentName:status:tripType:driverName:)` — Builds the notification payload (title + body) based on student status and trip type, then writes it to `notificationQueue`.
 
 ### `StudentPortalView.swift`
 The student-facing portal. Read-only.
@@ -261,12 +239,12 @@ Fetches data on load and supports pull-to-refresh.
 
 ### `ParentOnboardingView.swift`
 Two-step first-login flow shown to parents whose `profileCompleted == false`.
-Step 1: Displays linked children's names, grades, and scheduled pick-up/drop-off times for review.
-Step 2: Prompts the parent to set a new password (replacing the school-issued one). Uses `Auth.updatePassword`.
-On completion, writes `profileCompleted = true` to the parent's Firestore document, then dismisses to `ParentPortalView`.
+Step 1: Shows linked children's names, grades, and scheduled pick-up/drop-off times for review.
+Step 2: Prompts the parent to enter their name and select their relationship to the child.
+On completion, writes `profileCompleted = true` to the parent's Firestore document, then navigates to `ParentPortalView`.
 
 ### `DeveloperMenuView.swift`
-A hidden debug menu. Access it from the login selection screen.
+A hidden debug menu accessible from the login selection screen.
 Functions: seed demo data, clear all local data, switch Firebase environment.
 Remove before App Store submission.
 
@@ -274,18 +252,19 @@ Remove before App Store submission.
 
 ## 6. Firestore Collections
 
-| Collection        | Documents                | Key Fields                                                           |
-|-------------------|--------------------------|----------------------------------------------------------------------|
-| `drivers`         | One per driver           | `name`, `phone`, `busRegistration`, `isActive`, `fcmToken`          |
-| `students`        | One per student          | `name`, `grade`, `stopAddress`, `routeId`, `authorisedParentIds[]`  |
-| `parents`         | One per parent           | `name`, `phone`, `childIds[]`, `fcmToken`, `profileCompleted`       |
-| `routes`          | One per bus route        | `name`, `driverId`, `studentIds[]`, `scheduledDays[]`, `isActive`   |
-| `trips`           | One per trip per day     | `routeId`, `driverId`, `date`, `type`, `status`, `studentRecords[]` |
-| `passengerNotes`  | One per note             | `studentId`, `noteText`, `fromDate`, `toDate`, `isDeleted`          |
-| `activityLog`     | One per logged action    | `actorId`, `actorRole`, `action`, `timestamp`                       |
-| `notificationQueue` | One per notification   | `studentId`, `status`, `title`, `body`, `parentTokens[]`, `sent`    |
-| `schools`         | One per school           | `email`, `adminUid`, `schoolName`                                   |
-| `adminOtps`       | One per OTP request      | `otp`, `expiresAt`, `schoolName`                                    |
+| Collection          | Documents                | Key Fields                                                                    |
+|---------------------|--------------------------|-------------------------------------------------------------------------------|
+| `schools`           | One per school           | `schoolName`, `adminUid`, `fcmToken`                                          |
+| `drivers`           | One per driver           | `schoolId`, `name`, `phone`, `busRegistration`, `isActive`, `fcmToken`        |
+| `students`          | One per student          | `schoolId`, `name`, `grade`, `stopAddressAM`, `stopAddressPM`, `orderAM`, `orderPM`, `routeId`, `authorisedParentIds[]` |
+| `parents`           | One per parent           | `schoolId`, `name`, `phone`, `childIds[]`, `fcmToken`, `profileCompleted`     |
+| `routes`            | One per bus route        | `schoolId`, `name`, `driverId`, `busRegistration?`, `studentIds[]`, `scheduledDays[]`, `isActive` |
+| `trips`             | One per trip per day     | `schoolId`, `routeId`, `driverId`, `substituteDriverId?`, `date`, `type`, `status`, `studentRecords[]` |
+| `passengerNotes`    | One per note             | `schoolId`, `studentId`, `noteText`, `fromDate`, `toDate`, `isDeleted`        |
+| `activityLog`       | One per logged action    | `schoolId`, `actorId`, `actorRole`, `action`, `timestamp`                     |
+| `notificationQueue` | One per notification     | `studentId`, `studentName`, `status`, `tripType`, `title`, `body`, `sent`     |
+| `adminOtps`         | One per OTP request      | `otp`, `expiresAt` (used by iOS admin login on simulator only)                |
+| `adminSigninTokens` | One per magic link token | `token`, `expiresAt` (used by WAC and iOS admin login on real devices)        |
 
 ---
 
@@ -293,14 +272,17 @@ Remove before App Store submission.
 
 ### Driver Login
 ```
-DriverLoginView enters phone number
+DriverLoginView: select driver from list, enter phone number
        │
        ▼
-authManager.sendOTP(to: phoneNumber)
-  Firebase PhoneAuthProvider sends SMS to the number
+FirestoreService.fetchDriver() verifies phone matches Firestore record (last 9 digits)
        │
        ▼
-Driver enters SMS code
+authManager.sendOTP(to: normalisedPhone)
+  Firebase PhoneAuthProvider sends SMS OTP
+       │
+       ▼
+Driver enters 6-digit OTP
        │
        ▼
 authManager.verifyOTP(verificationID:code:)
@@ -308,22 +290,31 @@ authManager.verifyOTP(verificationID:code:)
        │
        ▼
 AuthManager.resolveRole() checks drivers collection
-Sets currentRole = .driver
-Shows DriverPortalView
+Sets currentRole = .driver → DriverPortalView
 ```
 
 ### Parent Login
 ```
-ParentLoginView enters email + password
+ParentLoginView enters phone number
        │
        ▼
-authManager.signInParent(email:password:)
+FirestoreService.fetchParentByPhone() verifies the number exists in the parents collection
+       │
+       ▼
+authManager.sendOTP(to: normalisedPhone)
+  Firebase PhoneAuthProvider sends SMS OTP
+       │
+       ▼
+Parent enters 6-digit OTP
+       │
+       ▼
+authManager.verifyOTP(verificationID:code:)
   Firebase Auth signs in the parent
        │
        ▼
 AuthManager.resolveRole() checks parents collection
-If profileCompleted == false → shows ParentOnboardingView
-Else → sets currentRole = .parent → shows ParentPortalView
+If profileCompleted == false → ParentOnboardingView
+Else → sets currentRole = .parent → ParentPortalView
 ```
 
 ### Student Login
@@ -335,7 +326,7 @@ FirestoreService.fetchStudentByPhone() verifies the number exists in the student
        │
        ▼
 authManager.sendOTP(to: normalisedPhone)
-  Firebase PhoneAuthProvider sends SMS to the number
+  Firebase PhoneAuthProvider sends SMS OTP
        │
        ▼
 Student enters 6-digit OTP
@@ -346,26 +337,25 @@ authManager.verifyOTP(verificationID:code:)
        │
        ▼
 AuthManager.resolveRole() checks students collection
-Sets currentRole = .student
-Shows StudentPortalView
+Sets currentRole = .student → StudentPortalView
 ```
 
-### Admin Login
+### Admin Login (real device — magic link)
 ```
 AdminLoginView enters email
        │
        ▼
-POST https://busmate-admin.vercel.app/api/admin-otp/send
-  WAC API checks schools collection
-  WAC API sends OTP email via Resend
+POST https://busmate-admin.vercel.app/api/admin-signin-link/send
+  WAC API checks schools collection, generates 64-char token
+  WAC API sends magic link email via Resend
        │
        ▼
-Admin enters 6-digit OTP
+Admin taps link in email → universal link opens app
        │
        ▼
-POST https://busmate-admin.vercel.app/api/admin-otp/verify
-  WAC API validates OTP
-  WAC API returns Firebase custom token
+BuzzerApp.swift handles the URL, calls authManager.handleMagicLink(url:)
+POST https://busmate-admin.vercel.app/api/admin-signin-link/verify
+  WAC API validates token, returns Firebase custom token
        │
        ▼
 authManager.signInWithCustomToken(token)
@@ -373,8 +363,26 @@ authManager.signInWithCustomToken(token)
        │
        ▼
 AuthManager.resolveRole() checks schools collection
-Sets currentRole = .admin
-Shows AdminPortalView
+Sets currentRole = .admin → AdminPortalView
+```
+
+### Admin Login (simulator fallback — email OTP)
+```
+AdminLoginView enters email
+       │
+       ▼
+POST https://busmate-admin.vercel.app/api/admin-otp/send
+  WAC API checks schools collection, sends 6-digit OTP email via Resend
+       │
+       ▼
+Admin enters 6-digit OTP
+       │
+       ▼
+POST https://busmate-admin.vercel.app/api/admin-otp/verify
+  WAC API validates OTP, returns Firebase custom token
+       │
+       ▼
+authManager.signInWithCustomToken(token) → AdminPortalView
 ```
 
 ---
@@ -386,19 +394,20 @@ Shows AdminPortalView
 Driver marks student as onBus / offBus / absent
        │
        ▼
-NotificationService.sendNotification() writes to notificationQueue collection
+NotificationService.notifyParents() writes to notificationQueue collection
        │
        ▼
-Firebase Cloud Function (deployed separately) detects new document
-Cloud Function sends FCM message to parent device tokens
+Firebase Cloud Function detects new document
+Cloud Function fetches parent FCM tokens from parents collection
+Cloud Function sends FCM message to parent devices
        │
        ▼
 Parent device receives push notification
 ```
 
 **FCM token lifecycle:**
-- On login, `authManager.saveCurrentFCMToken()` saves the current token to Firestore.
-- When FCM refreshes the token, `AuthManager.listenForTokenRefresh()` saves the new token.
+- On login, `authManager.saveFCMToken()` saves the current device token to Firestore.
+- When FCM refreshes the token, `BuzzerApp.swift` posts a notification and `AuthManager` saves the new token.
 
 ---
 
@@ -406,13 +415,10 @@ Parent device receives push notification
 
 The app uses two separate storage systems.
 
-| Storage    | What it stores                                                       |
-|------------|----------------------------------------------------------------------|
-| Firestore  | All live operational data: drivers, students, parents, routes, trips |
-| Core Data  | Local attendance lists and sessions used by the driver's offline flow |
-
-Core Data provides a local fallback so drivers can record attendance even without internet.
-Data syncs to Firestore when the session ends and connectivity is available.
+| Storage    | What it stores                                                                        |
+|------------|---------------------------------------------------------------------------------------|
+| Firestore  | All live operational data: drivers, students, parents, routes, trips, passenger notes |
+| Core Data  | Local attendance lists and sessions (legacy driver offline flow)                      |
 
 ---
 
@@ -420,7 +426,7 @@ Data syncs to Firestore when the session ends and connectivity is available.
 
 ### Firebase Auth
 - **Purpose:** User authentication for all four roles.
-- **Methods:** Phone OTP (driver), email+password (parent, student), custom token (admin).
+- **Methods:** Phone OTP (driver, parent, student), custom token (admin).
 - **Config file:** `GoogleService-Info.plist`
 
 ### Firebase Firestore
@@ -433,10 +439,12 @@ Data syncs to Firestore when the session ends and connectivity is available.
 - **Setup:** `BusMate.entitlements` enables push notifications. `BuzzerApp.swift` registers the device.
 
 ### WAC API (Web Admin Console)
-- **Purpose:** Admin OTP authentication. The app calls two WAC API routes directly.
+- **Purpose:** Admin authentication. The app calls WAC API routes for both magic link and OTP flows.
 - **Endpoints used:**
-  - `POST /api/admin-otp/send` — Request OTP
-  - `POST /api/admin-otp/verify` — Verify OTP, receive custom token
+  - `POST /api/admin-signin-link/send` — Request magic link (real device)
+  - `POST /api/admin-signin-link/verify` — Verify magic link token, receive custom token (real device)
+  - `POST /api/admin-otp/send` — Request OTP (simulator fallback)
+  - `POST /api/admin-otp/verify` — Verify OTP, receive custom token (simulator fallback)
 - **Base URL:** `https://busmate-admin.vercel.app`
 
 ---
@@ -448,6 +456,7 @@ Set in `BusMate.entitlements`:
 | Capability          | Value         | Purpose                               |
 |---------------------|---------------|---------------------------------------|
 | Push Notifications  | development   | Receive FCM push notifications        |
+| Associated Domains  | webcredentials, applinks | Universal links for admin magic-link sign-in |
 
 ---
 
