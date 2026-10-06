@@ -20,6 +20,23 @@ function toInputDate(d: Date): string {
   return d instanceof Date && !isNaN(d.getTime()) ? d.toISOString().split("T")[0] : "";
 }
 
+// Excel stores times as a decimal fraction of 24 hours (e.g. 0.2916... = 07:00).
+// Convert to "07:00 AM" format if the value looks like a fraction, otherwise return as-is.
+function xlsxTimeToString(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "";
+  const str = String(v).trim();
+  const num = Number(str);
+  if (!isNaN(num) && num >= 0 && num < 1 && str !== "") {
+    const totalMinutes = Math.round(num * 24 * 60);
+    const h = Math.floor(totalMinutes / 60) % 24;
+    const m = totalMinutes % 60;
+    const period = h < 12 ? "AM" : "PM";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+  }
+  return str;
+}
+
 const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition";
 const LABEL = "block text-[10px] font-black tracking-widest text-gray-400 uppercase mb-1.5";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -136,11 +153,12 @@ function RouteFormFields({ form, onChange, drivers, selectedDays, onToggleDay }:
   onToggleDay: (day: string) => void;
 }) {
   const set = (key: keyof RouteForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => onChange(key, e.target.value);
+  const setUpper = (key: keyof RouteForm) => (e: React.ChangeEvent<HTMLInputElement>) => onChange(key, e.target.value.toUpperCase());
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="col-span-2">
         <label className={LABEL}>Route Name</label>
-        <input className={FIELD} required value={form.name} onChange={set("name")} placeholder="e.g. Route A — Parramatta" />
+        <input className={FIELD} required value={form.name} onChange={setUpper("name")} placeholder="e.g. ROUTE A — PARRAMATTA" />
       </div>
       <div>
         <label className={LABEL}>Assign Driver</label>
@@ -151,7 +169,7 @@ function RouteFormFields({ form, onChange, drivers, selectedDays, onToggleDay }:
       </div>
       <div>
         <label className={LABEL}>Bus Registration</label>
-        <input className={FIELD} value={form.busRegistration} onChange={set("busRegistration")} placeholder="e.g. ABC123" />
+        <input className={FIELD} value={form.busRegistration} onChange={setUpper("busRegistration")} placeholder="e.g. ABC123" />
       </div>
       <div>
         <label className={LABEL}>Term</label>
@@ -433,9 +451,9 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
         name: String(r[0] ?? ""), grade: String(r[1] ?? ""),
         studentPhone: normalisePhone(String(r[2] ?? "")),
         studentEmail: String(r[3] ?? "").trim(),
-        orderAM: String(r[4] ?? ""), pickupTime: String(r[5] ?? ""),
+        orderAM: String(r[4] ?? ""), pickupTime: xlsxTimeToString(r[5]),
         stopAM: String(r[6] ?? ""),
-        orderPM: String(r[7] ?? ""), dropoffTime: String(r[8] ?? ""),
+        orderPM: String(r[7] ?? ""), dropoffTime: xlsxTimeToString(r[8]),
         stopPM: String(r[9] ?? ""),
         parentName: String(r[10] ?? ""), parentPhone: normalisePhone(String(r[11] ?? "")),
         parentEmail: String(r[12] ?? "").trim(),
