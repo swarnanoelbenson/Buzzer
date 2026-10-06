@@ -329,7 +329,7 @@ async function buildSchedulePdf(
 
   return new Promise(resolve => {
     const pdf = pdfMake.createPdf(docDef);
-    pdf.getBlob(blob => {
+    pdf.getBlob((blob: Blob) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64 = (reader.result as string).split(",")[1];
