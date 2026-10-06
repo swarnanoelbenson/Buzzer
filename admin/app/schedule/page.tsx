@@ -641,8 +641,10 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
         students: notifyStudents,
       };
 
-      // Row 0: Driver
+      // All 3 rows spin together — one API call does everything
       setProgressRow(0, { status: "sending" });
+      setProgressRow(1, { status: "sending" });
+      setProgressRow(2, { status: "sending" });
       try {
         const res = await fetch("/api/schedule/generate-and-notify", {
           method: "POST",
