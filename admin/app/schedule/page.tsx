@@ -282,16 +282,27 @@ const PDF_COLS = [
   "Parent Name", "Parent Phone", "Parent Email", "Relationship",
 ];
 
-async function buildSchedulePdf(
-  schoolName: string, routeName: string, term: number, year: number,
-  busRego: string, driverName: string, driverPhone: string,
-  rows: XlsxRow[],
-): Promise<{ blob: Blob; base64: string }> {
+// Cache the initialised pdfMake instance — vfs_fonts is ~2 MB of base64 and
+// should only be loaded and assigned once per page lifecycle.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _pdfMake: any = null;
+async function getPdfMake() {
+  if (_pdfMake) return _pdfMake;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfMake = (await import("pdfmake/build/pdfmake")).default as any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pdfFonts = (await import("pdfmake/build/vfs_fonts")).default as any;
   pdfMake.vfs = pdfFonts.vfs;
+  _pdfMake = pdfMake;
+  return _pdfMake;
+}
+
+async function buildSchedulePdf(
+  schoolName: string, routeName: string, term: number, year: number,
+  busRego: string, driverName: string, driverPhone: string,
+  rows: XlsxRow[],
+): Promise<{ blob: Blob; base64: string }> {
+  const pdfMake = await getPdfMake();
 
   const headerInfo = [
     { text: `BusMate Schedule — ${schoolName}`, style: "title" },
@@ -896,6 +907,24 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
           {/* ── Step 2: Full read-only review table ────────────────────────── */}
           {step === 2 && (
             <div className="flex flex-col flex-1 overflow-hidden">
+              {/* Route summary */}
+              <div className="px-6 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
+                <div className="grid grid-cols-4 gap-x-6 gap-y-1">
+                  {[
+                    { label: "Route", value: form.name },
+                    { label: "Driver", value: drivers.find(d => d.id === form.driverId)?.name ?? "—" },
+                    { label: "Bus Rego", value: form.busRegistration || "—" },
+                    { label: "Term / Year", value: `Term ${form.term} · ${form.year}` },
+                    { label: "Start Date", value: form.startDate ? new Date(form.startDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" }) : "—" },
+                    { label: "End Date", value: form.endDate ? new Date(form.endDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" }) : "—" },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <p className="text-[9px] font-black tracking-widest text-gray-400 uppercase">{label}</p>
+                      <p className="text-xs font-bold text-gray-800 truncate">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="overflow-x-auto overflow-y-auto flex-1">
                 <table className="text-xs min-w-max w-full">
                   <thead className="bg-blue-600 sticky top-0 z-10">
