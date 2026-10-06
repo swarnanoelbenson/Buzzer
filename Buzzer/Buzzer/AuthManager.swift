@@ -25,6 +25,7 @@ enum UserRole {
 class AuthManager {
     var currentRole: UserRole = .none
     var currentUserId: String? = nil
+    var schoolId: String? = nil     // Set only for admin role — the school doc ID
     var isLoading: Bool = true
 
     private let db = Firestore.db
@@ -53,6 +54,7 @@ class AuthManager {
                 } else {
                     self.currentRole = .none
                     self.currentUserId = nil
+                    self.schoolId = nil
                     self.isLoading = false
                 }
             }
@@ -111,7 +113,8 @@ class AuthManager {
             .getDocuments()
         if let schoolDoc = schoolSnap?.documents.first {
             self.currentRole = .admin
-            self.currentUserId = schoolDoc.documentID
+            self.currentUserId = uid           // Firebase Auth UID of the admin
+            self.schoolId = schoolDoc.documentID  // Firestore school doc ID
             self.isLoading = false
             return
         }
@@ -120,6 +123,7 @@ class AuthManager {
         try? Auth.auth().signOut()
         self.currentRole = .none
         self.currentUserId = nil
+        self.schoolId = nil
         self.isLoading = false
     }
 
@@ -220,5 +224,6 @@ class AuthManager {
         try? Auth.auth().signOut()
         currentRole = .none
         currentUserId = nil
+        schoolId = nil
     }
 }

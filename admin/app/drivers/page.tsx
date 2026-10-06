@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { collection, getDocs, doc, addDoc, updateDoc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, doc, addDoc, updateDoc, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import type { Driver } from "@/lib/types";
@@ -229,7 +229,7 @@ function ConfirmEditModal({ original, updated, onConfirm, onBack, saving }: {
 
 // ── Add Driver Modal ──────────────────────────────────────────────────────────
 
-function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d: Driver) => void }) {
+function AddDriverModal({ schoolId, onClose, onAdded }: { schoolId: string; onClose: () => void; onAdded: (d: Driver) => void }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
@@ -258,6 +258,7 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
     setSaving(true);
     try {
       const ref = await addDoc(collection(db, "drivers"), {
+        schoolId,
         name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0, gender: form.gender,
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
@@ -266,7 +267,7 @@ function AddDriverModal({ onClose, onAdded }: { onClose: () => void; onAdded: (d
         imageUrl: "", isActive: true, createdAt: Timestamp.now(),
       });
       const newDriver: Driver = {
-        id: ref.id, name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
+        id: ref.id, schoolId, name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",
         age: parseInt(form.age) || 0, gender: form.gender,
         address: form.address.trim(), childrenCheck: form.childrenCheck.trim(),
         driversLicense: form.driversLicense.trim(),
@@ -602,7 +603,7 @@ function redact(val: string) {
 }
 
 export default function DriversPage() {
-  const { user } = useAuth();
+  const { user, schoolId } = useAuth();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal | null>(null);
@@ -615,7 +616,8 @@ export default function DriversPage() {
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(() => {
-    getDocs(collection(db, "drivers")).then(snap => {
+    if (!schoolId) return;
+    getDocs(query(collection(db, "drivers"), where("schoolId", "==", schoolId))).then(snap => {
       setDrivers(snap.docs.map(d => ({
         id: d.id, ...d.data(),
         licenseExpiry: toDate(d.data().licenseExpiry),
@@ -623,7 +625,7 @@ export default function DriversPage() {
       } as Driver)));
       setLoading(false);
     });
-  }, []);
+  }, [schoolId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -848,7 +850,7 @@ export default function DriversPage() {
         </div>
       )}
 
-      {modal?.type === "add" && <AddDriverModal onClose={closeModal} onAdded={handleAdded} />}
+      {modal?.type === "add" && <AddDriverModal schoolId={schoolId} onClose={closeModal} onAdded={handleAdded} />}
       {modal?.type === "preview" && (
         <PreviewModal
           driver={modal.driver}

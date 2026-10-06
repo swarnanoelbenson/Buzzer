@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { collection, getDocs, doc, addDoc, updateDoc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, doc, addDoc, updateDoc, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import type { Student, Route, ParentContact } from "@/lib/types";
@@ -431,7 +431,7 @@ function useStudentForm(initial: FormState) {
 
 // ── Add Student Modal ─────────────────────────────────────────────────────────
 
-function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClose: () => void; onAdded: (s: Student) => void }) {
+function AddStudentModal({ schoolId, routes, onClose, onAdded }: { schoolId: string; routes: Route[]; onClose: () => void; onAdded: (s: Student) => void }) {
   const { form, onChange, onParentChange, onAddParent, onRemoveParent } = useStudentForm(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
@@ -450,6 +450,7 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
 
       // 1. Create the student document first (so we have its ID)
       const ref = await addDoc(collection(db, "students"), {
+        schoolId,
         name: form.name.trim(), grade: form.grade.trim(),
         stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
         orderAM: parseInt(form.orderAM) || null, orderPM: parseInt(form.orderPM) || null,
@@ -469,6 +470,7 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
       for (const p of validParents) {
         if (!p.canAccess || !p.name.trim()) continue;
         const parentRef = await addDoc(collection(db, "parents"), {
+          schoolId,
           name: p.name.trim(),
           relationship: p.relationship ?? "",
           phone: p.phone.trim() ? `+61${p.phone.trim()}` : "",
@@ -489,7 +491,7 @@ function AddStudentModal({ routes, onClose, onAdded }: { routes: Route[]; onClos
       // TODO: Send SMS to student (form.studentPhone) and each parent phone when SMS provider is wired up
 
       const newStudent: Student = {
-        id: studentId, name: form.name.trim(), grade: form.grade.trim(),
+        id: studentId, schoolId, name: form.name.trim(), grade: form.grade.trim(),
         stopAddressAM: form.stopAddressAM.trim(), stopAddressPM: form.stopAddressPM.trim(),
         orderAM: parseInt(form.orderAM) || undefined, orderPM: parseInt(form.orderPM) || undefined,
         routeId: form.routeId,
@@ -828,7 +830,7 @@ function redact(val: string) {
 }
 
 export default function StudentsPage() {
-  const { user } = useAuth();
+  const { user, schoolId } = useAuth();
   const [students, setStudents] = useState<Student[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(true);
@@ -842,15 +844,16 @@ export default function StudentsPage() {
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(() => {
+    if (!schoolId) return;
     Promise.all([
-      getDocs(collection(db, "students")),
-      getDocs(collection(db, "routes")),
+      getDocs(query(collection(db, "students"), where("schoolId", "==", schoolId))),
+      getDocs(query(collection(db, "routes"), where("schoolId", "==", schoolId))),
     ]).then(([sSnap, rSnap]) => {
       setStudents(sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Student)));
       setRoutes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Route)));
       setLoading(false);
     });
-  }, []);
+  }, [schoolId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1102,7 +1105,7 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {modal?.type === "add" && <AddStudentModal routes={routes} onClose={closeModal} onAdded={handleAdded} />}
+      {modal?.type === "add" && schoolId && <AddStudentModal schoolId={schoolId} routes={routes} onClose={closeModal} onAdded={handleAdded} />}
       {modal?.type === "preview" && (
         <PreviewModal
           student={modal.student}

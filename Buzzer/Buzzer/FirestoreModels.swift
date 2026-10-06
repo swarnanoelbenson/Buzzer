@@ -9,27 +9,45 @@
 import Foundation
 import FirebaseFirestore
 
+// MARK: - School
+// Collection: /schools/{schoolId}
+// schoolId = Firestore document ID (auto-generated)
+
+struct School: Identifiable, Codable {
+    @DocumentID var id: String?
+    var schoolName: String
+    var adminUid: String            // Firebase Auth UID of the school admin
+    var fcmToken: String?           // For push notifications to admin
+    var createdAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, schoolName, adminUid, fcmToken, createdAt
+    }
+}
+
 // MARK: - Driver
 // Collection: /drivers/{driverId}
 // driverId = Firebase Auth UID
 
 struct Driver: Identifiable, Codable {
     @DocumentID var id: String?
+    var schoolId: String            // FK → schools/{schoolId}
     var name: String
-    var phone: String                   // Full phone number with country code e.g. +61412345678
+    var phone: String               // Full phone number with country code e.g. +61412345678
     var age: Int
     var gender: String
     var address: String
-    var childrenCheck: String           // Working with Children Check number
+    var childrenCheck: String       // Working with Children Check number
     var driversLicense: String
     var licenseExpiry: Date
-    var busRegistration: String
+    var busRegistration: String     // Globally unique across all schools
     var imageUrl: String?
     var isActive: Bool
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
+        case schoolId
         case name, phone, age, gender, address
         case childrenCheck, driversLicense, licenseExpiry, busRegistration
         case imageUrl, isActive, createdAt
@@ -41,24 +59,25 @@ struct Driver: Identifiable, Codable {
 
 struct Student: Identifiable, Codable {
     @DocumentID var id: String?
+    var schoolId: String            // FK → schools/{schoolId}
     var name: String
     var grade: String
     var imageUrl: String?
-    var phone: String?                  // Phone number — used for SMS OTP login
-    var email: String?                  // Student email address
-    var stopAddressAM: String           // Morning pick-up stop location
-    var stopAddressPM: String           // Afternoon drop-off stop location
-    var orderAM: Int?                   // Stop sequence order for morning route
-    var orderPM: Int?                   // Stop sequence order for afternoon route
+    var phone: String?              // Phone number — used for SMS OTP login
+    var email: String?              // Student email address
+    var stopAddressAM: String       // Morning pick-up stop location
+    var stopAddressPM: String       // Afternoon drop-off stop location
+    var orderAM: Int?               // Stop sequence order for morning route
+    var orderPM: Int?               // Stop sequence order for afternoon route
     var routeId: String
-    var scheduledPickupTime: String     // e.g. "08:15 AM"
-    var scheduledDropoffTime: String    // e.g. "03:30 PM"
-    var authorisedParentIds: [String]   // parent UIDs who can receive notifications
+    var scheduledPickupTime: String // e.g. "08:15 AM"
+    var scheduledDropoffTime: String // e.g. "03:30 PM"
+    var authorisedParentIds: [String] // parent UIDs who can receive notifications
     var isActive: Bool
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id, name, grade, imageUrl, phone, email
+        case id, schoolId, name, grade, imageUrl, phone, email
         case stopAddressAM, stopAddressPM, orderAM, orderPM
         case routeId, scheduledPickupTime, scheduledDropoffTime
         case authorisedParentIds, isActive, createdAt
@@ -71,18 +90,19 @@ struct Student: Identifiable, Codable {
 
 struct Parent: Identifiable, Codable {
     @DocumentID var id: String?
+    var schoolId: String            // FK → schools/{schoolId}
     var name: String
     var relationship: ParentRelationship
-    var phone: String                   // Phone number — used for SMS OTP login
-    var email: String?                  // Parent email address
-    var fcmToken: String?               // For push notifications
-    var childIds: [String]              // Student IDs linked to this parent
+    var phone: String               // Phone number — used for SMS OTP login
+    var email: String?              // Parent email address
+    var fcmToken: String?           // For push notifications
+    var childIds: [String]          // Student IDs linked to this parent
     var isActive: Bool
-    var profileCompleted: Bool          // False until parent fills in profile on first login
+    var profileCompleted: Bool      // False until parent fills in profile on first login
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id, name, relationship, phone, email, fcmToken
+        case id, schoolId, name, relationship, phone, email, fcmToken
         case childIds, isActive, profileCompleted, createdAt
     }
 }
@@ -100,12 +120,13 @@ enum ParentRelationship: String, Codable, CaseIterable {
 
 struct Route: Identifiable, Codable {
     @DocumentID var id: String?
+    var schoolId: String            // FK → schools/{schoolId}
     var name: String
     var driverId: String
-    var busRegistration: String?        // Bus rego assigned to this route
-    var term: Int                       // 1, 2, 3, or 4
-    var year: Int                       // e.g. 2026
-    var scheduledDays: [String]         // e.g. ["Monday", "Wednesday", "Friday"]
+    var busRegistration: String?    // Globally unique across all schools
+    var term: Int                   // 1, 2, 3, or 4
+    var year: Int                   // e.g. 2026
+    var scheduledDays: [String]     // e.g. ["Monday", "Wednesday", "Friday"]
     var startDate: Date
     var endDate: Date
     var studentIds: [String]
@@ -113,7 +134,7 @@ struct Route: Identifiable, Codable {
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
-        case id, name, driverId, busRegistration, term, year
+        case id, schoolId, name, driverId, busRegistration, term, year
         case scheduledDays, startDate, endDate
         case studentIds, isActive, createdAt
     }
@@ -125,9 +146,10 @@ struct Route: Identifiable, Codable {
 
 struct Trip: Identifiable, Codable {
     @DocumentID var id: String?
+    var schoolId: String                // FK → schools/{schoolId}
     var routeId: String
-    var driverId: String                    // The originally assigned driver
-    var substituteDriverId: String?         // Set when a substitute covers this trip
+    var driverId: String                // The originally assigned driver
+    var substituteDriverId: String?     // Set when a substitute covers this trip
     var date: Date
     var type: TripType
     var status: TripStatus
@@ -139,7 +161,7 @@ struct Trip: Identifiable, Codable {
     var effectiveDriverId: String { substituteDriverId ?? driverId }
 
     enum CodingKeys: String, CodingKey {
-        case id, routeId, driverId, substituteDriverId, date, type, status
+        case id, schoolId, routeId, driverId, substituteDriverId, date, type, status
         case studentRecords, startedAt, completedAt
     }
 }
@@ -157,14 +179,14 @@ enum TripStatus: String, Codable {
 }
 
 struct StudentTripRecord: Codable, Identifiable {
-    var id: String                      // studentId
+    var id: String                  // studentId
     var studentName: String
-    var stopAddressAM: String           // Morning pick-up stop
-    var stopAddressPM: String           // Afternoon drop-off stop
-    var orderAM: Int?                   // Stop sequence order for morning route
-    var orderPM: Int?                   // Stop sequence order for afternoon route
+    var stopAddressAM: String       // Morning pick-up stop
+    var stopAddressPM: String       // Afternoon drop-off stop
+    var orderAM: Int?               // Stop sequence order for morning route
+    var orderPM: Int?               // Stop sequence order for afternoon route
     var status: StudentTripStatus
-    var timestamp: Date?               // When picked up or dropped off
+    var timestamp: Date?            // When picked up or dropped off
 
     enum CodingKeys: String, CodingKey {
         case id, studentName
@@ -187,11 +209,12 @@ enum StudentTripStatus: String, Codable {
 
 struct FirestorePassengerNote: Identifiable, Codable {
     @DocumentID var id: String?
+    var schoolId: String            // FK → schools/{schoolId}
     var studentId: String
     var studentName: String
     var routeId: String
     var routeName: String
-    var type: TripType                      // "pickup" or "dropoff"
+    var type: TripType              // "pickup" or "dropoff"
     var noteText: String
     var fromDate: Date
     var toDate: Date
@@ -201,7 +224,7 @@ struct FirestorePassengerNote: Identifiable, Codable {
     var isDeleted: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, studentId, studentName
+        case id, schoolId, studentId, studentName
         case routeId, routeName, type, noteText
         case fromDate, toDate, createdAt
         case createdByParentId, createdByParentName, isDeleted
@@ -213,14 +236,15 @@ struct FirestorePassengerNote: Identifiable, Codable {
 
 struct ActivityLog: Identifiable, Codable {
     @DocumentID var id: String?
+    var schoolId: String            // FK → schools/{schoolId}
     var actorId: String
     var actorName: String
-    var actorRole: String               // "driver" or "parent"
-    var action: String                  // Human-readable description
+    var actorRole: String           // "driver" or "parent"
+    var action: String              // Human-readable description
     var timestamp: Date
-    var metadata: [String: String]?    // Extra context (studentId, routeId, etc.)
+    var metadata: [String: String]? // Extra context (studentId, routeId, etc.)
 
     enum CodingKeys: String, CodingKey {
-        case id, actorId, actorName, actorRole, action, timestamp, metadata
+        case id, schoolId, actorId, actorName, actorRole, action, timestamp, metadata
     }
 }

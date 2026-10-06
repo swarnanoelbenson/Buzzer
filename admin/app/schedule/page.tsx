@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { collection, getDocs, doc, updateDoc, writeBatch, query, where, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import type { Route, Driver } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
 import SubstituteDriverModal from "./SubstituteDriverModal";
@@ -246,8 +247,8 @@ function ConfirmEditModal({ original, updated, onConfirm, onBack, saving }: {
 
 // ── Add Schedule Modal ────────────────────────────────────────────────────────
 
-function AddScheduleModal({ drivers, onClose, onAdded }: {
-  drivers: Driver[]; onClose: () => void; onAdded: (r: Route) => void;
+function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
+  schoolId: string; drivers: Driver[]; onClose: () => void; onAdded: (r: Route) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<RouteForm>(EMPTY_FORM);
@@ -361,20 +362,37 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
 
     setSaving(true);
     try {
-      // Duplicate check — block if a route with same name + term + year already exists
+      // Duplicate check — block if this school already has a route with same name + term + year
       const dupSnap = await getDocs(
         query(
           collection(db, "routes"),
-          where("name", "==", form.name.trim()),
+          where("schoolId", "==", schoolId),
+          where("name", "==", form.name.trim().toUpperCase()),
           where("term", "==", parseInt(form.term)),
           where("year", "==", parseInt(form.year)),
           where("isActive", "==", true)
         )
       );
       if (!dupSnap.empty) {
-        alert(`A route named "${form.name.trim()}" already exists for Term ${form.term} ${form.year}.`);
+        alert(`A route named "${form.name.trim().toUpperCase()}" already exists for Term ${form.term} ${form.year}.`);
         setSaving(false);
         return;
+      }
+
+      // Bus rego uniqueness — globally unique across all schools
+      if (form.busRegistration.trim()) {
+        const regoSnap = await getDocs(
+          query(
+            collection(db, "routes"),
+            where("busRegistration", "==", form.busRegistration.trim().toUpperCase()),
+            where("isActive", "==", true)
+          )
+        );
+        if (!regoSnap.empty) {
+          alert(`Bus registration "${form.busRegistration.trim().toUpperCase()}" is already assigned to another active route.`);
+          setSaving(false);
+          return;
+        }
       }
 
       const batch = writeBatch(db);
@@ -396,6 +414,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
         if (row.parentName.trim()) {
           const parentRef = doc(collection(db, "parents"));
           batch.set(parentRef, {
+            schoolId,
             name: row.parentName.trim(),
             relationship: row.relationship.trim() || "Guardian",
             phone: row.parentPhone.trim() || "",
@@ -409,6 +428,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
         }
 
         batch.set(studentRef, {
+          schoolId,
           name: row.name, grade: row.grade,
           stopAddressAM: row.stopAM, stopAddressPM: row.stopPM,
           orderAM, orderPM,
@@ -422,6 +442,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
         studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, orderAM, orderPM, status: "pending", timestamp: null });
       }
       batch.set(routeRef, {
+        schoolId,
         name: form.name.trim().toUpperCase(), driverId: form.driverId,
         busRegistration: form.busRegistration.trim().toUpperCase(),
         term: parseInt(form.term), year: parseInt(form.year),
@@ -434,6 +455,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
         for (const type of ["pickup", "dropoff"] as const) {
           const tripRef = doc(collection(db, "trips"));
           batch.set(tripRef, {
+            schoolId,
             routeId: routeRef.id, driverId: form.driverId,
             date: Timestamp.fromDate(date), type, status: "scheduled",
             studentRecords: studentRecordTemplate, startedAt: null, completedAt: null,
@@ -443,7 +465,7 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
 
       await batch.commit();
       const newRoute: Route = {
-        id: routeRef.id, name: form.name.trim(), driverId: form.driverId,
+        id: routeRef.id, schoolId, name: form.name.trim().toUpperCase(), driverId: form.driverId,
         term: parseInt(form.term), year: parseInt(form.year),
         scheduledDays: selectedDays, startDate, endDate, studentIds, isActive: true,
       };
@@ -716,6 +738,7 @@ type Modal =
   | { type: "substitute"; route: Route };
 
 export default function SchedulePage() {
+  const { schoolId } = useAuth();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -727,9 +750,10 @@ export default function SchedulePage() {
   const [filterTerm, setFilterTerm] = useState<number | null>(null);
 
   const load = useCallback(() => {
+    if (!schoolId) return;
     Promise.all([
-      getDocs(query(collection(db, "routes"), orderBy("startDate", "desc"))),
-      getDocs(collection(db, "drivers")),
+      getDocs(query(collection(db, "routes"), where("schoolId", "==", schoolId), orderBy("startDate", "desc"))),
+      getDocs(query(collection(db, "drivers"), where("schoolId", "==", schoolId))),
     ]).then(([rSnap, dSnap]) => {
       setRoutes(rSnap.docs.map(d => ({
         id: d.id, ...d.data(),
@@ -739,7 +763,7 @@ export default function SchedulePage() {
       setDrivers(dSnap.docs.map(d => ({ id: d.id, ...d.data() } as Driver)).filter(d => d.isActive));
       setLoading(false);
     });
-  }, []);
+  }, [schoolId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -945,7 +969,7 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {modal?.type === "add" && <AddScheduleModal drivers={drivers} onClose={closeModal} onAdded={handleAdded} />}
+      {modal?.type === "add" && <AddScheduleModal schoolId={schoolId} drivers={drivers} onClose={closeModal} onAdded={handleAdded} />}
       {modal?.type === "preview" && (
         <PreviewModal
           route={modal.route}

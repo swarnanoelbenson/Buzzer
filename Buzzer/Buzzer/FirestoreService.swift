@@ -31,8 +31,9 @@ class FirestoreService {
 
     // MARK: - Drivers
 
-    func fetchAllDrivers() async throws -> [Driver] {
+    func fetchAllDrivers(schoolId: String) async throws -> [Driver] {
         let snapshot = try await db.collection("drivers")
+            .whereField("schoolId", isEqualTo: schoolId)
             .whereField("isActive", isEqualTo: true)
             .getDocuments()
         return try snapshot.documents.map { try $0.data(as: Driver.self) }
@@ -45,8 +46,9 @@ class FirestoreService {
 
     // MARK: - Students
 
-    func fetchStudents(for routeId: String) async throws -> [Student] {
+    func fetchStudents(for routeId: String, schoolId: String) async throws -> [Student] {
         let snapshot = try await db.collection("students")
+            .whereField("schoolId", isEqualTo: schoolId)
             .whereField("routeId", isEqualTo: routeId)
             .whereField("isActive", isEqualTo: true)
             .getDocuments()
@@ -61,10 +63,11 @@ class FirestoreService {
         return try snapshot.documents.map { try $0.data(as: Student.self) }
     }
 
-    /// Look up a student by their phone number (normalised — last 9 digits compared).
-    func fetchStudentByPhone(_ rawPhone: String) async throws -> Student {
+    /// Look up a student by their phone number within a school (normalised — last 9 digits compared).
+    func fetchStudentByPhone(_ rawPhone: String, schoolId: String) async throws -> Student {
         // Try the exact stored number first, then fall back to suffix matching
         let snapshot = try await db.collection("students")
+            .whereField("schoolId", isEqualTo: schoolId)
             .whereField("isActive", isEqualTo: true)
             .getDocuments()
         let suffix = String(rawPhone.filter(\.isNumber).suffix(9))
@@ -84,9 +87,10 @@ class FirestoreService {
         return try doc.data(as: Parent.self)
     }
 
-    /// Look up a parent by their phone number (normalised — last 9 digits compared).
-    func fetchParentByPhone(_ rawPhone: String) async throws -> Parent {
+    /// Look up a parent by their phone number within a school (normalised — last 9 digits compared).
+    func fetchParentByPhone(_ rawPhone: String, schoolId: String) async throws -> Parent {
         let snapshot = try await db.collection("parents")
+            .whereField("schoolId", isEqualTo: schoolId)
             .whereField("isActive", isEqualTo: true)
             .getDocuments()
         let suffix = String(rawPhone.filter(\.isNumber).suffix(9))
@@ -115,8 +119,9 @@ class FirestoreService {
 
     // MARK: - Routes
 
-    func fetchRoutes(for driverId: String) async throws -> [Route] {
+    func fetchRoutes(for driverId: String, schoolId: String) async throws -> [Route] {
         let snapshot = try await db.collection("routes")
+            .whereField("schoolId", isEqualTo: schoolId)
             .whereField("driverId", isEqualTo: driverId)
             .whereField("isActive", isEqualTo: true)
             .getDocuments()
@@ -130,12 +135,13 @@ class FirestoreService {
 
     // MARK: - Trips
 
-    /// Fetches today's trips for a specific driver.
-    func fetchTodaysTrips(for driverId: String) async throws -> [Trip] {
+    /// Fetches today's trips for a specific driver within a school.
+    func fetchTodaysTrips(for driverId: String, schoolId: String) async throws -> [Trip] {
         let startOfDay = Calendar.current.startOfDay(for: Date())
         let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
 
         let snapshot = try await db.collection("trips")
+            .whereField("schoolId", isEqualTo: schoolId)
             .whereField("driverId", isEqualTo: driverId)
             .whereField("date", isGreaterThanOrEqualTo: startOfDay)
             .whereField("date", isLessThan: endOfDay)
@@ -144,13 +150,14 @@ class FirestoreService {
     }
 
     /// Fetches today's trips that contain any of the given student IDs (for parent portal).
-    func fetchTodaysTrips(forStudentIds studentIds: [String]) async throws -> [Trip] {
+    func fetchTodaysTrips(forStudentIds studentIds: [String], schoolId: String) async throws -> [Trip] {
         guard !studentIds.isEmpty else { return [] }
         let startOfDay = Calendar.current.startOfDay(for: Date())
         let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay)!
 
         // Firestore `array-contains-any` supports up to 10 values
         let snapshot = try await db.collection("trips")
+            .whereField("schoolId", isEqualTo: schoolId)
             .whereField("date", isGreaterThanOrEqualTo: startOfDay)
             .whereField("date", isLessThan: endOfDay)
             .getDocuments()
@@ -162,9 +169,10 @@ class FirestoreService {
         }
     }
 
-    /// Fetches all upcoming trips for a driver (for View All tab).
-    func fetchAllTrips(for driverId: String) async throws -> [Trip] {
+    /// Fetches all upcoming trips for a driver within a school (for View All tab).
+    func fetchAllTrips(for driverId: String, schoolId: String) async throws -> [Trip] {
         let snapshot = try await db.collection("trips")
+            .whereField("schoolId", isEqualTo: schoolId)
             .whereField("driverId", isEqualTo: driverId)
             .order(by: "date", descending: false)
             .getDocuments()
@@ -305,8 +313,9 @@ class FirestoreService {
 
     // MARK: - Activity Log
 
-    func logActivity(actorId: String, actorName: String, actorRole: String, action: String, metadata: [String: String]? = nil) {
+    func logActivity(schoolId: String, actorId: String, actorName: String, actorRole: String, action: String, metadata: [String: String]? = nil) {
         let data: [String: Any] = [
+            "schoolId": schoolId,
             "actorId": actorId,
             "actorName": actorName,
             "actorRole": actorRole,

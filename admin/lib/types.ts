@@ -1,5 +1,14 @@
+export interface School {
+  id: string;
+  schoolName: string;
+  adminUid: string;
+  fcmToken?: string;
+  createdAt: Date;
+}
+
 export interface Driver {
   id: string;
+  schoolId: string;           // FK → schools/{schoolId}
   name: string;
   phone: string;
   age: number;
@@ -8,7 +17,7 @@ export interface Driver {
   childrenCheck: string;
   driversLicense: string;
   licenseExpiry: Date;
-  busRegistration?: string;
+  busRegistration?: string;   // globally unique across all schools
   isActive: boolean;
   createdAt: Date;
 }
@@ -22,6 +31,7 @@ export interface ParentContact {
 
 export interface Student {
   id: string;
+  schoolId: string;           // FK → schools/{schoolId}
   name: string;
   grade: string;
   stopAddressAM: string;  // morning pickup stop
@@ -40,6 +50,7 @@ export interface Student {
 
 export interface Parent {
   id: string;
+  schoolId: string;           // FK → schools/{schoolId}
   name: string;
   relationship: string;
   phone: string;          // phone number — used for SMS OTP login
@@ -51,6 +62,7 @@ export interface Parent {
 
 export interface Route {
   id: string;
+  schoolId: string;           // FK → schools/{schoolId}
   name: string;
   driverId: string;
   term: number;
@@ -58,13 +70,14 @@ export interface Route {
   scheduledDays: string[];
   startDate: Date;
   endDate: Date;
-  busRegistration?: string;
+  busRegistration?: string;   // globally unique across all schools
   studentIds: string[];
   isActive: boolean;
 }
 
 export interface Trip {
   id: string;
+  schoolId: string;           // FK → schools/{schoolId}
   routeId: string;
   driverId: string;
   date: Date;
@@ -89,6 +102,7 @@ export interface StudentTripRecord {
 // Written by the parent app; read by admin console and driver app
 export interface PassengerNote {
   id: string;
+  schoolId: string;           // FK → schools/{schoolId}
   studentId: string;
   studentName: string;
   routeId: string;
@@ -104,6 +118,7 @@ export interface PassengerNote {
 
 export interface ActivityLog {
   id: string;
+  schoolId: string;           // FK → schools/{schoolId}
   actorId: string;
   actorName: string;
   actorRole: string;
