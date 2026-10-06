@@ -214,14 +214,15 @@ Redirects unauthenticated users to `/login`.
 
 ### `lib/types.ts`
 TypeScript interfaces for all data models:
-`Driver`, `Student`, `Parent`, `Route`, `Trip`, `StudentTripRecord`, `ActivityLog`, `PassengerNote`.
+`School`, `Driver`, `Student`, `Parent`, `Route`, `Trip`, `StudentTripRecord`, `ActivityLog`, `PassengerNote`.
 These match the Firestore document structure exactly.
+
+`School` is the root entity. Every other entity has a required `schoolId: string` field (FK → `schools/{schoolId}`) that scopes it to a specific school. All Firestore queries filter by `schoolId` so data is fully isolated between schools.
 
 Key fields on `Student`: `stopAddressAM`, `stopAddressPM` (separate morning and afternoon stops), `orderAM`, `orderPM` (stop sequence numbers for the driver app).
 `StudentTripRecord` (embedded in each `Trip.studentRecords` array) mirrors `stopAddressAM`, `stopAddressPM`, `orderAM`, and `orderPM` as a snapshot at trip creation time.
 
-`Driver` includes `busRegistration?` (optional — the bus rego assigned to the driver).
-`Route` includes `busRegistration?` (optional — the bus rego assigned to this route).
+`Route` includes `busRegistration?` (optional — the bus rego assigned to this route). Bus rego is globally unique across all schools; `Driver` does not carry a bus rego.
 
 ### `app/schedule/page.tsx`
 The main schedule management page.
@@ -242,7 +243,7 @@ All writes use a Firestore batch for atomicity.
 
 `downloadTemplate()` — Generates and downloads a blank .xlsx template file.
 Uses SheetJS to build the file in the browser.
-The template contains the correct 12 column headers.
+The template contains the correct 14 column headers.
 
 ### `app/students/page.tsx`
 The main student management page.
