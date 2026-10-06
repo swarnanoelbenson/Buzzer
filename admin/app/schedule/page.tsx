@@ -422,8 +422,8 @@ function AddScheduleModal({ drivers, onClose, onAdded }: {
         studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, orderAM, orderPM, status: "pending", timestamp: null });
       }
       batch.set(routeRef, {
-        name: form.name.trim(), driverId: form.driverId,
-        busRegistration: form.busRegistration.trim(),
+        name: form.name.trim().toUpperCase(), driverId: form.driverId,
+        busRegistration: form.busRegistration.trim().toUpperCase(),
         term: parseInt(form.term), year: parseInt(form.year),
         scheduledDays: selectedDays,
         startDate: Timestamp.fromDate(startDate), endDate: Timestamp.fromDate(endDate),

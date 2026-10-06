@@ -378,7 +378,7 @@ struct AddDriverSheet: View {
                     "childrenCheck": childrenCheck.trimmingCharacters(in: .whitespaces),
                     "driversLicense": driversLicense.trimmingCharacters(in: .whitespaces),
                     "licenseExpiry": Timestamp(date: licenseExpiry),
-                    "busRegistration": busRegistration.trimmingCharacters(in: .whitespaces),
+                    "busRegistration": busRegistration.trimmingCharacters(in: .whitespaces).uppercased(),
                     "isActive": true,
                     "createdAt": Timestamp(date: Date()),
                 ])

@@ -886,9 +886,9 @@ struct CreateRouteSheet: View {
                 }
 
                 batch.setData([
-                    "name": routeName.trimmingCharacters(in: .whitespaces),
+                    "name": routeName.trimmingCharacters(in: .whitespaces).uppercased(),
                     "driverId": selectedDriverId,
-                    "busRegistration": busRegistration.trimmingCharacters(in: .whitespaces),
+                    "busRegistration": busRegistration.trimmingCharacters(in: .whitespaces).uppercased(),
                     "term": term,
                     "year": year,
                     "scheduledDays": Array(selectedDays),
