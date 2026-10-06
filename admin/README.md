@@ -220,7 +220,7 @@ These match the Firestore document structure exactly.
 Key fields on `Student`: `stopAddressAM`, `stopAddressPM` (separate morning and afternoon stops), `orderAM`, `orderPM` (stop sequence numbers for the driver app).
 `StudentTripRecord` (embedded in each `Trip.studentRecords` array) mirrors `stopAddressAM`, `stopAddressPM`, `orderAM`, and `orderPM` as a snapshot at trip creation time.
 
-`Driver` includes `busRegistration` (the bus rego assigned to the driver).
+`Driver` includes `busRegistration?` (optional — the bus rego assigned to the driver).
 `Route` includes `busRegistration?` (optional — the bus rego assigned to this route).
 
 ### `app/schedule/page.tsx`
