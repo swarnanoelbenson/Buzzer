@@ -269,8 +269,10 @@ async function buildSchedulePdf(
   busRego: string, driverName: string, driverPhone: string,
   rows: XlsxRow[],
 ): Promise<{ blob: Blob; base64: string }> {
-  const pdfMake = (await import("pdfmake/build/pdfmake")).default;
-  const pdfFonts = (await import("pdfmake/build/vfs_fonts")).default;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfMake = (await import("pdfmake/build/pdfmake")).default as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfFonts = (await import("pdfmake/build/vfs_fonts")).default as any;
   pdfMake.vfs = pdfFonts.vfs;
 
   const headerInfo = [
