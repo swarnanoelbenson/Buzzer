@@ -274,7 +274,7 @@ const EMPTY_MANUAL_ROW: XlsxRow = {
 
 const RELATIONSHIPS = ["Mother", "Father", "Step Mother", "Step Father", "Guardian"];
 
-// PDF column definitions for the schedule
+// PDF table column headers (used for Step 2 review table)
 const PDF_COLS = [
   "Student Name", "Grade", "Student Phone", "Student Email",
   "Order AM", "Schedule AM", "Stop AM",
@@ -282,95 +282,58 @@ const PDF_COLS = [
   "Parent Name", "Parent Phone", "Parent Email", "Relationship",
 ];
 
-// Cache the initialised pdfMake instance — vfs_fonts is ~2 MB of base64 and
-// should only be loaded and assigned once per page lifecycle.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _pdfMake: any = null;
-async function getPdfMake() {
-  if (_pdfMake) return _pdfMake;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfMake = (await import("pdfmake/build/pdfmake")).default as any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdfFonts = (await import("pdfmake/build/vfs_fonts")).default as any;
-  pdfMake.vfs = pdfFonts.vfs;
-  _pdfMake = pdfMake;
-  return _pdfMake;
+// Progress row status for Step 3
+type ProgressStatus = "pending" | "sending" | "done" | "error";
+
+interface ProgressRow {
+  label: string;
+  status: ProgressStatus;
+  note?: string;
 }
 
-async function buildSchedulePdf(
-  schoolName: string, routeName: string, term: number, year: number,
-  busRego: string, driverName: string, driverPhone: string,
-  rows: XlsxRow[],
-): Promise<{ blob: Blob; base64: string }> {
-  const pdfMake = await getPdfMake();
-
-  const headerInfo = [
-    { text: `BusMate Schedule — ${schoolName}`, style: "title" },
-    {
-      columns: [
-        [
-          { text: `Route: ${routeName}`, style: "meta" },
-          { text: `Term ${term} · ${year}`, style: "meta" },
-          { text: `Bus Registration: ${busRego || "—"}`, style: "meta" },
-        ],
-        [
-          { text: `Driver: ${driverName}`, style: "meta" },
-          { text: `Driver Phone: ${driverPhone || "—"}`, style: "meta" },
-        ],
-      ],
-      margin: [0, 4, 0, 12],
-    },
-  ];
-
-  const tableBody = [
-    PDF_COLS.map(h => ({ text: h, style: "th" })),
-    ...rows.map(r => [
-      r.name, r.grade, r.studentPhone, r.studentEmail,
-      r.orderAM, r.pickupTime, r.stopAM,
-      r.orderPM, r.dropoffTime, r.stopPM,
-      r.parentName, r.parentPhone, r.parentEmail, r.relationship,
-    ].map(v => ({ text: v || "—", style: "td" }))),
-  ];
-
-  const docDef = {
-    pageOrientation: "landscape" as const,
-    pageMargins: [24, 24, 24, 24] as [number, number, number, number],
-    content: [
-      ...headerInfo,
-      {
-        table: { headerRows: 1, widths: Array(14).fill("*"), body: tableBody },
-        layout: {
-          hLineWidth: (i: number) => i === 0 || i === 1 ? 1.5 : 0.5,
-          vLineWidth: () => 0.5,
-          hLineColor: () => "#e5e7eb",
-          vLineColor: () => "#e5e7eb",
-          fillColor: (i: number) => i === 0 ? "#2563eb" : i % 2 === 0 ? "#f9fafb" : null,
-        },
-      },
-    ],
-    styles: {
-      title: { fontSize: 14, bold: true, color: "#111827", margin: [0, 0, 0, 6] as [number, number, number, number] },
-      meta: { fontSize: 9, color: "#6b7280", margin: [0, 1, 0, 1] as [number, number, number, number] },
-      th: { fontSize: 7, bold: true, color: "#ffffff", margin: [3, 4, 3, 4] as [number, number, number, number] },
-      td: { fontSize: 7, color: "#374151", margin: [3, 3, 3, 3] as [number, number, number, number] },
-    },
-  };
-
-  return new Promise(resolve => {
-    const pdf = pdfMake.createPdf(docDef);
-    pdf.getBlob((blob: Blob) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = (reader.result as string).split(",")[1];
-        resolve({ blob, base64 });
-      };
-      reader.readAsDataURL(blob);
-    });
-  });
+function ProgressRowItem({ row }: { row: ProgressRow }) {
+  return (
+    <div className={`flex items-center justify-between px-5 py-4 rounded-2xl transition-colors ${
+      row.status === "done" ? "bg-green-50 border border-green-200" :
+      row.status === "error" ? "bg-red-50 border border-red-200" :
+      "bg-gray-50 border border-gray-100"
+    }`}>
+      <div>
+        <p className={`text-sm font-black ${
+          row.status === "done" ? "text-green-800" :
+          row.status === "error" ? "text-red-700" :
+          "text-gray-700"
+        }`}>{row.label}</p>
+        {row.note && (
+          <p className="text-xs text-amber-600 mt-0.5 font-medium">{row.note}</p>
+        )}
+      </div>
+      <div className="flex-shrink-0 ml-4">
+        {row.status === "pending" && (
+          <div className="w-6 h-6 rounded-full bg-gray-200" />
+        )}
+        {row.status === "sending" && (
+          <div className="w-6 h-6 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+        )}
+        {row.status === "done" && (
+          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+        )}
+        {row.status === "error" && (
+          <div className="w-6 h-6 rounded-full bg-red-400 flex items-center justify-center">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
-  schoolId: string; schoolName: string; drivers: Driver[]; onClose: () => void; onAdded: (r: Route) => void;
+function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, onAdded }: {
+  schoolId: string; schoolName: string; adminEmail: string; drivers: Driver[]; onClose: () => void; onAdded: (r: Route) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState<RouteForm>(EMPTY_FORM);
@@ -387,15 +350,18 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
 
   // ── 3-step flow state ──────────────────────────────────────────────────────
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-  const [pdfBase64, setPdfBase64] = useState<string>("");
-  const [pdfObjectUrl, setPdfObjectUrl] = useState<string>("");
-  const [generatingPdf, setGeneratingPdf] = useState(false);
+  // Step 3 progress rows
+  const [progress, setProgress] = useState<ProgressRow[]>([
+    { label: "Driver Notified", status: "pending" },
+    { label: "Parents Notified", status: "pending" },
+    { label: "Students Notified", status: "pending" },
+  ]);
+  const [allDone, setAllDone] = useState(false);
+  // Saved route ref so onAdded can be called when user closes Step 3
+  const savedRouteRef = useRef<Route | null>(null);
 
-  // Revoke object URL on unmount to avoid memory leaks
-  const cleanupObjectUrl = useCallback(() => {
-    if (pdfObjectUrl) URL.revokeObjectURL(pdfObjectUrl);
-  }, [pdfObjectUrl]);
+  const setProgressRow = (index: number, patch: Partial<ProgressRow>) =>
+    setProgress(prev => prev.map((r, i) => i === index ? { ...r, ...patch } : r));
 
   const setManual = (key: keyof XlsxRow) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setManualRow(r => ({ ...r, [key]: e.target.value }));
@@ -442,7 +408,10 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
   };
 
   const handleClose = () => {
-    cleanupObjectUrl();
+    if (step === 3 && savedRouteRef.current) {
+      onAdded(savedRouteRef.current);
+      return;
+    }
     if (isDirty) { setShowUnsaved(true); return; }
     onClose();
   };
@@ -490,32 +459,7 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
     setStep(2);
   };
 
-  const goToStep3 = async () => {
-    setGeneratingPdf(true);
-    try {
-      const driver = drivers.find(d => d.id === form.driverId);
-      const { blob, base64 } = await buildSchedulePdf(
-        schoolName,
-        form.name.trim().toUpperCase(),
-        parseInt(form.term),
-        parseInt(form.year),
-        form.busRegistration.trim().toUpperCase(),
-        driver?.name ?? "",
-        driver?.phone ?? "",
-        preview,
-      );
-      setPdfBlob(blob);
-      setPdfBase64(base64);
-      const objUrl = URL.createObjectURL(blob);
-      setPdfObjectUrl(objUrl);
-      setStep(3);
-    } catch (err) {
-      console.error("PDF generation error:", err);
-    }
-    setGeneratingPdf(false);
-  };
-
-  // ── Firestore save (called from Step 3 confirm) ────────────────────────────
+  // ── Firestore save + notifications (called from Step 2 "Confirm & Schedule") ──
 
   const getScheduledDates = (start: Date, end: Date, days: string[]): Date[] => {
     const dayIndexMap: Record<string, number> = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
@@ -636,15 +580,18 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
 
       await batch.commit();
 
-      // ── Download PDF locally ───────────────────────────────────────────────
-      if (pdfBlob) {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(pdfBlob);
-        a.download = `BusMate_Schedule_${form.name.trim().toUpperCase().replace(/\s+/g, "_")}_Term${form.term}_${form.year}.pdf`;
-        a.click();
-      }
+      // Store the new route so we can call onAdded when the user closes Step 3
+      savedRouteRef.current = {
+        id: routeRef.id, schoolId, name: form.name.trim().toUpperCase(), driverId: form.driverId,
+        term: parseInt(form.term), year: parseInt(form.year),
+        scheduledDays: selectedDays, startDate, endDate, studentIds, isActive: true,
+      };
 
-      // ── Fire welcome emails (non-blocking) ────────────────────────────────
+      // Advance to Step 3 progress screen before firing notifications
+      setStep(3);
+      setSaving(false);
+
+      // ── Fire welcome emails (non-blocking, best-effort) ───────────────────
       const term = parseInt(form.term);
       const year = parseInt(form.year);
       const routeName = form.name.trim().toUpperCase();
@@ -673,50 +620,94 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
         }).catch(err => console.error("welcome/route fire error:", err));
       }
 
-      // ── Fire schedule notify emails with PDF attachment (non-blocking) ────
-      if (pdfBase64) {
-        const driver = drivers.find(d => d.id === form.driverId);
-        const notifyStudents = preview.map(r => ({
-          name: r.name, grade: r.grade,
-          studentPhone: r.studentPhone, studentEmail: r.studentEmail,
-          orderAM: r.orderAM, pickupTime: r.pickupTime, stopAM: r.stopAM,
-          orderPM: r.orderPM, dropoffTime: r.dropoffTime, stopPM: r.stopPM,
-          parentName: r.parentName, parentPhone: r.parentPhone,
-          parentEmail: r.parentEmail, relationship: r.relationship,
-        }));
-        fetch("/api/schedule/notify", {
+      // ── Sequential notification steps with progress tracking ──────────────
+      const driver = drivers.find(d => d.id === form.driverId);
+      const notifyStudents = preview.map(r => ({
+        name: r.name, grade: r.grade,
+        studentPhone: r.studentPhone, studentEmail: r.studentEmail,
+        orderAM: r.orderAM, pickupTime: r.pickupTime, stopAM: r.stopAM,
+        orderPM: r.orderPM, dropoffTime: r.dropoffTime, stopPM: r.stopPM,
+        parentName: r.parentName, parentPhone: r.parentPhone,
+        parentEmail: r.parentEmail, relationship: r.relationship,
+      }));
+
+      const notifyPayload = {
+        schoolName, routeName, term, year,
+        busRego: form.busRegistration.trim().toUpperCase(),
+        driverName: driver?.name ?? "",
+        driverPhone: driver?.phone ?? "",
+        driverEmail: driver?.email ?? "",
+        adminEmail,
+        students: notifyStudents,
+      };
+
+      // Row 0: Driver
+      setProgressRow(0, { status: "sending" });
+      try {
+        const res = await fetch("/api/schedule/generate-and-notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            schoolName, routeName, term, year,
-            busRego: form.busRegistration.trim().toUpperCase(),
-            driverName: driver?.name ?? "",
-            driverPhone: driver?.phone ?? "",
-            driverEmail: driver?.email ?? "",
-            students: notifyStudents,
-            pdfBase64,
-          }),
-        }).catch(err => console.error("schedule/notify fire error:", err));
+          body: JSON.stringify(notifyPayload),
+        });
+        const data = await res.json() as {
+          skipped?: boolean;
+          driver?: { sent: boolean; skipped: boolean };
+          parents?: { sent: number; skipped: number };
+          students?: { sent: number; skipped: number };
+        };
+
+        if (data.skipped) {
+          // No Resend key configured — mark all as done quietly
+          setProgressRow(0, { status: "done" });
+          setProgressRow(1, { status: "done" });
+          setProgressRow(2, { status: "done" });
+          setAllDone(true);
+          return;
+        }
+
+        // Driver row
+        setProgressRow(0, {
+          status: data.driver?.sent ? "done" : "done",
+          note: (!driver?.email)
+            ? "Driver has no email on file — notification skipped"
+            : undefined,
+        });
+
+        // Parents row
+        setProgressRow(1, { status: "done",
+          note: data.parents && data.parents.skipped > 0
+            ? `${data.parents.skipped} parent${data.parents.skipped !== 1 ? "s" : ""} had no email on file`
+            : undefined,
+        });
+
+        // Students row
+        setProgressRow(2, { status: "done",
+          note: data.students && data.students.skipped > 0
+            ? `${data.students.skipped} student${data.students.skipped !== 1 ? "s" : ""} had no email on file`
+            : undefined,
+        });
+
+        setAllDone(true);
+      } catch (err) {
+        console.error("generate-and-notify error:", err);
+        setProgressRow(0, { status: "error" });
+        setProgressRow(1, { status: "error" });
+        setProgressRow(2, { status: "error" });
+        setAllDone(true);
       }
 
-      cleanupObjectUrl();
-      const newRoute: Route = {
-        id: routeRef.id, schoolId, name: form.name.trim().toUpperCase(), driverId: form.driverId,
-        term: parseInt(form.term), year: parseInt(form.year),
-        scheduledDays: selectedDays, startDate, endDate, studentIds, isActive: true,
-      };
-      onAdded(newRoute);
+      return; // don't run the outer setSaving(false) again
     } catch (err) { console.error(err); }
     setSaving(false);
   };
 
   // ── Step label helpers ─────────────────────────────────────────────────────
-  const stepLabel = step === 1 ? "Route Details" : step === 2 ? "Review Students" : "Preview & Confirm";
+  const stepLabel = step === 1 ? "Route Details" : step === 2 ? "Review Students" : "Sending Notifications";
   const stepSubtitle = step === 1
     ? "Fill in route info and add students"
     : step === 2
-    ? `${preview.length} student${preview.length !== 1 ? "s" : ""} ready — review before continuing`
-    : "Check the PDF and confirm to create the schedule";
+    ? `${preview.length} student${preview.length !== 1 ? "s" : ""} ready — review before confirming`
+    : "Creating schedule and notifying contacts";
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -898,7 +889,7 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
                 <button type="button" onClick={goToStep2}
                   disabled={preview.length === 0 || !form.name.trim() || !form.driverId || !form.startDate || !form.endDate}
                   className="px-5 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                  Continue — Review Students
+                  Continue
                 </button>
               </div>
             </div>
@@ -960,37 +951,51 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
                 <button type="button" onClick={() => setStep(1)} className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700">
                   ← Back
                 </button>
-                <button type="button" onClick={goToStep3} disabled={generatingPdf}
+                <button type="button" onClick={doConfirm} disabled={saving}
                   className="px-5 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                  {generatingPdf ? "Generating PDF…" : "Continue — Preview PDF"}
+                  {saving ? "Creating schedule…" : "Confirm & Schedule"}
                 </button>
               </div>
             </div>
           )}
 
-          {/* ── Step 3: PDF preview + confirm ──────────────────────────────── */}
+          {/* ── Step 3: Notification progress screen ───────────────────────── */}
           {step === 3 && (
             <div className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-hidden bg-gray-100 p-3">
-                {pdfObjectUrl ? (
-                  <iframe
-                    src={pdfObjectUrl}
-                    className="w-full h-full rounded-xl border border-gray-200 bg-white"
-                    title="Schedule PDF Preview"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                    PDF not available
+              <div className="flex-1 overflow-y-auto px-6 py-8 flex flex-col gap-4">
+                {/* Header */}
+                <div className="text-center mb-2">
+                  <p className="text-sm text-gray-500">Schedule saved. Sending notifications…</p>
+                </div>
+                {/* Progress rows */}
+                <div className="flex flex-col gap-3">
+                  {progress.map((row, i) => (
+                    <ProgressRowItem key={i} row={row} />
+                  ))}
+                </div>
+                {/* Success banner */}
+                {allDone && (
+                  <div className="mt-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4">
+                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-blue-900">Schedule created successfully</p>
+                      <p className="text-xs text-blue-600 mt-0.5">All notifications have been sent. Close to return to the dashboard.</p>
+                    </div>
                   </div>
                 )}
               </div>
-              <div className="px-6 py-4 border-t border-gray-100 flex justify-between gap-3 flex-shrink-0">
-                <button type="button" onClick={() => setStep(2)} disabled={saving} className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700 disabled:opacity-50">
-                  ← Back
-                </button>
-                <button type="button" onClick={doConfirm} disabled={saving}
-                  className="px-6 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors">
-                  {saving ? "Creating schedule…" : "Confirm and Schedule"}
+              <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  disabled={!allDone}
+                  className="px-6 py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {allDone ? "Done" : "Please wait…"}
                 </button>
               </div>
             </div>
@@ -1001,7 +1006,7 @@ function AddScheduleModal({ schoolId, schoolName, drivers, onClose, onAdded }: {
       {showUnsaved && (
         <UnsavedModal
           onSave={() => { setShowUnsaved(false); doConfirm(); }}
-          onDiscard={() => { setShowUnsaved(false); cleanupObjectUrl(); onClose(); }}
+          onDiscard={() => { setShowUnsaved(false); onClose(); }}
         />
       )}
     </>
@@ -1171,7 +1176,7 @@ type Modal =
   | { type: "substitute"; route: Route };
 
 export default function SchedulePage() {
-  const { schoolId, schoolName } = useAuth();
+  const { schoolId, schoolName, user } = useAuth();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1408,7 +1413,7 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {modal?.type === "add" && <AddScheduleModal schoolId={schoolId} schoolName={schoolName} drivers={drivers} onClose={closeModal} onAdded={handleAdded} />}
+      {modal?.type === "add" && <AddScheduleModal schoolId={schoolId} schoolName={schoolName} adminEmail={user?.email ?? ""} drivers={drivers} onClose={closeModal} onAdded={handleAdded} />}
       {modal?.type === "preview" && (
         <PreviewModal
           route={modal.route}
