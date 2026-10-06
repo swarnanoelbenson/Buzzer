@@ -247,6 +247,15 @@ function ConfirmEditModal({ original, updated, onConfirm, onBack, saving }: {
 
 // ── Add Schedule Modal ────────────────────────────────────────────────────────
 
+const EMPTY_MANUAL_ROW: XlsxRow = {
+  name: "", grade: "", studentPhone: "", studentEmail: "",
+  orderAM: "", pickupTime: "", stopAM: "",
+  orderPM: "", dropoffTime: "", stopPM: "",
+  parentName: "", parentPhone: "", parentEmail: "", relationship: "",
+};
+
+const RELATIONSHIPS = ["Mother", "Father", "Step Mother", "Step Father", "Guardian"];
+
 function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
   schoolId: string; drivers: Driver[]; onClose: () => void; onAdded: (r: Route) => void;
 }) {
@@ -260,6 +269,27 @@ function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
   const [saving, setSaving] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
   const [templateCount, setTemplateCount] = useState("10");
+  const [manualRow, setManualRow] = useState<XlsxRow>(EMPTY_MANUAL_ROW);
+  const [manualError, setManualError] = useState("");
+
+  const setManual = (key: keyof XlsxRow) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setManualRow(r => ({ ...r, [key]: e.target.value }));
+    setManualError("");
+  };
+
+  const addManualStudent = () => {
+    if (!manualRow.name.trim()) { setManualError("Student name is required."); return; }
+    const normalisePhone = (p: string) => p ? (p.startsWith("+61") ? p : `+61${p.replace(/^0/, "")}`) : "";
+    const row: XlsxRow = {
+      ...manualRow,
+      name: manualRow.name.trim(),
+      studentPhone: normalisePhone(manualRow.studentPhone),
+      parentPhone: normalisePhone(manualRow.parentPhone),
+    };
+    setPreview(prev => [...prev, row]);
+    setManualRow(EMPTY_MANUAL_ROW);
+    setManualError("");
+  };
 
   const isDirty = formChanged(EMPTY_FORM, form) || preview.length > 0;
   const onChange = (key: keyof RouteForm, val: string) => {
@@ -318,7 +348,7 @@ function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
         parentEmail: String(r[12] ?? "").trim(),
         relationship: String(r[13] ?? ""),
       }));
-      setPreview(parsed);
+      setPreview(prev => [...prev, ...parsed]);
     } catch {
       setFileError("Could not parse file. Make sure it is a valid .xlsx file.");
     }
@@ -479,7 +509,7 @@ function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
   return (
     <>
       <Overlay>
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
           <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <div>
               <h3 className="text-base font-black text-gray-900">Add Schedule</h3>
@@ -494,36 +524,111 @@ function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
               <RouteFormFields form={form} onChange={onChange} drivers={drivers} selectedDays={selectedDays} onToggleDay={toggleDay} />
               {dateError && <p className="text-xs text-red-500 -mt-2">{dateError}</p>}
               {daysError && <p className="text-xs text-red-500 -mt-2">{daysError}</p>}
-              {/* Student upload */}
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-3">Student List (.xlsx)</p>
-                <div className="bg-blue-50 rounded-xl p-4 mb-3">
-                  <p className="text-sm font-bold text-blue-700 mb-3">How many students on this route?</p>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number" min="1" max="200"
-                      value={templateCount}
-                      onChange={e => setTemplateCount(e.target.value)}
-                      className="w-20 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    />
-                    <button type="button" onClick={downloadTemplate}
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                      Download
-                    </button>
+              {/* Student List */}
+              <div className="border-t border-gray-100 pt-4 space-y-5">
+                <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Student List</p>
+
+                {/* ── Section 1: Manual Entry ── */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-black tracking-widest text-gray-500 uppercase">1 — Manual Entry</p>
+                  {/* Student details */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className={LABEL}>Student Name</label>
+                      <input className={FIELD} value={manualRow.name} onChange={setManual("name")} placeholder="e.g. Jane Smith" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Grade</label>
+                      <input className={FIELD} value={manualRow.grade} onChange={setManual("grade")} placeholder="e.g. Year 6" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Student Phone</label>
+                      <input className={FIELD} value={manualRow.studentPhone} onChange={setManual("studentPhone")} placeholder="e.g. 0412 345 678" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className={LABEL}>Stop Location AM</label>
+                      <input className={FIELD} value={manualRow.stopAM} onChange={setManual("stopAM")} placeholder="Morning pick-up address" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className={LABEL}>Stop Location PM</label>
+                      <input className={FIELD} value={manualRow.stopPM} onChange={setManual("stopPM")} placeholder="Afternoon drop-off address" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Order AM</label>
+                      <input className={FIELD} type="number" min="1" value={manualRow.orderAM} onChange={setManual("orderAM")} placeholder="1" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Order PM</label>
+                      <input className={FIELD} type="number" min="1" value={manualRow.orderPM} onChange={setManual("orderPM")} placeholder="1" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Scheduled AM</label>
+                      <input className={FIELD} value={manualRow.pickupTime} onChange={setManual("pickupTime")} placeholder="e.g. 08:15 AM" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Scheduled PM</label>
+                      <input className={FIELD} value={manualRow.dropoffTime} onChange={setManual("dropoffTime")} placeholder="e.g. 03:30 PM" />
+                    </div>
                   </div>
+                  {/* Parent details */}
+                  <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase pt-1">Parent / Guardian</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <label className={LABEL}>Parent Name</label>
+                      <input className={FIELD} value={manualRow.parentName} onChange={setManual("parentName")} placeholder="e.g. John Smith" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Parent Phone</label>
+                      <input className={FIELD} value={manualRow.parentPhone} onChange={setManual("parentPhone")} placeholder="e.g. 0412 345 678" />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Relationship</label>
+                      <select className={FIELD} value={manualRow.relationship} onChange={setManual("relationship")}>
+                        <option value="">— select —</option>
+                        {RELATIONSHIPS.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {manualError && <p className="text-xs text-red-500">{manualError}</p>}
+                  <button type="button" onClick={addManualStudent}
+                    className="w-full py-2.5 bg-blue-600 text-white text-sm font-black rounded-xl hover:bg-blue-700 transition-colors">
+                    + Add Student
+                  </button>
                 </div>
-                <p className="text-xs text-gray-400 mb-3">
-                  Columns: Student Name · Grade · Student Phone · Student Email · Order AM · Scheduled AM · Stop Location AM · Order PM · Scheduled PM · Stop Location PM · Parent 1 Name · Parent 1 Phone · Parent Email · Relationship
-                </p>
-                <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
-                <button type="button" onClick={() => fileRef.current?.click()}
-                  className="w-full border-2 border-dashed border-gray-200 rounded-xl py-6 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors">
-                  Click to upload .xlsx file
-                </button>
-                {fileError && <p className="text-xs text-red-500 mt-2">{fileError}</p>}
+
+                {/* ── Section 2: Upload .xlsx ── */}
+                <div className="space-y-3">
+                  <p className="text-xs font-black tracking-widest text-gray-500 uppercase">2 — Upload .xlsx</p>
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <p className="text-sm font-bold text-blue-700 mb-3">How many students on this route?</p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number" min="1" max="200"
+                        value={templateCount}
+                        onChange={e => setTemplateCount(e.target.value)}
+                        className="w-20 bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      />
+                      <button type="button" onClick={downloadTemplate}
+                        className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                        Download Template
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Columns: Student Name · Grade · Student Phone · Student Email · Order AM · Scheduled AM · Stop Location AM · Order PM · Scheduled PM · Stop Location PM · Parent 1 Name · Parent 1 Phone · Parent Email · Relationship
+                  </p>
+                  <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile} className="hidden" />
+                  <button type="button" onClick={() => fileRef.current?.click()}
+                    className="w-full border-2 border-dashed border-gray-200 rounded-xl py-6 text-sm text-gray-400 hover:border-gray-300 hover:text-gray-500 transition-colors">
+                    Click to upload .xlsx file
+                  </button>
+                  {fileError && <p className="text-xs text-red-500">{fileError}</p>}
+                </div>
+
+                {/* ── Shared Preview Table ── */}
                 {preview.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-xs font-bold text-gray-500 mb-2">{preview.length} students loaded — preview:</p>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 mb-2">{preview.length} student{preview.length !== 1 ? "s" : ""} added:</p>
                     <div className="rounded-xl border border-gray-100 overflow-hidden">
                       <table className="w-full text-xs">
                         <thead className="bg-gray-50">
@@ -534,10 +639,11 @@ function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
                             <th className="px-3 py-2 text-left font-bold">Stop PM</th>
                             <th className="px-3 py-2 text-left font-bold">Pick-up</th>
                             <th className="px-3 py-2 text-left font-bold">Drop-off</th>
+                            <th className="px-3 py-2"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                          {preview.slice(0, 5).map((r, i) => (
+                          {preview.map((r, i) => (
                             <tr key={i}>
                               <td className="px-3 py-2 text-gray-700 font-medium">{r.name}</td>
                               <td className="px-3 py-2 text-gray-500">{r.grade}</td>
@@ -545,9 +651,14 @@ function AddScheduleModal({ schoolId, drivers, onClose, onAdded }: {
                               <td className="px-3 py-2 text-gray-500">{r.stopPM}</td>
                               <td className="px-3 py-2 text-gray-500">{r.pickupTime}</td>
                               <td className="px-3 py-2 text-gray-500">{r.dropoffTime}</td>
+                              <td className="px-3 py-2">
+                                <button type="button" onClick={() => setPreview(prev => prev.filter((_, j) => j !== i))}
+                                  className="text-red-400 hover:text-red-600 transition-colors">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                              </td>
                             </tr>
                           ))}
-                          {preview.length > 5 && <tr><td colSpan={6} className="px-3 py-2 text-gray-400 text-center">…and {preview.length - 5} more</td></tr>}
                         </tbody>
                       </table>
                     </div>
