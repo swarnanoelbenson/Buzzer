@@ -60,7 +60,7 @@ function detailsBox(rows: { label: string; value: string }[]): string {
         <tr>
           <td style="padding:6px 0;${i > 0 ? "border-top:1px solid #e5e7eb;" : ""}">
             <span style="font-size:10px;font-weight:900;letter-spacing:0.12em;text-transform:uppercase;color:#9ca3af;">${r.label}</span><br>
-            <span style="font-size:14px;font-weight:700;color:#111827;">${r.value || "—"}</span>
+            <span style="font-size:14px;font-weight:700;color:#111827;">${r.value || "N/A"}</span>
           </td>
         </tr>
       `).join("")}
@@ -104,25 +104,18 @@ function wrap(subtitle: string, body: string): string {
 
 function driverHtml(p: GenerateAndNotifyPayload): string {
   const body = `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
-      <tr><td align="center">
-        <div style="width:56px;height:56px;background:#dbeafe;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;">
-          <span style="font-size:28px;">🚌</span>
-        </div>
-      </td></tr>
-    </table>
-    <h2 style="margin:0 0 8px;font-size:18px;font-weight:900;color:#111827;text-align:center;">New schedule ready, ${p.driverName}!</h2>
+    <h2 style="margin:0 0 8px;font-size:18px;font-weight:900;color:#111827;text-align:center;">Schedule update: ${p.routeName}</h2>
     <p style="margin:0 0 24px;font-size:14px;color:#6b7280;text-align:center;">
-      A new schedule has been published for <strong>${p.schoolName}</strong>. Check out the full student list in the attached PDF.
+      A new schedule has been published for <strong>${p.schoolName}</strong>. Your route details are below. Log in to the BusMate app to view your full trip list.
     </p>
     ${detailsBox([
       { label: "Route", value: p.routeName },
-      { label: "Term / Year", value: `Term ${p.term} · ${p.year}` },
+      { label: "Term / Year", value: `Term ${p.term}, ${p.year}` },
       { label: "Bus Registration", value: p.busRego },
       { label: "School", value: p.schoolName },
     ])}
     <p style="margin:0;font-size:13px;color:#6b7280;text-align:center;">
-      The full student schedule is attached as a PDF. Open the BusMate app to see your upcoming trips.
+      Contact your school administrator if you have any questions.
     </p>
   `;
   return wrap("Driver Schedule Notification", body);
@@ -130,27 +123,20 @@ function driverHtml(p: GenerateAndNotifyPayload): string {
 
 function studentHtml(p: GenerateAndNotifyPayload, row: StudentRow): string {
   const body = `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
-      <tr><td align="center">
-        <div style="width:56px;height:56px;background:#dbeafe;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;">
-          <span style="font-size:28px;">🎒</span>
-        </div>
-      </td></tr>
-    </table>
-    <h2 style="margin:0 0 8px;font-size:18px;font-weight:900;color:#111827;text-align:center;">Your schedule is ready, ${row.name}! 🎉</h2>
+    <h2 style="margin:0 0 8px;font-size:18px;font-weight:900;color:#111827;text-align:center;">Bus schedule for Term ${p.term} ${p.year}</h2>
     <p style="margin:0 0 24px;font-size:14px;color:#6b7280;text-align:center;">
-      Hey ${row.name}! Your bus service schedule for <strong>Term ${p.term} ${p.year}</strong> at <strong>${p.schoolName}</strong> is confirmed and ready to go!
+      ${row.name}, your bus schedule for <strong>Term ${p.term} ${p.year}</strong> at <strong>${p.schoolName}</strong> is confirmed. Your pick-up and drop-off details are below.
     </p>
     ${detailsBox([
       { label: "School", value: p.schoolName },
       { label: "Route", value: p.routeName },
-      { label: "Term / Year", value: `Term ${p.term} · ${p.year}` },
+      { label: "Term / Year", value: `Term ${p.term}, ${p.year}` },
       { label: "Bus Registration", value: p.busRego },
       { label: "Driver", value: p.driverName },
       { label: "Driver Phone", value: p.driverPhone },
     ])}
     <p style="margin:0;font-size:13px;color:#6b7280;text-align:center;">
-      Your full schedule — including pick-up times and stop locations — is attached as a PDF. See you on the bus! 🚌
+      Log in to the BusMate app to view your full schedule. Contact your school if anything looks incorrect.
     </p>
   `;
   return wrap("Student Schedule Notification", body);
@@ -158,30 +144,21 @@ function studentHtml(p: GenerateAndNotifyPayload, row: StudentRow): string {
 
 function parentHtml(p: GenerateAndNotifyPayload, row: StudentRow): string {
   const body = `
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
-      <tr><td align="center">
-        <div style="width:56px;height:56px;background:#dbeafe;border-radius:16px;display:inline-flex;align-items:center;justify-content:center;">
-          <span style="font-size:28px;">👨‍👩‍👧</span>
-        </div>
-      </td></tr>
-    </table>
-    <h2 style="margin:0 0 8px;font-size:18px;font-weight:900;color:#111827;text-align:center;">
-      ${row.name}'s schedule is ready! 🎉
-    </h2>
+    <h2 style="margin:0 0 8px;font-size:18px;font-weight:900;color:#111827;text-align:center;">Bus schedule confirmed for ${row.name}</h2>
     <p style="margin:0 0 24px;font-size:14px;color:#6b7280;text-align:center;">
-      Hey ${row.parentName}! <strong>${row.name}</strong>'s bus service schedule for <strong>Term ${p.term} ${p.year}</strong> at <strong>${p.schoolName}</strong> is confirmed!
+      Hi ${row.parentName}, <strong>${row.name}</strong>'s bus schedule for <strong>Term ${p.term} ${p.year}</strong> at <strong>${p.schoolName}</strong> is confirmed. Pick-up and drop-off details are below.
     </p>
     ${detailsBox([
       { label: "Child", value: row.name },
       { label: "School", value: p.schoolName },
       { label: "Route", value: p.routeName },
-      { label: "Term / Year", value: `Term ${p.term} · ${p.year}` },
+      { label: "Term / Year", value: `Term ${p.term}, ${p.year}` },
       { label: "Bus Registration", value: p.busRego },
       { label: "Driver", value: p.driverName },
       { label: "Driver Phone", value: p.driverPhone },
     ])}
     <p style="margin:0;font-size:13px;color:#6b7280;text-align:center;">
-      The full schedule — including your child's pick-up and drop-off times — is attached as a PDF.
+      Contact your school if anything needs to be updated.
     </p>
   `;
   return wrap("Parent Schedule Notification", body);
@@ -215,7 +192,7 @@ export async function POST(req: NextRequest) {
         from: "BusMate <onboarding@resend.dev>",
         to: [driverEmail],
         ...(ccList.length > 0 ? { cc: ccList } : {}),
-        subject: `New schedule ready — ${payload.routeName} Term ${payload.term} ${payload.year}`,
+        subject: `Schedule update: ${payload.routeName}, Term ${payload.term} ${payload.year}`,
         html: driverHtml(payload),
       });
       result.driver = { sent: true, skipped: false };
@@ -234,7 +211,7 @@ export async function POST(req: NextRequest) {
     return resend.emails.send({
       from: "BusMate <onboarding@resend.dev>",
       to: [row.studentEmail],
-      subject: `Your schedule is ready — ${payload.schoolName} Term ${payload.term} ${payload.year} 🎉`,
+      subject: `Bus schedule confirmed: ${payload.schoolName}, Term ${payload.term} ${payload.year}`,
       html: studentHtml(payload, row),
     }).then(() => {
       result.students.sent++;
@@ -252,7 +229,7 @@ export async function POST(req: NextRequest) {
     return resend.emails.send({
       from: "BusMate <onboarding@resend.dev>",
       to: [row.parentEmail],
-      subject: `${row.name}'s schedule is ready — ${payload.schoolName} Term ${payload.term} ${payload.year} 🎉`,
+      subject: `Bus schedule confirmed for ${row.name}: ${payload.schoolName}, Term ${payload.term} ${payload.year}`,
       html: parentHtml(payload, row),
     }).then(() => {
       result.parents.sent++;

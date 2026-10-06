@@ -451,10 +451,14 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
     // Validate required form fields before proceeding
     if (!form.name.trim() || !form.driverId || !form.startDate || !form.endDate) return;
     if (selectedDays.length === 0) { setDaysError("Select at least one scheduled day."); return; }
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    // Compute today's date in Melbourne time
+    const melbourneDateStr = new Date().toLocaleDateString("en-AU", { timeZone: "Australia/Melbourne" });
+    const [melDay, melMonth, melYear] = melbourneDateStr.split("/").map(Number);
+    const today = new Date(melYear, melMonth - 1, melDay); // midnight Melbourne today
+
     const start = new Date(form.startDate);
     const end = new Date(form.endDate);
-    if (start < today) { setDateError("Start date cannot be in the past."); return; }
+    if (start <= today) { setDateError("Start date must be at least tomorrow. Schedules cannot start today or in the past."); return; }
     if (end < start) { setDateError("End date must be after start date."); return; }
     setStep(2);
   };

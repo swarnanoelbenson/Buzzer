@@ -508,3 +508,45 @@ vercel deploy --prebuilt --prod
 ```
 
 The production URL is **https://busmate-admin.vercel.app**.
+
+---
+
+## 14. Testing
+
+### Schedule Creation — Date Validation
+
+**File:** `app/schedule/page.tsx` — `goToStep2()`
+
+The start date is validated against the current date in the **Australia/Melbourne** timezone (AEDT/AEST) before the admin can proceed from Step 1 to Step 2.
+
+| Case | Input | Expected result |
+|------|-------|-----------------|
+| Past date | Start date is any date before today (Melbourne) | Blocked. Error: "Start date must be at least tomorrow. Schedules cannot start today or in the past." |
+| Today | Start date equals today (Melbourne) | Blocked. Same error. |
+| Tomorrow | Start date is tomorrow (Melbourne) | Allowed. Proceeds to Step 2. |
+| Future date | Start date is any date after tomorrow | Allowed. Proceeds to Step 2. |
+| End before start | End date is before start date | Blocked. Error: "End date must be after start date." |
+
+**Implementation detail:** `new Date().toLocaleDateString("en-AU", { timeZone: "Australia/Melbourne" })` is used to derive today's date in Melbourne time. This is parsed into a local `Date` at midnight and compared with the selected start date using `start <= today`. This ensures the check is correct regardless of the browser's local timezone.
+
+---
+
+### Email Notifications — Schedule Created
+
+**File:** `app/api/schedule/generate-and-notify/route.ts`
+
+Triggered when an admin confirms a new schedule (Step 2 → Step 3). Sends emails via Resend. No PDF is attached.
+
+| Recipient | Condition for sending | Subject |
+|-----------|----------------------|---------|
+| Driver | Driver has an email address on file | `Schedule update: {route}, Term {term} {year}` |
+| Admin (CC) | Admin email is available from Firebase Auth session | CC on driver email |
+| Students | Student has a `studentEmail` in the preview row | `Bus schedule confirmed: {school}, Term {term} {year}` |
+| Parents | Parent has both `parentEmail` and `parentName` in the preview row | `Bus schedule confirmed for {name}: {school}, Term {term} {year}` |
+
+**Sending strategy:**
+- Driver email is sent first and awaited (includes admin CC).
+- Student and parent emails are sent in parallel using `Promise.allSettled` to stay within Vercel's 10-second serverless function timeout.
+- If `RESEND_API_KEY` is not set, all notifications are skipped silently and the UI marks all rows as done.
+
+**Admin email source:** Retrieved from `user?.email` on the Firebase Auth session object (set by `onAuthStateChanged` in `lib/auth-context.tsx`). This is the email the admin used to sign in via the magic link flow.
