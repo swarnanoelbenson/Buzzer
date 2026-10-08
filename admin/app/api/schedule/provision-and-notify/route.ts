@@ -422,7 +422,7 @@ export async function POST(req: NextRequest) {
           to: [row.studentEmail],
           subject: `Bus schedule confirmed: ${schoolName}, Term ${payload.term} ${payload.year}`,
           html: studentScheduleHtml(payload, row),
-        }).catch((err) => { console.error("provision-and-notify student schedule error:", err); })
+        }).then(() => {}).catch((err) => { console.error("provision-and-notify student schedule error:", err); })
       );
     } else {
       // Existing profile: schedule email only
@@ -458,7 +458,7 @@ export async function POST(req: NextRequest) {
           to: [row.parentEmail],
           subject: `Bus schedule confirmed for ${row.name}: ${schoolName}, Term ${payload.term} ${payload.year}`,
           html: parentScheduleHtml(payload, row),
-        }).catch((err) => { console.error("provision-and-notify parent schedule error:", err); })
+        }).then(() => {}).catch((err) => { console.error("provision-and-notify parent schedule error:", err); })
       );
     } else {
       // Existing profile: schedule email only
