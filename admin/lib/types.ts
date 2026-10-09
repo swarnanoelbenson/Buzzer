@@ -26,6 +26,7 @@ export interface Driver {
 export interface ParentContact {
   name: string;
   phone: string;
+  email?: string;
   canAccess: boolean;     // whether this parent can log in and view the student
   relationship?: string;  // e.g. "Mother", "Father", "Guardian"
 }
@@ -45,6 +46,7 @@ export interface Student {
   authorisedParentIds: string[];
   parents?: ParentContact[];
   phone?: string;         // student's phone number — used for SMS OTP login
+  email?: string;         // student's email address — used for schedule/welcome emails
   isActive: boolean;
   createdAt: Date;
 }

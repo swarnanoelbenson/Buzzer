@@ -76,13 +76,16 @@ function Overlay({ children }: { children: React.ReactNode }) {
 function PreviewModal({ driver, onClose, onEdit }: { driver: Driver; onClose: () => void; onEdit: () => void }) {
   const fields = [
     { label: "Phone",            value: driver.phone },
+    { label: "Email",            value: driver.email || "—" },
     { label: "Age",              value: String(driver.age) },
     { label: "Gender",           value: driver.gender },
     { label: "Address",          value: driver.address },
+    { label: "Bus Registration", value: driver.busRegistration || "—" },
     { label: "WWC Check",        value: driver.childrenCheck },
     { label: "Driver's Licence", value: driver.driversLicense },
     { label: "Licence Expiry",   value: driver.licenseExpiry instanceof Date ? driver.licenseExpiry.toLocaleDateString("en-AU") : "—" },
     { label: "Status",           value: driver.isActive ? "Active" : "Inactive" },
+    { label: "Created",          value: driver.createdAt instanceof Date ? driver.createdAt.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "—" },
   ];
 
   return (
@@ -163,8 +166,8 @@ function DriverForm({ form, onChange }: { form: FormState; onChange: (key: keyof
         <input className={FIELD} type="date" required value={form.licenseExpiry} onChange={set("licenseExpiry")} />
       </div>
       <div className="col-span-2">
-        <label className={LABEL}>Email Address <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "#d1d5db" }}>(optional — for welcome email)</span></label>
-        <input className={FIELD} type="email" value={form.email} onChange={set("email")} placeholder="e.g. john.mitchell@email.com" />
+        <label className={LABEL}>Email Address</label>
+        <input className={FIELD} type="email" required value={form.email} onChange={set("email")} placeholder="e.g. john.mitchell@email.com" />
       </div>
     </div>
   );

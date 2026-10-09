@@ -154,18 +154,21 @@ function RouteFormFields({ form, onChange, drivers, selectedDays, onToggleDay }:
 }) {
   const set = (key: keyof RouteForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => onChange(key, e.target.value);
   const setUpper = (key: keyof RouteForm) => (e: React.ChangeEvent<HTMLInputElement>) => onChange(key, e.target.value.toUpperCase());
+  // Derive licence warning: only show when driver + end date are both set
+  const selectedDriver = drivers.find(d => d.id === form.driverId);
+  const licenceExpired = (() => {
+    if (!selectedDriver || !form.endDate) return false;
+    const expiry = selectedDriver.licenseExpiry instanceof Date
+      ? selectedDriver.licenseExpiry
+      : new Date(selectedDriver.licenseExpiry);
+    return expiry < new Date(form.endDate);
+  })();
+
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="col-span-2">
         <label className={LABEL}>Route Name</label>
         <input className={FIELD} required value={form.name} onChange={setUpper("name")} placeholder="e.g. ROUTE A — PARRAMATTA" />
-      </div>
-      <div>
-        <label className={LABEL}>Assign Driver</label>
-        <select className={FIELD} required value={form.driverId} onChange={set("driverId")}>
-          <option value="">— select driver —</option>
-          {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
       </div>
       <div>
         <label className={LABEL}>Bus Registration</label>
@@ -195,6 +198,25 @@ function RouteFormFields({ form, onChange, drivers, selectedDays, onToggleDay }:
             </button>
           ))}
         </div>
+      </div>
+      <div className="col-span-2">
+        <label className={LABEL}>Assign Driver</label>
+        <select className={FIELD} required value={form.driverId} onChange={set("driverId")}>
+          <option value="">— select driver —</option>
+          {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        {licenceExpired && selectedDriver && (
+          <div className="mt-2 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+            <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <p className="text-xs font-bold text-red-600">
+              {selectedDriver.name}&apos;s driver&apos;s licence expires on{" "}
+              {selectedDriver.licenseExpiry instanceof Date
+                ? selectedDriver.licenseExpiry.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+                : new Date(selectedDriver.licenseExpiry).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+              }, before the schedule end date. Please update their licence before proceeding.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -811,28 +833,40 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
                   {preview.length > 0 && (
                     <div>
                       <p className="text-xs font-bold text-gray-500 mb-2">{preview.length} student{preview.length !== 1 ? "s" : ""} added:</p>
-                      <div className="rounded-xl border border-gray-100 overflow-hidden">
-                        <table className="w-full text-xs">
+                      <div className="rounded-xl border border-gray-100 overflow-x-auto">
+                        <table className="text-xs min-w-max w-full">
                           <thead className="bg-gray-50">
                             <tr className="text-gray-400">
                               <th className="px-3 py-2 text-left font-bold">Name</th>
                               <th className="px-3 py-2 text-left font-bold">Grade</th>
+                              <th className="px-3 py-2 text-left font-bold">Student Phone</th>
+                              <th className="px-3 py-2 text-left font-bold">Student Email</th>
                               <th className="px-3 py-2 text-left font-bold">Stop AM</th>
                               <th className="px-3 py-2 text-left font-bold">Stop PM</th>
                               <th className="px-3 py-2 text-left font-bold">Pick-up</th>
                               <th className="px-3 py-2 text-left font-bold">Drop-off</th>
+                              <th className="px-3 py-2 text-left font-bold">Parent Name</th>
+                              <th className="px-3 py-2 text-left font-bold">Parent Phone</th>
+                              <th className="px-3 py-2 text-left font-bold">Parent Email</th>
+                              <th className="px-3 py-2 text-left font-bold">Relationship</th>
                               <th className="px-3 py-2"></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
                             {preview.map((r, i) => (
                               <tr key={i}>
-                                <td className="px-3 py-2 text-gray-700 font-medium">{r.name}</td>
-                                <td className="px-3 py-2 text-gray-500">{r.grade}</td>
+                                <td className="px-3 py-2 text-gray-700 font-medium whitespace-nowrap">{r.name}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.grade}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.studentPhone || "—"}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.studentEmail || "—"}</td>
                                 <td className="px-3 py-2 text-gray-500">{r.stopAM}</td>
                                 <td className="px-3 py-2 text-gray-500">{r.stopPM}</td>
-                                <td className="px-3 py-2 text-gray-500">{r.pickupTime}</td>
-                                <td className="px-3 py-2 text-gray-500">{r.dropoffTime}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.pickupTime}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.dropoffTime}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.parentName || "—"}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.parentPhone || "—"}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.parentEmail || "—"}</td>
+                                <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{r.relationship || "—"}</td>
                                 <td className="px-3 py-2">
                                   <button type="button" onClick={() => setPreview(prev => prev.filter((_, j) => j !== i))}
                                     className="text-red-400 hover:text-red-600 transition-colors">
@@ -865,14 +899,19 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
               {/* Route summary */}
               <div className="px-6 py-3 border-b border-gray-100 bg-gray-50 flex-shrink-0">
                 <div className="grid grid-cols-4 gap-x-6 gap-y-1">
-                  {[
-                    { label: "Route", value: form.name },
-                    { label: "Driver", value: drivers.find(d => d.id === form.driverId)?.name ?? "—" },
-                    { label: "Bus Rego", value: form.busRegistration || "—" },
-                    { label: "Term / Year", value: `Term ${form.term} · ${form.year}` },
-                    { label: "Start Date", value: form.startDate ? new Date(form.startDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" }) : "—" },
-                    { label: "End Date", value: form.endDate ? new Date(form.endDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" }) : "—" },
-                  ].map(({ label, value }) => (
+                  {(() => {
+                    const driver = drivers.find(d => d.id === form.driverId);
+                    return [
+                      { label: "Route", value: form.name },
+                      { label: "Driver", value: driver?.name ?? "—" },
+                      { label: "Driver Phone", value: driver?.phone || "—" },
+                      { label: "Driver Email", value: driver?.email || "—" },
+                      { label: "Bus Rego", value: form.busRegistration || "—" },
+                      { label: "Term / Year", value: `Term ${form.term} · ${form.year}` },
+                      { label: "Start Date", value: form.startDate ? new Date(form.startDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" }) : "—" },
+                      { label: "End Date", value: form.endDate ? new Date(form.endDate).toLocaleDateString("en-AU", { day: "2-digit", month: "short", year: "numeric" }) : "—" },
+                    ];
+                  })().map(({ label, value }) => (
                     <div key={label}>
                       <p className="text-[9px] font-black tracking-widest text-gray-400 uppercase">{label}</p>
                       <p className="text-xs font-bold text-gray-800 truncate">{value}</p>

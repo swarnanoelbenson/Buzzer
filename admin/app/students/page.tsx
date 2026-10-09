@@ -85,10 +85,10 @@ function Overlay({ children }: { children: React.ReactNode }) {
 
 function PreviewModal({ student, routes, onClose, onEdit }: { student: Student; routes: Route[]; onClose: () => void; onEdit: () => void }) {
   const routeName = routes.find(r => r.id === student.routeId)?.name ?? "—";
-  const parent1 = student.parents?.[0];
   const fields = [
     { label: "Grade",            value: student.grade },
     { label: "Student Phone",    value: student.phone || null },
+    { label: "Student Email",    value: student.email || null },
     { label: "Order AM",         value: student.orderAM != null ? String(student.orderAM) : null },
     { label: "Scheduled AM",     value: student.scheduledPickupTime },
     { label: "Stop Location AM", value: student.stopAddressAM },
@@ -96,9 +96,6 @@ function PreviewModal({ student, routes, onClose, onEdit }: { student: Student; 
     { label: "Scheduled PM",     value: student.scheduledDropoffTime },
     { label: "Stop Location PM", value: student.stopAddressPM },
     { label: "Assigned Route",   value: routeName },
-    { label: "Parent Name",      value: parent1?.name || null },
-    { label: "Parent Phone",     value: parent1?.phone || null },
-    { label: "Relationship",     value: parent1?.relationship || null },
     { label: "Status",           value: student.isActive ? "Active" : "Inactive" },
     { label: "Created",          value: student.createdAt ? new Date(student.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : null },
   ];
@@ -126,21 +123,34 @@ function PreviewModal({ student, routes, onClose, onEdit }: { student: Student; 
               <span className="text-sm font-bold text-gray-900 text-right">{f.value || "—"}</span>
             </div>
           ))}
-          {/* Additional parents (2nd parent onwards) */}
-          {student.parents && student.parents.length > 1 && (
+          {/* All parents / guardians */}
+          {student.parents && student.parents.length > 0 && (
             <div className="pt-2 border-t border-gray-100">
-              <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-3">Additional Guardians</p>
+              <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mb-3">
+                {student.parents.length === 1 ? "Parent / Guardian" : "Parents / Guardians"}
+              </p>
               <div className="space-y-2">
-                {student.parents.slice(1).map((p, i) => (
-                  <div key={i} className="bg-gray-50 rounded-xl px-3 py-2.5 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold text-gray-900">{p.name || "—"}</div>
-                      {p.relationship && <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{p.relationship}</div>}
-                      <div className="text-xs text-gray-500 mt-0.5">{p.phone || "—"}</div>
+                {student.parents.map((p, i) => (
+                  <div key={i} className="bg-gray-50 rounded-xl px-3 py-2.5">
+                    <div className="flex items-start justify-between gap-3 mb-1.5">
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-gray-900">{p.name || "—"}</div>
+                        {p.relationship && <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{p.relationship}</div>}
+                      </div>
+                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 ${p.canAccess ? "bg-green-100 text-green-700" : "bg-red-50 text-red-500"}`}>
+                        {p.canAccess ? "Access Granted" : "Access Denied"}
+                      </span>
                     </div>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full flex-shrink-0 ${p.canAccess ? "bg-green-100 text-green-700" : "bg-red-50 text-red-500"}`}>
-                      {p.canAccess ? "Access Granted" : "Access Denied"}
-                    </span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Phone</span>
+                        <span className="text-xs font-bold text-gray-700 text-right">{p.phone || "—"}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-[10px] font-black tracking-widest text-gray-400 uppercase">Email</span>
+                        <span className="text-xs font-bold text-gray-700 text-right">{p.email || "—"}</span>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
