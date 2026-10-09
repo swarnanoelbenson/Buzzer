@@ -517,6 +517,32 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
         }
       }
 
+      // Pre-check which students/parents are new BEFORE writing to Firestore,
+      // so provision-and-notify can send the correct welcome vs. schedule-only emails.
+      const existingStudentEmails = new Set<string>();
+      const existingParentEmails = new Set<string>();
+      const emailsToCheck = preview.filter(r => r.studentEmail.trim());
+      const parentEmailsToCheck = preview.filter(r => r.parentEmail.trim() && r.parentName.trim());
+
+      await Promise.all([
+        ...emailsToCheck.map(async (r) => {
+          const snap = await getDocs(query(
+            collection(db, "students"),
+            where("schoolId", "==", schoolId),
+            where("email", "==", r.studentEmail.trim().toLowerCase())
+          ));
+          if (!snap.empty) existingStudentEmails.add(r.studentEmail.trim().toLowerCase());
+        }),
+        ...parentEmailsToCheck.map(async (r) => {
+          const snap = await getDocs(query(
+            collection(db, "parents"),
+            where("schoolId", "==", schoolId),
+            where("email", "==", r.parentEmail.trim().toLowerCase())
+          ));
+          if (!snap.empty) existingParentEmails.add(r.parentEmail.trim().toLowerCase());
+        }),
+      ]);
+
       const batch = writeBatch(db);
       const scheduledDates = getScheduledDates(startDate, endDate, selectedDays);
       const studentIds: string[] = [];
@@ -611,6 +637,12 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
         orderPM: r.orderPM, dropoffTime: r.dropoffTime, stopPM: r.stopPM,
         parentName: r.parentName, parentPhone: r.parentPhone,
         parentEmail: r.parentEmail, relationship: r.relationship,
+        isNewStudent: r.studentEmail.trim()
+          ? !existingStudentEmails.has(r.studentEmail.trim().toLowerCase())
+          : undefined,
+        isNewParent: r.parentEmail.trim() && r.parentName.trim()
+          ? !existingParentEmails.has(r.parentEmail.trim().toLowerCase())
+          : undefined,
       }));
 
       const notifyPayload = {

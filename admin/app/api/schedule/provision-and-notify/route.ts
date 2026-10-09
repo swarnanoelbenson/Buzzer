@@ -34,6 +34,9 @@ interface StudentRow {
   parentPhone: string;
   parentEmail: string;
   relationship: string;
+  // Pre-computed by the frontend before the Firestore batch write
+  isNewStudent?: boolean;
+  isNewParent?: boolean;
 }
 
 interface ProvisionAndNotifyPayload {
@@ -373,8 +376,11 @@ export async function POST(req: NextRequest) {
   // For each row, query Firestore by email + schoolId to determine isNew.
   // Rows without an email are skipped entirely (no DB check, no email).
 
+  // Use pre-computed isNew flags from the frontend when available (set before Firestore write).
+  // Fall back to querying Firestore only if the flags are absent.
   const studentChecks = students.map(async (row) => {
     if (!row.studentEmail) return { row, isNew: false, skip: true };
+    if (row.isNewStudent !== undefined) return { row, isNew: row.isNewStudent, skip: false };
     const snap = await db.collection("students")
       .where("schoolId", "==", schoolId)
       .where("email", "==", row.studentEmail.trim().toLowerCase())
@@ -385,6 +391,7 @@ export async function POST(req: NextRequest) {
 
   const parentChecks = students.map(async (row) => {
     if (!row.parentEmail || !row.parentName) return { row, isNew: false, skip: true };
+    if (row.isNewParent !== undefined) return { row, isNew: row.isNewParent, skip: false };
     const snap = await db.collection("parents")
       .where("schoolId", "==", schoolId)
       .where("email", "==", row.parentEmail.trim().toLowerCase())
