@@ -2,12 +2,11 @@
 //  PasswordSetupView.swift
 //  Buzzer
 //
-//  First-time password setup and forgot-password flow for Driver, Parent, and Student portals.
+//  Password setup / forgot-password flow for Driver, Parent, and Student portals.
 //  Steps:
-//    1. Email pre-filled, tap "Send Code" → WAC sends 6-char alphanumeric code via email
-//    2. Enter the code to verify identity
-//    3. Enter and confirm new password
-//    4. signUp (or signIn + updatePassword) → FirestoreService.setPasswordSet → AuthManager resolves role
+//    1. Enter email → tap "Send Code"
+//    2. Enter 6-char code ("Change email" / "Resend code" options)
+//    3. Set password + confirm → sign in → dashboard
 //
 
 import SwiftUI
@@ -17,7 +16,7 @@ private let setupCodeEndpoint = "https://busmate-admin.vercel.app/api/auth/send-
 private let verifyCodeEndpoint = "https://busmate-admin.vercel.app/api/auth/verify-setup-code"
 
 struct PasswordSetupView: View {
-    let email: String
+    // schoolId is still required (school context for the API)
     let schoolId: String
     let role: UserRole
     let accentColor: Color
@@ -26,13 +25,16 @@ struct PasswordSetupView: View {
     private let service = FirestoreService.shared
 
     // Step tracking
-    @State private var step: SetupStep = .sendCode
+    @State private var step: SetupStep = .enterEmail
+
+    // Step 1 — email entry
+    @State private var emailInput = ""
 
     // Step 2 — code entry
     @State private var code = ""
     @State private var verifiedDocId = ""
-    @State private var verifyCustomToken: String? = nil   // returned by verify-setup-code for existing accounts
-    @State private var needsSignUp = false                // true when no Firebase Auth account yet
+    @State private var verifyCustomToken: String? = nil
+    @State private var needsSignUp = false
 
     // Step 3 — password entry
     @State private var newPassword = ""
@@ -43,10 +45,10 @@ struct PasswordSetupView: View {
     // UI
     @State private var isLoading = false
     @State private var errorMessage: String? = nil
-    @State private var successMessage: String? = nil
+    @State private var codeSentMessage: String? = nil
 
     enum SetupStep {
-        case sendCode
+        case enterEmail
         case enterCode
         case setPassword
     }
@@ -61,9 +63,11 @@ struct PasswordSetupView: View {
                         .foregroundColor(accentColor)
                     Text("Set Up Your Password")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
-                    Text(email)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    if step != .enterEmail {
+                        Text(emailInput)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .padding(.top, 20)
 
@@ -72,8 +76,8 @@ struct PasswordSetupView: View {
                     .padding(.horizontal, 24)
 
                 switch step {
-                case .sendCode:
-                    sendCodeSection
+                case .enterEmail:
+                    enterEmailSection
                 case .enterCode:
                     enterCodeSection
                 case .setPassword:
@@ -87,15 +91,27 @@ struct PasswordSetupView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: - Step 1: Send Code
+    // MARK: - Step 1: Enter Email
 
-    private var sendCodeSection: some View {
+    private var enterEmailSection: some View {
         VStack(spacing: 20) {
+            Text("Enter the email address registered with your school.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
             VStack(alignment: .leading, spacing: 8) {
-                Text("We'll send a 6-character verification code to your email address to confirm your identity.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.leading)
+                Label("Email", systemImage: "envelope.fill")
+                    .font(.headline)
+
+                TextField("your@email.com", text: $emailInput)
+                    .keyboardType(.emailAddress)
+                    .textContentType(.emailAddress)
+                    .autocapitalization(.none)
+                    .autocorrectionDisabled()
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(12)
             }
 
             if let error = errorMessage {
@@ -112,17 +128,17 @@ struct PasswordSetupView: View {
                     if isLoading {
                         ProgressView().tint(.white)
                     } else {
-                        Text("Send Verification Code")
+                        Text("Send Code")
                             .font(.system(size: 18, weight: .semibold))
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(accentColor)
+                .background(canSendCode ? accentColor : Color.gray)
                 .foregroundColor(.white)
                 .cornerRadius(14)
             }
-            .disabled(isLoading)
+            .disabled(!canSendCode || isLoading)
         }
         .padding(.horizontal, 24)
     }
@@ -131,7 +147,7 @@ struct PasswordSetupView: View {
 
     private var enterCodeSection: some View {
         VStack(spacing: 20) {
-            Text("Enter the 6-character code sent to **\(email)**")
+            Text("Enter the 6-character code sent to **\(emailInput)**")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -148,10 +164,11 @@ struct PasswordSetupView: View {
                     code = String(newValue.uppercased().prefix(6))
                 }
 
-            if let success = successMessage {
-                Text(success)
+            if let sent = codeSentMessage {
+                Text(sent)
                     .foregroundColor(.green)
                     .font(.caption)
+                    .multilineTextAlignment(.center)
             }
 
             if let error = errorMessage {
@@ -180,11 +197,22 @@ struct PasswordSetupView: View {
             }
             .disabled(code.count < 6 || isLoading)
 
-            Button("Resend code") {
-                Task { await handleSendCode() }
+            HStack(spacing: 24) {
+                Button("Change email") {
+                    code = ""
+                    errorMessage = nil
+                    codeSentMessage = nil
+                    step = .enterEmail
+                }
+                .font(.subheadline)
+                .foregroundColor(accentColor)
+
+                Button("Resend code") {
+                    Task { await handleSendCode() }
+                }
+                .font(.subheadline)
+                .foregroundColor(accentColor)
             }
-            .font(.subheadline)
-            .foregroundColor(accentColor)
         }
         .padding(.horizontal, 24)
     }
@@ -293,6 +321,10 @@ struct PasswordSetupView: View {
 
     // MARK: - Computed
 
+    private var canSendCode: Bool {
+        emailInput.contains("@") && emailInput.count > 4
+    }
+
     private var canSetPassword: Bool {
         newPassword.count >= 8 && newPassword == confirmPassword
     }
@@ -303,13 +335,15 @@ struct PasswordSetupView: View {
         errorMessage = nil
         isLoading = true
 
+        let trimmedEmail = emailInput.trimmingCharacters(in: .whitespaces).lowercased()
+
         do {
             guard let url = URL(string: setupCodeEndpoint) else { throw URLError(.badURL) }
             var req = URLRequest(url: url)
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: [
-                "email": email,
+                "email": trimmedEmail,
                 "schoolId": schoolId
             ])
             let (data, response) = try await URLSession.shared.data(for: req)
@@ -319,7 +353,9 @@ struct PasswordSetupView: View {
                     NSLocalizedDescriptionKey: json?["error"] as? String ?? "Failed to send code."
                 ])
             }
-            successMessage = "Code sent to \(email)"
+            emailInput = trimmedEmail
+            codeSentMessage = "Code sent to \(trimmedEmail)"
+            code = ""
             step = .enterCode
         } catch {
             errorMessage = error.localizedDescription
@@ -337,7 +373,7 @@ struct PasswordSetupView: View {
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: [
-                "email": email,
+                "email": emailInput,
                 "schoolId": schoolId,
                 "code": code
             ])
@@ -368,7 +404,7 @@ struct PasswordSetupView: View {
         do {
             if needsSignUp {
                 // No Firebase Auth account yet — create one with the chosen password
-                try await authManager.signUpWithEmailPassword(email: email, password: newPassword)
+                try await authManager.signUpWithEmailPassword(email: emailInput, password: newPassword)
             } else if let token = verifyCustomToken {
                 // Existing Firebase Auth account — sign in via custom token, then update password
                 try await authManager.signInWithCustomToken(token)
@@ -397,8 +433,8 @@ private struct StepIndicator: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            stepDot(label: "Send Code", isActive: currentStep == .sendCode, isDone: currentStep != .sendCode)
-            stepLine(isDone: currentStep != .sendCode)
+            stepDot(label: "Email", isActive: currentStep == .enterEmail, isDone: currentStep != .enterEmail)
+            stepLine(isDone: currentStep != .enterEmail)
             stepDot(label: "Verify", isActive: currentStep == .enterCode, isDone: currentStep == .setPassword)
             stepLine(isDone: currentStep == .setPassword)
             stepDot(label: "Password", isActive: currentStep == .setPassword, isDone: false)

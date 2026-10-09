@@ -19,11 +19,12 @@ struct LoginSelectionView: View {
 
                 // Logo / App name
                 VStack(spacing: 12) {
-                    Image(systemName: "bus.fill")
-                        .font(.system(size: 64))
-                        .foregroundColor(.blue)
+                    Image("Busmate_logo_for_website")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 100, height: 100)
 
-                    Text("Buzzer")
+                    Text("BusMate")
                         .font(.system(size: 40, weight: .bold, design: .rounded))
 
                     Text("School Bus Management")
@@ -70,7 +71,7 @@ struct LoginSelectionView: View {
                         RoleButton(
                             icon: "shield.lefthalf.filled",
                             title: "Admin",
-                            subtitle: "Manage drivers, routes and students",
+                            subtitle: "Manage drivers, routes & students",
                             color: .purple
                         )
                     }
@@ -117,6 +118,8 @@ struct RoleButton: View {
                 Text(subtitle)
                     .font(.caption)
                     .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             Spacer()

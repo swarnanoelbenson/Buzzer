@@ -34,7 +34,6 @@ struct EmailSignInView: View {
 
     // Navigation
     @State private var navigateToSetup = false
-    @State private var setupEmail = ""
     @State private var setupSchoolId = ""
 
     // UI state
@@ -45,7 +44,6 @@ struct EmailSignInView: View {
         ScrollView {
             VStack(spacing: 28) {
                 NavigationLink(destination: PasswordSetupView(
-                    email: setupEmail,
                     schoolId: setupSchoolId,
                     role: role,
                     accentColor: accentColor
@@ -144,11 +142,10 @@ struct EmailSignInView: View {
                     // Set password (left) / Forgot password (right)
                     HStack {
                         Button("Set password") {
-                            guard let school = selectedSchool, !email.trimmingCharacters(in: .whitespaces).isEmpty else {
-                                errorMessage = "Please select a school and enter your email first."
+                            guard let school = selectedSchool else {
+                                errorMessage = "Please select a school first."
                                 return
                             }
-                            setupEmail = email.trimmingCharacters(in: .whitespaces).lowercased()
                             setupSchoolId = school.id ?? ""
                             navigateToSetup = true
                         }
@@ -158,11 +155,10 @@ struct EmailSignInView: View {
                         Spacer()
 
                         Button("Forgot password?") {
-                            guard let school = selectedSchool, !email.trimmingCharacters(in: .whitespaces).isEmpty else {
-                                errorMessage = "Please select a school and enter your email first."
+                            guard let school = selectedSchool else {
+                                errorMessage = "Please select a school first."
                                 return
                             }
-                            setupEmail = email.trimmingCharacters(in: .whitespaces).lowercased()
                             setupSchoolId = school.id ?? ""
                             navigateToSetup = true
                         }
@@ -240,7 +236,6 @@ struct EmailSignInView: View {
 
             if !result.passwordSet {
                 // First-time setup — navigate to PasswordSetupView
-                setupEmail = trimmedEmail
                 setupSchoolId = schoolId
                 isLoading = false
                 navigateToSetup = true
