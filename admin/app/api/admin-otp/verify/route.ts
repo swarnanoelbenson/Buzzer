@@ -4,10 +4,10 @@ import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 
 function getAdminServices() {
-  if (!getApps().length) {
-    initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!)) });
-  }
-  return { db: getFirestore(), auth: getAuth() };
+  const app = getApps().length
+    ? getApps()[0]
+    : initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!)) });
+  return { db: getFirestore(app, "busmate-db"), auth: getAuth(app) };
 }
 
 export async function POST(req: NextRequest) {

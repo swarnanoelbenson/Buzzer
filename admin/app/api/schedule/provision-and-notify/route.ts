@@ -6,10 +6,10 @@ import { Resend } from "resend";
 // ── Firebase Admin ────────────────────────────────────────────────────────────
 
 function getAdminDb() {
-  if (!getApps().length) {
-    initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!)) });
-  }
-  return getFirestore();
+  const app = getApps().length
+    ? getApps()[0]
+    : initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT!)) });
+  return getFirestore(app, "busmate-db");
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
