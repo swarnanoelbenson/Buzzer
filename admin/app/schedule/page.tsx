@@ -350,11 +350,14 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
 
   // ── 3-step flow state ──────────────────────────────────────────────────────
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  // Step 3 progress rows
+  // Step 3 progress rows — one per pipeline stage
   const [progress, setProgress] = useState<ProgressRow[]>([
-    { label: "Driver Notified", status: "pending" },
-    { label: "Parents Notified", status: "pending" },
-    { label: "Students Notified", status: "pending" },
+    { label: "Student welcome emails", status: "pending" },
+    { label: "Parent welcome emails", status: "pending" },
+    { label: "Admin notified", status: "pending" },
+    { label: "Driver notified", status: "pending" },
+    { label: "Schedule sent to students", status: "pending" },
+    { label: "Schedule sent to parents", status: "pending" },
   ]);
   const [allDone, setAllDone] = useState(false);
   // Saved route ref so onAdded can be called when user closes Step 3
@@ -517,32 +520,6 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
         }
       }
 
-      // Pre-check which students/parents are new BEFORE writing to Firestore,
-      // so provision-and-notify can send the correct welcome vs. schedule-only emails.
-      const existingStudentEmails = new Set<string>();
-      const existingParentEmails = new Set<string>();
-      const emailsToCheck = preview.filter(r => r.studentEmail.trim());
-      const parentEmailsToCheck = preview.filter(r => r.parentEmail.trim() && r.parentName.trim());
-
-      await Promise.all([
-        ...emailsToCheck.map(async (r) => {
-          const snap = await getDocs(query(
-            collection(db, "students"),
-            where("schoolId", "==", schoolId),
-            where("email", "==", r.studentEmail.trim().toLowerCase())
-          ));
-          if (!snap.empty) existingStudentEmails.add(r.studentEmail.trim().toLowerCase());
-        }),
-        ...parentEmailsToCheck.map(async (r) => {
-          const snap = await getDocs(query(
-            collection(db, "parents"),
-            where("schoolId", "==", schoolId),
-            where("email", "==", r.parentEmail.trim().toLowerCase())
-          ));
-          if (!snap.empty) existingParentEmails.add(r.parentEmail.trim().toLowerCase());
-        }),
-      ]);
-
       const batch = writeBatch(db);
       const scheduledDates = getScheduledDates(startDate, endDate, selectedDays);
       const studentIds: string[] = [];
@@ -621,11 +598,7 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
       setStep(3);
       setSaving(false);
 
-      // ── Notification steps with progress tracking ─────────────────────────
-      // provision-and-notify checks Firestore for existing student/parent profiles
-      // by email + schoolId, then sends:
-      //   - new profile  → welcome email + schedule email
-      //   - existing profile → schedule email only
+      // ── Sequential notification pipeline ──────────────────────────────────
       const term = parseInt(form.term);
       const year = parseInt(form.year);
       const routeName = form.name.trim().toUpperCase();
@@ -637,15 +610,9 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
         orderPM: r.orderPM, dropoffTime: r.dropoffTime, stopPM: r.stopPM,
         parentName: r.parentName, parentPhone: r.parentPhone,
         parentEmail: r.parentEmail, relationship: r.relationship,
-        isNewStudent: r.studentEmail.trim()
-          ? !existingStudentEmails.has(r.studentEmail.trim().toLowerCase())
-          : undefined,
-        isNewParent: r.parentEmail.trim() && r.parentName.trim()
-          ? !existingParentEmails.has(r.parentEmail.trim().toLowerCase())
-          : undefined,
       }));
 
-      const notifyPayload = {
+      const basePayload = {
         schoolId, schoolName, routeName, term, year,
         busRego: form.busRegistration.trim().toUpperCase(),
         driverName: driver?.name ?? "",
@@ -655,62 +622,43 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
         students: notifyStudents,
       };
 
-      // All 3 rows spin together — one API call does everything
-      setProgressRow(0, { status: "sending" });
-      setProgressRow(1, { status: "sending" });
-      setProgressRow(2, { status: "sending" });
-      try {
-        const res = await fetch("/api/schedule/provision-and-notify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(notifyPayload),
-        });
-        const data = await res.json() as {
-          skipped?: boolean;
-          driver?: { sent: boolean; skipped: boolean };
-          parents?: { sent: number; skipped: number };
-          students?: { sent: number; skipped: number };
-        };
+      type StageResult = { skipped?: boolean | number; sent?: number; skipReason?: string };
 
-        if (data.skipped) {
-          // No Resend key configured — mark all as done quietly
-          setProgressRow(0, { status: "done" });
-          setProgressRow(1, { status: "done" });
-          setProgressRow(2, { status: "done" });
-          setAllDone(true);
-          return;
+      const runStage = async (stage: string, rowIndex: number): Promise<StageResult> => {
+        setProgressRow(rowIndex, { status: "sending" });
+        try {
+          const res = await fetch("/api/schedule/provision-and-notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...basePayload, stage }),
+          });
+          const data = await res.json() as StageResult;
+          if (data.skipped === true && data.sent === undefined) {
+            // No Resend key configured
+            setProgressRow(rowIndex, { status: "done" });
+            return data;
+          }
+          setProgressRow(rowIndex, {
+            status: "done",
+            note: data.skipReason ?? undefined,
+          });
+          return data;
+        } catch (err) {
+          console.error(`stage ${stage} error:`, err);
+          setProgressRow(rowIndex, { status: "error" });
+          return {};
         }
+      };
 
-        // Driver row
-        setProgressRow(0, {
-          status: data.driver?.sent ? "done" : "done",
-          note: (!driver?.email)
-            ? "Driver has no email on file — notification skipped"
-            : undefined,
-        });
+      // Run all 6 stages sequentially
+      await runStage("student-welcome", 0);
+      await runStage("parent-welcome", 1);
+      await runStage("admin-schedule", 2);
+      await runStage("driver-schedule", 3);
+      await runStage("student-schedule", 4);
+      await runStage("parent-schedule", 5);
 
-        // Parents row
-        setProgressRow(1, { status: "done",
-          note: data.parents && data.parents.skipped > 0
-            ? `${data.parents.skipped} parent${data.parents.skipped !== 1 ? "s" : ""} had no email on file`
-            : undefined,
-        });
-
-        // Students row
-        setProgressRow(2, { status: "done",
-          note: data.students && data.students.skipped > 0
-            ? `${data.students.skipped} student${data.students.skipped !== 1 ? "s" : ""} had no email on file`
-            : undefined,
-        });
-
-        setAllDone(true);
-      } catch (err) {
-        console.error("provision-and-notify error:", err);
-        setProgressRow(0, { status: "error" });
-        setProgressRow(1, { status: "error" });
-        setProgressRow(2, { status: "error" });
-        setAllDone(true);
-      }
+      setAllDone(true);
 
       return; // don't run the outer setSaving(false) again
     } catch (err) { console.error(err); }
