@@ -29,6 +29,56 @@ class FirestoreService {
         return routeId   // fallback to ID if fetch fails
     }
 
+    // MARK: - Schools
+
+    /// Returns all schools sorted by name — used to populate the school picker on the sign-in screen.
+    func fetchSchools() async throws -> [School] {
+        let snapshot = try await db.collection("schools").getDocuments()
+        return try snapshot.documents
+            .map { try $0.data(as: School.self) }
+            .sorted { $0.schoolName < $1.schoolName }
+    }
+
+    // MARK: - Auth helpers
+
+    /// Looks up a user by email within a school across the three role collections.
+    /// Returns the Firestore document ID and whether the account has a password set.
+    /// Used during sign-in to determine if the account exists and whether to prompt for password setup.
+    func fetchUserByEmail(_ email: String, schoolId: String, role: UserRole) async throws -> (docId: String, passwordSet: Bool) {
+        let normalised = email.trimmingCharacters(in: .whitespaces).lowercased()
+        let collection: String
+        switch role {
+        case .driver:  collection = "drivers"
+        case .parent:  collection = "parents"
+        case .student: collection = "students"
+        default:
+            throw NSError(domain: "Auth", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid role."])
+        }
+        let snapshot = try await db.collection(collection)
+            .whereField("schoolId", isEqualTo: schoolId)
+            .whereField("email", isEqualTo: normalised)
+            .whereField("isActive", isEqualTo: true)
+            .limit(to: 1)
+            .getDocuments()
+        guard let doc = snapshot.documents.first else {
+            throw NSError(domain: "Auth", code: 404, userInfo: [NSLocalizedDescriptionKey: "Account not found. Please contact your school admin."])
+        }
+        let passwordSet = doc.data()["passwordSet"] as? Bool ?? false
+        return (docId: doc.documentID, passwordSet: passwordSet)
+    }
+
+    /// Marks a user's passwordSet field as true after they complete password setup.
+    func setPasswordSet(_ docId: String, role: UserRole) async throws {
+        let collection: String
+        switch role {
+        case .driver:  collection = "drivers"
+        case .parent:  collection = "parents"
+        case .student: collection = "students"
+        default: return
+        }
+        try await db.collection(collection).document(docId).updateData(["passwordSet": true])
+    }
+
     // MARK: - Drivers
 
     func fetchAllDrivers(schoolId: String) async throws -> [Driver] {
@@ -169,12 +219,74 @@ class FirestoreService {
         }
     }
 
-    /// Fetches all upcoming trips for a driver within a school (for View All tab).
+    /// Fetches all upcoming (today + future) trips for a driver within a school.
     func fetchAllTrips(for driverId: String, schoolId: String) async throws -> [Trip] {
+        let startOfDay = Calendar.current.startOfDay(for: Date())
         let snapshot = try await db.collection("trips")
             .whereField("schoolId", isEqualTo: schoolId)
             .whereField("driverId", isEqualTo: driverId)
+            .whereField("date", isGreaterThanOrEqualTo: startOfDay)
             .order(by: "date", descending: false)
+            .getDocuments()
+        return try snapshot.documents.map { try $0.data(as: Trip.self) }
+    }
+
+    /// Fetches trips for the next 2 weeks for a set of student IDs (parent/student portals).
+    func fetchFutureTrips(forStudentIds studentIds: [String], schoolId: String) async throws -> [Trip] {
+        guard !studentIds.isEmpty else { return [] }
+        let tomorrow = Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 1, to: Date())!)
+        let twoWeeksLater = Calendar.current.date(byAdding: .day, value: 14, to: tomorrow)!
+        let snapshot = try await db.collection("trips")
+            .whereField("schoolId", isEqualTo: schoolId)
+            .whereField("date", isGreaterThanOrEqualTo: tomorrow)
+            .whereField("date", isLessThan: twoWeeksLater)
+            .getDocuments()
+        let trips = try snapshot.documents.map { try $0.data(as: Trip.self) }
+        return trips
+            .filter { trip in trip.studentRecords.contains { studentIds.contains($0.id) } }
+            .sorted { $0.date < $1.date }
+    }
+
+    /// Fetches completed trips in the last 2 weeks for a set of student IDs (parent/student portals).
+    func fetchCompletedTrips(forStudentIds studentIds: [String], schoolId: String) async throws -> [Trip] {
+        guard !studentIds.isEmpty else { return [] }
+        let twoWeeksAgo = Calendar.current.date(byAdding: .day, value: -14, to: Calendar.current.startOfDay(for: Date()))!
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+        let snapshot = try await db.collection("trips")
+            .whereField("schoolId", isEqualTo: schoolId)
+            .whereField("date", isGreaterThanOrEqualTo: twoWeeksAgo)
+            .whereField("date", isLessThan: startOfToday)
+            .getDocuments()
+        let trips = try snapshot.documents.map { try $0.data(as: Trip.self) }
+        return trips
+            .filter { trip in trip.studentRecords.contains { studentIds.contains($0.id) } }
+            .sorted { $0.date > $1.date }
+    }
+
+    /// Fetches completed trips in the last 2 weeks for a driver.
+    func fetchCompletedTrips(for driverId: String, schoolId: String) async throws -> [Trip] {
+        let twoWeeksAgo = Calendar.current.date(byAdding: .day, value: -14, to: Calendar.current.startOfDay(for: Date()))!
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+        let snapshot = try await db.collection("trips")
+            .whereField("schoolId", isEqualTo: schoolId)
+            .whereField("driverId", isEqualTo: driverId)
+            .whereField("date", isGreaterThanOrEqualTo: twoWeeksAgo)
+            .whereField("date", isLessThan: startOfToday)
+            .order(by: "date", descending: true)
+            .getDocuments()
+        return try snapshot.documents.map { try $0.data(as: Trip.self) }
+    }
+
+    /// Fetches the last 3 days of completed trips for a driver (history).
+    func fetchRecentCompletedTrips(for driverId: String, schoolId: String) async throws -> [Trip] {
+        let threeDaysAgo = Calendar.current.date(byAdding: .day, value: -3, to: Calendar.current.startOfDay(for: Date()))!
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+        let snapshot = try await db.collection("trips")
+            .whereField("schoolId", isEqualTo: schoolId)
+            .whereField("driverId", isEqualTo: driverId)
+            .whereField("date", isGreaterThanOrEqualTo: threeDaysAgo)
+            .whereField("date", isLessThan: startOfToday)
+            .order(by: "date", descending: true)
             .getDocuments()
         return try snapshot.documents.map { try $0.data(as: Trip.self) }
     }
@@ -280,9 +392,11 @@ class FirestoreService {
         return try snapshot.documents.map { try $0.data(as: FirestorePassengerNote.self) }
     }
 
-    /// Adds a new passenger note.
-    func addPassengerNote(_ note: FirestorePassengerNote) async throws {
+    /// Adds a new passenger note. Returns the new document reference.
+    @discardableResult
+    func addPassengerNote(_ note: FirestorePassengerNote) async throws -> DocumentReference {
         let data: [String: Any] = [
+            "schoolId": note.schoolId,
             "studentId": note.studentId,
             "studentName": note.studentName,
             "routeId": note.routeId,
@@ -292,11 +406,22 @@ class FirestoreService {
             "fromDate": Timestamp(date: note.fromDate),
             "toDate": Timestamp(date: note.toDate),
             "createdAt": FieldValue.serverTimestamp(),
-            "createdByParentId": note.createdByParentId,
-            "createdByParentName": note.createdByParentName,
+            "createdById": note.createdById,
+            "createdByName": note.createdByName,
+            "createdByRole": note.createdByRole,
             "isDeleted": false
         ]
-        try await db.collection("passengerNotes").addDocument(data: data)
+        return try await db.collection("passengerNotes").addDocument(data: data)
+    }
+
+    /// Updates the text and date range of an existing note (only by the original creator).
+    func updatePassengerNote(id: String, noteText: String, fromDate: Date, toDate: Date, type: TripType) async throws {
+        try await db.collection("passengerNotes").document(id).updateData([
+            "noteText": noteText,
+            "fromDate": Timestamp(date: fromDate),
+            "toDate": Timestamp(date: toDate),
+            "type": type.rawValue
+        ])
     }
 
     /// Soft-deletes a passenger note.

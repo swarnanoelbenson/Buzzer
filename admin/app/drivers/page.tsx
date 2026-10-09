@@ -272,7 +272,7 @@ function AddDriverModal({ schoolId, schoolName, onClose, onAdded }: { schoolId: 
         driversLicense: form.driversLicense.trim(),
         licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
         ...(driverEmail ? { email: driverEmail } : {}),
-        imageUrl: "", isActive: true, createdAt: Timestamp.now(),
+        imageUrl: "", isActive: true, passwordSet: false, createdAt: Timestamp.now(),
       });
       const newDriver: Driver = {
         id: ref.id, schoolId, name: form.name.trim(), phone: form.phone.trim() ? `+61${form.phone.trim()}` : "",

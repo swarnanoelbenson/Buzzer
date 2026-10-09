@@ -2,8 +2,9 @@
 //  AuthManager.swift
 //  Buzzer
 //
-//  Manages authentication state for both Driver and Parent portals.
-//  Drivers log in via phone OTP. Parents log in via email/password.
+//  Manages authentication state for all portals.
+//  Driver, Parent, and Student portals use email + password.
+//  Admin portal uses OTP magic link (unchanged).
 //
 
 import SwiftUI
@@ -62,8 +63,15 @@ class AuthManager {
     }
 
     /// After Firebase login, check Firestore to determine the user's role.
+    /// First tries UID-based lookup, then falls back to email-based lookup
+    /// (needed for driver/parent/student accounts whose Firestore docs were
+    /// pre-created by WAC with auto-generated IDs before first login).
     private func resolveRole(for uid: String) async {
-        // Check drivers collection by UID
+        let email = Auth.auth().currentUser?.email?.trimmingCharacters(in: .whitespaces).lowercased()
+
+        // MARK: Drivers
+
+        // Direct UID lookup (works after first sign-in syncs the doc)
         let driverDoc = try? await db.collection("drivers").document(uid).getDocument()
         if driverDoc?.exists == true {
             self.currentRole = .driver
@@ -71,6 +79,22 @@ class AuthManager {
             self.isLoading = false
             await saveCurrentFCMToken()
             return
+        }
+
+        // Email-based lookup (first login — WAC created doc with a different ID)
+        if let email {
+            let snap = try? await db.collection("drivers")
+                .whereField("email", isEqualTo: email)
+                .whereField("isActive", isEqualTo: true)
+                .limit(to: 1)
+                .getDocuments()
+            if let doc = snap?.documents.first {
+                self.currentRole = .driver
+                self.currentUserId = doc.documentID
+                self.isLoading = false
+                await saveCurrentFCMToken()
+                return
+            }
         }
 
         // Simulator bypass: driver auth account links to a fixed-ID driver doc
@@ -87,7 +111,8 @@ class AuthManager {
         }
         #endif
 
-        // Check parents collection
+        // MARK: Parents
+
         let parentDoc = try? await db.collection("parents").document(uid).getDocument()
         if parentDoc?.exists == true {
             self.currentRole = .parent
@@ -97,7 +122,23 @@ class AuthManager {
             return
         }
 
-        // Check students collection
+        if let email {
+            let snap = try? await db.collection("parents")
+                .whereField("email", isEqualTo: email)
+                .whereField("isActive", isEqualTo: true)
+                .limit(to: 1)
+                .getDocuments()
+            if let doc = snap?.documents.first {
+                self.currentRole = .parent
+                self.currentUserId = doc.documentID
+                self.isLoading = false
+                await saveCurrentFCMToken()
+                return
+            }
+        }
+
+        // MARK: Students
+
         let studentDoc = try? await db.collection("students").document(uid).getDocument()
         if studentDoc?.exists == true {
             self.currentRole = .student
@@ -106,7 +147,22 @@ class AuthManager {
             return
         }
 
-        // Check schools collection (admin)
+        if let email {
+            let snap = try? await db.collection("students")
+                .whereField("email", isEqualTo: email)
+                .whereField("isActive", isEqualTo: true)
+                .limit(to: 1)
+                .getDocuments()
+            if let doc = snap?.documents.first {
+                self.currentRole = .student
+                self.currentUserId = doc.documentID
+                self.isLoading = false
+                return
+            }
+        }
+
+        // MARK: Admin
+
         let schoolSnap = try? await db.collection("schools")
             .whereField("adminUid", isEqualTo: uid)
             .limit(to: 1)
@@ -127,34 +183,26 @@ class AuthManager {
         self.isLoading = false
     }
 
-    // MARK: - Driver Login (Phone OTP)
+    // MARK: - Email + Password Sign-In (Driver / Parent / Student)
 
-    /// Step 1: Send OTP to driver's phone number.
-    func sendOTP(to phoneNumber: String) async throws -> String {
-        let verificationID = try await PhoneAuthProvider.provider()
-            .verifyPhoneNumber(phoneNumber, uiDelegate: nil)
-        return verificationID
-    }
-
-    /// Step 2: Verify OTP and sign in driver.
-    func verifyOTP(verificationID: String, code: String) async throws {
-        let credential = PhoneAuthProvider.provider().credential(
-            withVerificationID: verificationID,
-            verificationCode: code
-        )
-        try await Auth.auth().signIn(with: credential)
-    }
-
-    // MARK: - Parent Login (Email/Password)
-
-    func signInParent(email: String, password: String) async throws {
+    /// Signs in with email and password. Used by all three non-admin portals.
+    func signInWithEmailPassword(email: String, password: String) async throws {
         try await Auth.auth().signIn(withEmail: email, password: password)
     }
 
-    // MARK: - Student Login (Email/Password)
+    /// Creates a new Firebase Auth account and signs in.
+    /// Called during first-time password setup when `passwordSet == false`.
+    func signUpWithEmailPassword(email: String, password: String) async throws {
+        try await Auth.auth().createUser(withEmail: email, password: password)
+    }
 
-    func signInStudent(email: String, password: String) async throws {
-        try await Auth.auth().signIn(withEmail: email, password: password)
+    /// Updates the password for the currently signed-in user.
+    /// Called when the user wants to change their password (forgot password flow).
+    func updatePassword(_ newPassword: String) async throws {
+        guard let user = Auth.auth().currentUser else {
+            throw NSError(domain: "Auth", code: 401, userInfo: [NSLocalizedDescriptionKey: "No signed-in user."])
+        }
+        try await user.updatePassword(to: newPassword)
     }
 
     // MARK: - Admin Login (Custom Token from OTP API)

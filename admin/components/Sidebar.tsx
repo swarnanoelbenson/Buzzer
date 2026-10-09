@@ -4,7 +4,14 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 
-const sections = [
+interface SidebarSection {
+  label: string;
+  base: string;
+  href?: string;
+  cards: { label: string; href: string }[];
+}
+
+const sections: SidebarSection[] = [
   {
     label: "DRIVERS",
     base: "/drivers",
@@ -22,16 +29,6 @@ const sections = [
     base: "/schedule",
     href: "/schedule",
     cards: [],
-  },
-  {
-    label: "VIEW LOG",
-    base: "/logs",
-    cards: [
-      { label: "DRIVER LOG",   href: "/logs/driver" },
-      { label: "STUDENT LOG",  href: "/logs/student" },
-      { label: "ADMIN LOG",    href: "/logs/admin" },
-      { label: "ROUTE LOG",    href: "/logs/route" },
-    ],
   },
 ];
 

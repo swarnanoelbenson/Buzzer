@@ -539,7 +539,7 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
             email: row.parentEmail.trim() || "",
             fcmToken: null,
             childIds: [studentRef.id],
-            isActive: true, profileCompleted: false,
+            isActive: true, profileCompleted: false, passwordSet: false,
             createdAt: Timestamp.now(),
           });
           authorisedParentIds.push(parentRef.id);
@@ -554,7 +554,7 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
           scheduledPickupTime: row.pickupTime, scheduledDropoffTime: row.dropoffTime,
           phone: row.studentPhone.trim() || "",
           email: row.studentEmail.trim() || "",
-          authorisedParentIds, isActive: true, createdAt: Timestamp.now(),
+          authorisedParentIds, isActive: true, passwordSet: false, createdAt: Timestamp.now(),
         });
         studentIds.push(studentRef.id);
         studentRecordTemplate.push({ id: studentRef.id, studentName: row.name, stopAddressAM: row.stopAM, stopAddressPM: row.stopPM, orderAM, orderPM, status: "pending", timestamp: null });
@@ -595,36 +595,14 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
       setStep(3);
       setSaving(false);
 
-      // ── Fire welcome emails (non-blocking, best-effort) ───────────────────
+      // ── Notification steps with progress tracking ─────────────────────────
+      // provision-and-notify checks Firestore for existing student/parent profiles
+      // by email + schoolId, then sends:
+      //   - new profile  → welcome email + schedule email
+      //   - existing profile → schedule email only
       const term = parseInt(form.term);
       const year = parseInt(form.year);
       const routeName = form.name.trim().toUpperCase();
-      const welcomeStudents = preview
-        .filter(r => r.studentEmail)
-        .map(r => ({
-          studentName: r.name, studentEmail: r.studentEmail,
-          grade: r.grade, stopAM: r.stopAM, stopPM: r.stopPM,
-          pickupTime: r.pickupTime, dropoffTime: r.dropoffTime,
-          routeName, term, year,
-        }));
-      const welcomeParents = preview
-        .filter(r => r.parentEmail && r.parentName)
-        .map(r => ({
-          parentName: r.parentName, parentEmail: r.parentEmail,
-          studentName: r.name, grade: r.grade,
-          stopAM: r.stopAM, stopPM: r.stopPM,
-          pickupTime: r.pickupTime, dropoffTime: r.dropoffTime,
-          routeName, term, year, schoolName,
-        }));
-      if (welcomeStudents.length > 0 || welcomeParents.length > 0) {
-        fetch("/api/welcome/route", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ students: welcomeStudents, parents: welcomeParents, routeName, term, year, schoolName }),
-        }).catch(err => console.error("welcome/route fire error:", err));
-      }
-
-      // ── Sequential notification steps with progress tracking ──────────────
       const driver = drivers.find(d => d.id === form.driverId);
       const notifyStudents = preview.map(r => ({
         name: r.name, grade: r.grade,
@@ -636,7 +614,7 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
       }));
 
       const notifyPayload = {
-        schoolName, routeName, term, year,
+        schoolId, schoolName, routeName, term, year,
         busRego: form.busRegistration.trim().toUpperCase(),
         driverName: driver?.name ?? "",
         driverPhone: driver?.phone ?? "",
@@ -650,7 +628,7 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
       setProgressRow(1, { status: "sending" });
       setProgressRow(2, { status: "sending" });
       try {
-        const res = await fetch("/api/schedule/generate-and-notify", {
+        const res = await fetch("/api/schedule/provision-and-notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(notifyPayload),
@@ -695,7 +673,7 @@ function AddScheduleModal({ schoolId, schoolName, adminEmail, drivers, onClose, 
 
         setAllDone(true);
       } catch (err) {
-        console.error("generate-and-notify error:", err);
+        console.error("provision-and-notify error:", err);
         setProgressRow(0, { status: "error" });
         setProgressRow(1, { status: "error" });
         setProgressRow(2, { status: "error" });

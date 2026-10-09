@@ -303,7 +303,7 @@ export async function POST(req: NextRequest) {
     if (!s.studentEmail) continue;
     try {
       await resend.emails.send({
-        from: "BusMate <onboarding@resend.dev>",
+        from: "BusMate <noreply@updates.busmate.com.au>",
         to: [s.studentEmail],
         subject: `You're on the bus — BusMate Term ${s.term} ${s.year}`,
         html: buildStudentHtml(s),
@@ -319,7 +319,7 @@ export async function POST(req: NextRequest) {
     if (!p.parentEmail) continue;
     try {
       await resend.emails.send({
-        from: "BusMate <onboarding@resend.dev>",
+        from: "BusMate <noreply@updates.busmate.com.au>",
         to: [p.parentEmail],
         subject: `${p.studentName} is on the bus — BusMate ${schoolName}`,
         html: buildParentHtml(p),

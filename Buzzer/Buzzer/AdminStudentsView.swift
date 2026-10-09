@@ -448,40 +448,44 @@ struct AdminAddNoteSheet: View {
         let trimmed = noteText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let studentId = student.id else { isSaving = false; return }
 
-        let data: [String: Any] = [
-            "studentId":           studentId,
-            "studentName":         student.name,
-            "routeId":             student.routeId,
-            "routeName":           routeName,
-            "type":                tripType.rawValue,
-            "noteText":            trimmed,
-            "fromDate":            Timestamp(date: from),
-            "toDate":              Timestamp(date: to),
-            "createdAt":           FieldValue.serverTimestamp(),
-            "createdByParentId":   adminUid,
-            "createdByParentName": "Admin: \(adminName)",
-            "isDeleted":           false
-        ]
+        let newNote = FirestorePassengerNote(
+            schoolId: student.schoolId,
+            studentId: studentId,
+            studentName: student.name,
+            routeId: student.routeId,
+            routeName: routeName,
+            type: tripType,
+            noteText: trimmed,
+            fromDate: from,
+            toDate: to,
+            createdAt: Date(),
+            createdById: adminUid,
+            createdByName: adminName.isEmpty ? "Admin" : adminName,
+            createdByRole: "admin",
+            isDeleted: false
+        )
 
         do {
-            let ref = try await db.collection("passengerNotes").addDocument(data: data)
-            let newNote = FirestorePassengerNote(
+            let ref = try await FirestoreService.shared.addPassengerNote(newNote)
+            let saved = FirestorePassengerNote(
                 id: ref.documentID,
-                studentId: studentId,
-                studentName: student.name,
-                routeId: student.routeId,
-                routeName: routeName,
-                type: tripType,
-                noteText: trimmed,
-                fromDate: from,
-                toDate: to,
-                createdAt: Date(),
-                createdByParentId: adminUid,
-                createdByParentName: "Admin: \(adminName)",
+                schoolId: newNote.schoolId,
+                studentId: newNote.studentId,
+                studentName: newNote.studentName,
+                routeId: newNote.routeId,
+                routeName: newNote.routeName,
+                type: newNote.type,
+                noteText: newNote.noteText,
+                fromDate: newNote.fromDate,
+                toDate: newNote.toDate,
+                createdAt: newNote.createdAt,
+                createdById: newNote.createdById,
+                createdByName: newNote.createdByName,
+                createdByRole: newNote.createdByRole,
                 isDeleted: false
             )
             await MainActor.run {
-                onSaved(newNote)
+                onSaved(saved)
                 dismiss()
             }
         } catch {
@@ -563,7 +567,7 @@ private struct AdminPassengerNoteCard: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             // Created by
-            Text("Added by \(note.createdByParentName)")
+            Text("Added by \(note.createdByName) (\(note.createdByRole))")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
@@ -611,7 +615,7 @@ struct PassengerNoteCard: View {
             }
             Text(note.noteText)
                 .font(.subheadline)
-            Text("By \(note.createdByParentName)")
+            Text("By \(note.createdByName) (\(note.createdByRole))")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }

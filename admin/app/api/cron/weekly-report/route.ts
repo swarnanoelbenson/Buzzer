@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp, WriteBatch } from "firebase-admin/firestore";
 import { Resend } from "resend";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 // ─── Firebase Admin ───────────────────────────────────────────────────────────
 
@@ -45,20 +45,7 @@ function formatDate(val: unknown): string {
   return d ? d.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" }) : "";
 }
 
-function formatDateTime(val: unknown): string {
-  const d = toDate(val);
-  if (!d) return "";
-  return d.toLocaleString("en-AU", {
-    timeZone: "Australia/Sydney",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-/** Returns Mon–Fri dates for the current week (run on Friday evening AEST). */
+/** Returns Mon–Fri dates for the past week (run on Saturday morning AEST). */
 function getWeekRange(): { from: Date; to: Date; weekDates: Date[] } {
   const now = new Date();
   const aestOffset = 10 * 60 * 60 * 1000;
@@ -138,207 +125,268 @@ interface ParentDoc {
   relationship: string;
 }
 
-// ─── Excel builder (Sheet 1: Attendance, Knox-style) ──────────────────────────
+interface NoteRow {
+  studentName: string;
+  noteText: string;
+  type: string;
+  fromDate: string;
+  toDate: string;
+  createdByName: string;
+  createdByRole: string;
+}
+
+// ─── Knox colours ─────────────────────────────────────────────────────────────
+
+const BLUE_HEADER = "FF2563EB";      // Blue-600 — title / header row bg
+const BLUE_LIGHT  = "FFEFF6FF";      // Blue-50  — alternating row shading
+const WHITE       = "FFFFFFFF";
+const HEADER_TEXT = "FFFFFFFF";      // White text on blue header
+const DARK_TEXT   = "FF111827";      // Near-black body text
+
+function headerFill(): ExcelJS.Fill {
+  return { type: "pattern", pattern: "solid", fgColor: { argb: BLUE_HEADER } };
+}
+function lightFill(): ExcelJS.Fill {
+  return { type: "pattern", pattern: "solid", fgColor: { argb: BLUE_LIGHT } };
+}
+function whiteFill(): ExcelJS.Fill {
+  return { type: "pattern", pattern: "solid", fgColor: { argb: WHITE } };
+}
+
+function thinBorder(): Partial<ExcelJS.Borders> {
+  const side: ExcelJS.Border = { style: "thin", color: { argb: "FFD1D5DB" } };
+  return { top: side, left: side, bottom: side, right: side };
+}
+
+// ─── Excel builder — one workbook per route ────────────────────────────────
 
 /**
- * Builds the attendance sheet in Knox School template format.
- * One worksheet per route, named by route name.
- * Columns: Name | Grade | Sched AM | Sched PM | Stop AM | Stop PM |
- *          Mon AM | Mon PM | Tue AM | Tue PM | Wed AM | Wed PM | Thu AM | Thu PM | Fri AM | Fri PM |
- *          Parent Contact # | Parent Name
+ * Builds a single-route Knox-style attendance workbook.
+ * Returns the Excel file as a Buffer.
  */
-function buildAttendanceWorkbook(
-  routes: RouteDoc[],
-  studentsByRoute: Map<string, StudentDoc[]>,
-  driverMap: Map<string, DriverDoc>,
+async function buildRouteWorkbook(
+  route: RouteDoc,
+  students: StudentDoc[],
+  driver: DriverDoc | undefined,
   parentMap: Map<string, ParentDoc>,
-  // tripsByRouteAndDay[routeId][dayIndex(0=Mon)][type] = Map<studentId, timestampString>
-  tripsByRouteAndDay: Map<string, Map<number, { pickup: Map<string, string>; dropoff: Map<string, string> }>>,
-  notesByRoute: Map<string, { studentName: string; noteText: string }[]>,
+  dayMap: Map<number, { pickup: Map<string, string>; dropoff: Map<string, string> }>,
+  notes: NoteRow[],
   schoolName: string,
   weekDates: Date[]
-): Buffer {
-  const wb = XLSX.utils.book_new();
+): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "BusMate";
+  wb.created = new Date();
 
   const DAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-  for (const route of routes) {
-    const students = (studentsByRoute.get(route.id) ?? []).sort((a, b) => (a.orderAM ?? 99) - (b.orderAM ?? 99));
-    const driver = driverMap.get(route.driverId);
-    const dayMap = tripsByRouteAndDay.get(route.id) ?? new Map();
-    const notes = notesByRoute.get(route.id) ?? [];
+  const ws = wb.addWorksheet(route.name.replace(/[:\\/?*[\]]/g, "").slice(0, 31), {
+    pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
 
-    // ── Header rows (aoa = array of arrays) ──────────────────────────────────
-    const aoa: unknown[][] = [];
+  // Column widths (A–R = 18 cols)
+  ws.columns = [
+    { width: 24 }, // A — Name
+    { width: 11 }, // B — Year Level
+    { width: 17 }, // C — Sched AM
+    { width: 17 }, // D — Sched PM
+    { width: 34 }, // E — Stop AM
+    { width: 34 }, // F — Stop PM
+    { width: 13 }, // G — Mon AM
+    { width: 13 }, // H — Mon PM
+    { width: 13 }, // I — Tue AM
+    { width: 13 }, // J — Tue PM
+    { width: 13 }, // K — Wed AM
+    { width: 13 }, // L — Wed PM
+    { width: 13 }, // M — Thu AM
+    { width: 13 }, // N — Thu PM
+    { width: 13 }, // O — Fri AM
+    { width: 13 }, // P — Fri PM
+    { width: 19 }, // Q — Parent Contact #
+    { width: 26 }, // R — Parent Name
+  ];
 
-    // Title
-    aoa.push([`${schoolName.toUpperCase()} - STUDENT WEEKLY BUS REPORT`]);
-    aoa.push([]);
+  // ── Row 1: Title ──────────────────────────────────────────────────────────
+  const titleRow = ws.addRow([`${schoolName.toUpperCase()} – STUDENT WEEKLY BUS REPORT`]);
+  ws.mergeCells(`A${titleRow.number}:R${titleRow.number}`);
+  titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: HEADER_TEXT } };
+  titleRow.getCell(1).fill = headerFill();
+  titleRow.getCell(1).alignment = { horizontal: "center", vertical: "middle" };
+  titleRow.height = 28;
 
-    // Route info
-    aoa.push([`ROUTE: ${route.name}`]);
-    aoa.push([`REGISTRATION: ${route.busRegistration ?? ""}`]);
-    aoa.push([`DRIVER: ${driver?.name ?? ""}`, "", "", "", `Phone: ${driver?.phone ?? ""}`, "", `Email: ${driver?.email ?? ""}`]);
-    aoa.push([]);
+  // ── Row 2: Route + Registration ───────────────────────────────────────────
+  const routeRow = ws.addRow([`Route: ${route.name}   |   Registration: ${route.busRegistration ?? "—"}`]);
+  ws.mergeCells(`A${routeRow.number}:R${routeRow.number}`);
+  routeRow.getCell(1).font = { bold: true, size: 11, color: { argb: DARK_TEXT } };
+  routeRow.getCell(1).fill = lightFill();
+  routeRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+  routeRow.height = 20;
 
-    // Week dates row
-    const weekRow: unknown[] = ["", "", "", "", "", ""];
-    for (let d = 0; d < 5; d++) {
-      const label = `${DAY_LABELS[d]} ${formatDate(weekDates[d])}`;
-      weekRow.push(label, ""); // spans AM + PM
-    }
-    weekRow.push("", "");
-    aoa.push(weekRow);
+  // ── Row 3: Driver name  (row 4 will have email + phone below) ─────────────
+  const driverNameRow = ws.addRow([`Driver: ${driver?.name ?? "—"}`]);
+  ws.mergeCells(`A${driverNameRow.number}:R${driverNameRow.number}`);
+  driverNameRow.getCell(1).font = { bold: true, size: 11, color: { argb: DARK_TEXT } };
+  driverNameRow.getCell(1).fill = whiteFill();
+  driverNameRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+  driverNameRow.height = 18;
 
-    // Column header row
-    aoa.push([
-      "Name",
-      "Year Level",
-      "Sched AM\n(Order/Time)",
-      "Sched PM\n(Order/Time)",
-      "Stop Location AM",
-      "Stop Location PM",
-      "Mon AM\n(Actual)",
-      "Mon PM\n(Actual)",
-      "Tue AM\n(Actual)",
-      "Tue PM\n(Actual)",
-      "Wed AM\n(Actual)",
-      "Wed PM\n(Actual)",
-      "Thu AM\n(Actual)",
-      "Thu PM\n(Actual)",
-      "Fri AM\n(Actual)",
-      "Fri PM\n(Actual)",
-      "Parent Contact #",
-      "Parent Name",
-    ]);
+  // ── Row 4: Driver email + phone (below name) ──────────────────────────────
+  const driverContactRow = ws.addRow([`Email: ${driver?.email ?? "—"}   |   Phone: ${driver?.phone ?? "—"}`]);
+  ws.mergeCells(`A${driverContactRow.number}:R${driverContactRow.number}`);
+  driverContactRow.getCell(1).font = { size: 10, color: { argb: "FF6B7280" } };
+  driverContactRow.getCell(1).fill = whiteFill();
+  driverContactRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+  driverContactRow.height = 16;
 
-    // ── Student rows ──────────────────────────────────────────────────────────
-    for (const student of students) {
-      // Find first authorised parent
-      let parentPhone = "";
-      let parentName = "";
-      for (const pid of student.authorisedParentIds) {
-        const p = parentMap.get(pid);
-        if (p) {
-          parentPhone = p.phone;
-          parentName = `${p.name} (${p.relationship})`;
-          break;
-        }
+  // ── Row 5: Blank spacer ───────────────────────────────────────────────────
+  ws.addRow([]);
+
+  // ── Row 6: Week day dates (spans AM+PM for each day) ─────────────────────
+  const dateRowData: (string | null)[] = [null, null, null, null, null, null];
+  for (let d = 0; d < 5; d++) {
+    dateRowData.push(`${DAY_LABELS[d]}\n${formatDate(weekDates[d])}`);
+    dateRowData.push(null); // PM column — will be merged
+  }
+  dateRowData.push(null, null); // Parent cols
+  const dateRow = ws.addRow(dateRowData);
+  dateRow.height = 32;
+
+  // Merge AM+PM pairs for each day
+  for (let d = 0; d < 5; d++) {
+    const colStart = 7 + d * 2; // G=7
+    ws.mergeCells(dateRow.number, colStart, dateRow.number, colStart + 1);
+    const cell = dateRow.getCell(colStart);
+    cell.fill = headerFill();
+    cell.font = { bold: true, size: 10, color: { argb: HEADER_TEXT } };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.border = thinBorder();
+  }
+  // Style left static columns
+  for (let c = 1; c <= 6; c++) {
+    dateRow.getCell(c).fill = whiteFill();
+  }
+
+  // ── Row 7: Column headers ─────────────────────────────────────────────────
+  const headerRow = ws.addRow([
+    "Name",
+    "Year Level",
+    "Sched AM\n(Order / Time)",
+    "Sched PM\n(Order / Time)",
+    "Stop Location AM",
+    "Stop Location PM",
+    "Mon AM\n(Actual)",
+    "Mon PM\n(Actual)",
+    "Tue AM\n(Actual)",
+    "Tue PM\n(Actual)",
+    "Wed AM\n(Actual)",
+    "Wed PM\n(Actual)",
+    "Thu AM\n(Actual)",
+    "Thu PM\n(Actual)",
+    "Fri AM\n(Actual)",
+    "Fri PM\n(Actual)",
+    "Parent Contact #",
+    "Parent Name",
+  ]);
+  headerRow.height = 36;
+  headerRow.eachCell((cell) => {
+    cell.fill = headerFill();
+    cell.font = { bold: true, size: 10, color: { argb: HEADER_TEXT } };
+    cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true };
+    cell.border = thinBorder();
+  });
+
+  // ── Student rows ──────────────────────────────────────────────────────────
+  const sorted = [...students].sort((a, b) => (a.orderAM ?? 99) - (b.orderAM ?? 99));
+
+  sorted.forEach((student, idx) => {
+    let parentPhone = "";
+    let parentName = "";
+    for (const pid of student.authorisedParentIds) {
+      const p = parentMap.get(pid);
+      if (p) {
+        parentPhone = p.phone;
+        parentName = `${p.name} (${p.relationship})`;
+        break;
       }
-
-      const row: unknown[] = [
-        student.name,
-        student.grade,
-        `${student.orderAM ?? ""} - ${student.scheduledPickupTime}`,
-        `${student.orderPM ?? ""} - ${student.scheduledDropoffTime}`,
-        student.stopAddressAM,
-        student.stopAddressPM,
-      ];
-
-      // Mon–Fri actual times
-      for (let d = 0; d < 5; d++) {
-        const dayTrips = dayMap.get(d);
-        const amTime = dayTrips?.pickup.get(student.id) ?? "";
-        const pmTime = dayTrips?.dropoff.get(student.id) ?? "";
-        row.push(amTime, pmTime);
-      }
-
-      row.push(parentPhone, parentName);
-      aoa.push(row);
     }
 
-    // ── Footer row ────────────────────────────────────────────────────────────
-    aoa.push([]);
-    aoa.push(["", "", "AM Arrival", "PM Departure", "No Child Left On Bus — Final Check"]);
-
-    // ── Travel Notes section ──────────────────────────────────────────────────
-    if (notes.length > 0) {
-      aoa.push([]);
-      aoa.push(["TRAVEL NOTES"]);
-      aoa.push(["Student", "Special Travel Notes"]);
-      for (const note of notes) {
-        aoa.push([note.studentName, note.noteText]);
-      }
-    }
-
-    // ── Write sheet ───────────────────────────────────────────────────────────
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-
-    // Set column widths
-    ws["!cols"] = [
-      { wch: 22 }, // Name
-      { wch: 10 }, // Grade
-      { wch: 16 }, // Sched AM
-      { wch: 16 }, // Sched PM
-      { wch: 32 }, // Stop AM
-      { wch: 32 }, // Stop PM
-      { wch: 12 }, // Mon AM
-      { wch: 12 }, // Mon PM
-      { wch: 12 }, // Tue AM
-      { wch: 12 }, // Tue PM
-      { wch: 12 }, // Wed AM
-      { wch: 12 }, // Wed PM
-      { wch: 12 }, // Thu AM
-      { wch: 12 }, // Thu PM
-      { wch: 12 }, // Fri AM
-      { wch: 12 }, // Fri PM
-      { wch: 18 }, // Parent Contact
-      { wch: 24 }, // Parent Name
+    const rowData: (string | number)[] = [
+      student.name,
+      student.grade,
+      `${student.orderAM ?? ""} – ${student.scheduledPickupTime}`,
+      `${student.orderPM ?? ""} – ${student.scheduledDropoffTime}`,
+      student.stopAddressAM,
+      student.stopAddressPM,
     ];
 
-    // Sanitise sheet name (Excel limit: 31 chars, no special chars)
-    const sheetName = route.name.replace(/[:\\/?*[\]]/g, "").slice(0, 31);
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-  }
+    for (let d = 0; d < 5; d++) {
+      const dayTrips = dayMap.get(d);
+      rowData.push(dayTrips?.pickup.get(student.id) ?? "");
+      rowData.push(dayTrips?.dropoff.get(student.id) ?? "");
+    }
 
-  // ── Sheet: Notes ─────────────────────────────────────────────────────────────
-  // (kept as a summary sheet for all routes)
-  const notesAoa: unknown[][] = [["Student", "Route", "Type", "Note", "From", "To", "Created By", "Role"]];
-  for (const [routeId, notes] of notesByRoute) {
-    const route = routes.find((r) => r.id === routeId);
-    for (const n of notes as { studentName: string; noteText: string; type?: string; fromDate?: string; toDate?: string; createdByName?: string; createdByRole?: string }[]) {
-      notesAoa.push([
-        n.studentName,
-        route?.name ?? routeId,
-        n.type ?? "",
-        n.noteText,
-        n.fromDate ?? "",
-        n.toDate ?? "",
-        n.createdByName ?? "",
-        n.createdByRole ?? "",
+    rowData.push(parentPhone, parentName);
+
+    const dataRow = ws.addRow(rowData);
+    dataRow.height = 20;
+
+    const fill = idx % 2 === 0 ? whiteFill() : lightFill();
+    dataRow.eachCell((cell) => {
+      cell.fill = fill;
+      cell.font = { size: 10, color: { argb: DARK_TEXT } };
+      cell.alignment = { horizontal: "left", vertical: "middle", wrapText: false };
+      cell.border = thinBorder();
+    });
+    // Center the AM/PM time cells
+    for (let c = 7; c <= 16; c++) {
+      dataRow.getCell(c).alignment = { horizontal: "center", vertical: "middle" };
+    }
+  });
+
+  // ── Footer row ────────────────────────────────────────────────────────────
+  ws.addRow([]);
+  const footerRow = ws.addRow(["", "", "AM Arrival →", "PM Departure →", "No Child Left On Bus — Final Check"]);
+  footerRow.getCell(3).font = { bold: true, size: 10 };
+  footerRow.getCell(4).font = { bold: true, size: 10 };
+  footerRow.getCell(5).font = { bold: true, size: 10, color: { argb: "FFB91C1C" } };
+  ws.mergeCells(`E${footerRow.number}:R${footerRow.number}`);
+
+  // ── Travel Notes section ──────────────────────────────────────────────────
+  if (notes.length > 0) {
+    ws.addRow([]);
+    const notesTitleRow = ws.addRow(["TRAVEL NOTES"]);
+    ws.mergeCells(`A${notesTitleRow.number}:R${notesTitleRow.number}`);
+    notesTitleRow.getCell(1).font = { bold: true, size: 11, color: { argb: HEADER_TEXT } };
+    notesTitleRow.getCell(1).fill = headerFill();
+    notesTitleRow.getCell(1).alignment = { horizontal: "left", vertical: "middle" };
+    notesTitleRow.height = 20;
+
+    const notesHeaderRow = ws.addRow(["Student", "Note", "Type", "From", "To", "Created By", "Role"]);
+    notesHeaderRow.eachCell((cell) => {
+      cell.fill = lightFill();
+      cell.font = { bold: true, size: 10 };
+      cell.border = thinBorder();
+    });
+
+    for (const note of notes) {
+      const nr = ws.addRow([
+        note.studentName,
+        note.noteText,
+        note.type,
+        note.fromDate,
+        note.toDate,
+        note.createdByName,
+        note.createdByRole,
       ]);
+      nr.eachCell((cell) => {
+        cell.font = { size: 10 };
+        cell.border = thinBorder();
+      });
     }
   }
-  const notesWs = XLSX.utils.aoa_to_sheet(notesAoa);
-  notesWs["!cols"] = [{ wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 50 }, { wch: 14 }, { wch: 14 }, { wch: 20 }, { wch: 12 }];
-  XLSX.utils.book_append_sheet(wb, notesWs, "Notes");
 
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-  return Buffer.from(buffer);
-}
-
-// ─── Activity Log workbook ────────────────────────────────────────────────────
-
-function buildActivityWorkbook(
-  logs: FirebaseFirestore.QueryDocumentSnapshot[]
-): Buffer {
-  const wb = XLSX.utils.book_new();
-  const aoa: unknown[][] = [["Timestamp", "Actor", "Role", "Action", "Metadata"]];
-  for (const doc of logs) {
-    const l = doc.data();
-    aoa.push([
-      formatDateTime(l.timestamp),
-      l.actorName ?? "",
-      l.actorRole ?? "",
-      l.action ?? "",
-      l.metadata ? JSON.stringify(l.metadata) : "",
-    ]);
-  }
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [{ wch: 20 }, { wch: 22 }, { wch: 12 }, { wch: 60 }, { wch: 40 }];
-  XLSX.utils.book_append_sheet(wb, ws, "Activity Log");
-  const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-  return Buffer.from(buffer);
+  const arrayBuffer = await wb.xlsx.writeBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
 // ─── Email HTML ───────────────────────────────────────────────────────────────
@@ -349,8 +397,7 @@ function buildEmailHtml(
   weekTo: Date,
   routeCount: number,
   tripCount: number,
-  noteCount: number,
-  logCount: number
+  noteCount: number
 ): string {
   const fromStr = weekFrom.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" });
   const toStr = weekTo.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" });
@@ -392,18 +439,13 @@ function buildEmailHtml(
                     <div style="font-size:24px;font-weight:900;color:#ca8a04;">${noteCount}</div>
                     <div style="font-size:11px;color:#6b7280;margin-top:4px;">Notes</div>
                   </td>
-                  <td width="8"></td>
-                  <td style="background:#fdf4ff;border-radius:12px;padding:14px 16px;text-align:center;">
-                    <div style="font-size:24px;font-weight:900;color:#9333ea;">${logCount}</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:4px;">Events</div>
-                  </td>
                 </tr>
               </table>
 
-              <p style="margin:0 0 8px;font-size:14px;color:#374151;">Attached are two Excel files:</p>
+              <p style="margin:0 0 8px;font-size:14px;color:#374151;">Attached is one Excel file per route:</p>
               <ul style="margin:0 0 24px;padding-left:20px;font-size:14px;color:#374151;line-height:1.8;">
-                <li><strong>Attendance.xlsx</strong> &mdash; one sheet per route, Knox-style weekly attendance with actual pick-up and drop-off times, plus travel notes</li>
-                <li><strong>ActivityLog.xlsx</strong> &mdash; all app activity events for the week</li>
+                <li>Knox-style weekly attendance with actual pick-up and drop-off times</li>
+                <li>Driver contact details and travel notes per route</li>
               </ul>
 
               <p style="margin:0;font-size:13px;color:#9ca3af;">This data has been archived and removed from the live app. Keep these files for your records.</p>
@@ -448,6 +490,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, message: "No schools found." });
   }
 
+  // Format dates for file names: DD-MM-YYYY
+  const fromStr = from.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" }).replace(/\//g, "-");
+  const toStr = to.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" }).replace(/\//g, "-");
+
   const results: { schoolId: string; status: string; error?: string }[] = [];
 
   for (const schoolDoc of schoolsSnap.docs) {
@@ -463,7 +509,7 @@ export async function GET(req: NextRequest) {
 
     try {
       // ── Fetch all reference data for this school in parallel ───────────────
-      const [routesSnap, studentsSnap, driversSnap, parentsSnap, tripsSnap, notesSnap, logsSnap] =
+      const [routesSnap, studentsSnap, driversSnap, parentsSnap, tripsSnap, notesSnap] =
         await Promise.all([
           db.collection("routes").where("schoolId", "==", schoolId).where("isActive", "==", true).get(),
           db.collection("students").where("schoolId", "==", schoolId).where("isActive", "==", true).get(),
@@ -471,7 +517,6 @@ export async function GET(req: NextRequest) {
           db.collection("parents").where("schoolId", "==", schoolId).get(),
           db.collection("trips").where("schoolId", "==", schoolId).where("date", ">=", fromTs).where("date", "<=", toTs).get(),
           db.collection("passengerNotes").where("schoolId", "==", schoolId).where("createdAt", ">=", fromTs).where("createdAt", "<=", toTs).get(),
-          db.collection("activityLog").where("schoolId", "==", schoolId).where("timestamp", ">=", fromTs).where("timestamp", "<=", toTs).get(),
         ]);
 
       // ── Build lookup maps ──────────────────────────────────────────────────
@@ -508,22 +553,21 @@ export async function GET(req: NextRequest) {
       }
 
       // ── Build trip actual-time map ─────────────────────────────────────────
-      // tripsByRouteAndDay[routeId][dayIndex][pickup|dropoff][studentId] = "HH:MM am/pm"
-      const tripsByRouteAndDay = new Map<string, Map<number, { pickup: Map<string, string>; dropoff: Map<string, string> }>>();
+      // tripsByRoute[routeId][dayIndex(0=Mon)] = { pickup: Map<studentId, time>, dropoff: ... }
+      const tripsByRoute = new Map<string, Map<number, { pickup: Map<string, string>; dropoff: Map<string, string> }>>();
 
       for (const tripDoc of tripsSnap.docs) {
         const t = tripDoc.data();
         const tripDate = toDate(t.date);
         if (!tripDate) continue;
 
-        // Find which weekday index this trip falls on (0=Mon…4=Fri)
         const tripDateAest = new Date(tripDate.getTime() + 10 * 60 * 60 * 1000);
         const dayIndex = tripDateAest.getUTCDay() - 1; // Mon=1 → 0
         if (dayIndex < 0 || dayIndex > 4) continue;
 
         const routeId: string = t.routeId ?? "";
-        if (!tripsByRouteAndDay.has(routeId)) tripsByRouteAndDay.set(routeId, new Map());
-        const routeDays = tripsByRouteAndDay.get(routeId)!;
+        if (!tripsByRoute.has(routeId)) tripsByRoute.set(routeId, new Map());
+        const routeDays = tripsByRoute.get(routeId)!;
         if (!routeDays.has(dayIndex)) routeDays.set(dayIndex, { pickup: new Map(), dropoff: new Map() });
         const dayEntry = routeDays.get(dayIndex)!;
 
@@ -542,7 +586,7 @@ export async function GET(req: NextRequest) {
       }
 
       // ── Build notes-by-route map ───────────────────────────────────────────
-      const notesByRoute = new Map<string, { studentName: string; noteText: string; type: string; fromDate: string; toDate: string; createdByName: string; createdByRole: string }[]>();
+      const notesByRoute = new Map<string, NoteRow[]>();
       for (const noteDoc of notesSnap.docs) {
         const n = noteDoc.data();
         if (n.isDeleted) continue;
@@ -572,45 +616,47 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      // ── Build Excel files ──────────────────────────────────────────────────
-      const attendanceBuffer = buildAttendanceWorkbook(
-        routes,
-        studentsByRoute,
-        driverMap,
-        parentMap,
-        tripsByRouteAndDay,
-        notesByRoute,
-        schoolName,
-        weekDates
-      );
-      const activityBuffer = buildActivityWorkbook(logsSnap.docs);
+      // ── Build one Excel attachment per route ───────────────────────────────
+      const attachments: { filename: string; content: Buffer }[] = [];
 
-      const fromStr = from.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" }).replace(/\//g, "-");
-      const toStr = to.toLocaleDateString("en-AU", { timeZone: "Australia/Sydney" }).replace(/\//g, "-");
+      for (const route of routes) {
+        const students = studentsByRoute.get(route.id) ?? [];
+        const driver = driverMap.get(route.driverId);
+        const dayMap = tripsByRoute.get(route.id) ?? new Map();
+        const notes = notesByRoute.get(route.id) ?? [];
+
+        // Sanitise names for filename (no slashes, colons, etc.)
+        const safeSchoolName = schoolName.replace(/[^a-zA-Z0-9 _-]/g, "").replace(/\s+/g, "_").slice(0, 30);
+        const safeRouteName = route.name.replace(/[^a-zA-Z0-9 _-]/g, "").replace(/\s+/g, "_").slice(0, 40);
+        const filename = `${safeSchoolName}_${safeRouteName}_${fromStr}_to_${toStr}.xlsx`;
+
+        const buffer = await buildRouteWorkbook(
+          route,
+          students,
+          driver,
+          parentMap,
+          dayMap,
+          notes,
+          schoolName,
+          weekDates
+        );
+
+        attachments.push({ filename, content: buffer });
+      }
 
       // ── Send email ─────────────────────────────────────────────────────────
       await resend.emails.send({
         from: "BusMate <reports@resend.dev>",
         to: [adminEmail],
         subject: `BusMate Weekly Report — ${schoolName} (${fromStr} to ${toStr})`,
-        html: buildEmailHtml(schoolName, from, to, routes.length, tripsSnap.size, notesSnap.size, logsSnap.size),
-        attachments: [
-          {
-            filename: `BusMate_Attendance_${fromStr}_to_${toStr}.xlsx`,
-            content: attendanceBuffer,
-          },
-          {
-            filename: `BusMate_ActivityLog_${fromStr}_to_${toStr}.xlsx`,
-            content: activityBuffer,
-          },
-        ],
+        html: buildEmailHtml(schoolName, from, to, routes.length, tripsSnap.size, notesSnap.size),
+        attachments,
       });
 
-      // ── Delete reported data from Firestore ────────────────────────────────
+      // ── Delete reported data from Firestore (trips + notes only; activityLog kept in daily backup) ──
       const refsToDelete = [
         ...tripsSnap.docs.map((d) => d.ref),
         ...notesSnap.docs.map((d) => d.ref),
-        ...logsSnap.docs.map((d) => d.ref),
       ];
       if (refsToDelete.length > 0) {
         await batchDelete(db, refsToDelete);

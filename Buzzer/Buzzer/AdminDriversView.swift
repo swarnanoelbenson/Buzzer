@@ -102,8 +102,8 @@ struct AdminDriversView: View {
             try await withThrowingTaskGroup(of: (String, [Route]).self) { group in
                 for driver in loaded {
                     guard let did = driver.id else { continue }
-                    group.addTask {
-                        let routes = try await FirestoreService.shared.fetchRoutes(for: did)
+                    group.addTask { [schoolId = driver.schoolId] in
+                        let routes = try await FirestoreService.shared.fetchRoutes(for: did, schoolId: schoolId)
                         return (did, routes)
                     }
                 }
@@ -218,7 +218,7 @@ struct AdminDriverDetailView: View {
     private func load() async {
         isLoading = true
         do {
-            let all = try await FirestoreService.shared.fetchAllTrips(for: driver.id ?? "")
+            let all = try await FirestoreService.shared.fetchAllTrips(for: driver.id ?? "", schoolId: driver.schoolId)
             var names: [String: String] = [:]
             for id in Set(all.map(\.routeId)) {
                 names[id] = await FirestoreService.shared.routeName(for: id)

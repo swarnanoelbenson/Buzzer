@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
   if (driverEmail) {
     try {
       await resend.emails.send({
-        from: "BusMate <onboarding@resend.dev>",
+        from: "BusMate <noreply@updates.busmate.com.au>",
         to: [driverEmail],
         subject: `New schedule ready — ${payload.routeName} Term ${payload.term} ${payload.year}`,
         html: driverHtml(payload),
@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
     if (row.studentEmail) {
       try {
         await resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
+          from: "BusMate <noreply@updates.busmate.com.au>",
           to: [row.studentEmail],
           subject: `Your schedule is ready — ${payload.schoolName} Term ${payload.term} ${payload.year} 🎉`,
           html: studentHtml(payload, row),
@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
     if (row.parentEmail && row.parentName) {
       try {
         await resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
+          from: "BusMate <noreply@updates.busmate.com.au>",
           to: [row.parentEmail],
           subject: `${row.name}'s schedule is ready — ${payload.schoolName} Term ${payload.term} ${payload.year} 🎉`,
           html: parentHtml(payload, row),

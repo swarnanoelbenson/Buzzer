@@ -44,6 +44,12 @@ struct EmailSignInView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
+                NavigationLink(destination: PasswordSetupView(
+                    email: setupEmail,
+                    schoolId: setupSchoolId,
+                    role: role,
+                    accentColor: accentColor
+                ), isActive: $navigateToSetup) { EmptyView() }
                 // Header
                 VStack(spacing: 8) {
                     Image(systemName: icon)
@@ -135,9 +141,22 @@ struct EmailSignInView: View {
                         .cornerRadius(12)
                     }
 
-                    // Forgot password
+                    // Set password (left) / Forgot password (right)
                     HStack {
+                        Button("Set password") {
+                            guard let school = selectedSchool, !email.trimmingCharacters(in: .whitespaces).isEmpty else {
+                                errorMessage = "Please select a school and enter your email first."
+                                return
+                            }
+                            setupEmail = email.trimmingCharacters(in: .whitespaces).lowercased()
+                            setupSchoolId = school.id ?? ""
+                            navigateToSetup = true
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(accentColor)
+
                         Spacer()
+
                         Button("Forgot password?") {
                             guard let school = selectedSchool, !email.trimmingCharacters(in: .whitespaces).isEmpty else {
                                 errorMessage = "Please select a school and enter your email first."
@@ -186,14 +205,6 @@ struct EmailSignInView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(isPresented: $navigateToSetup) {
-            PasswordSetupView(
-                email: setupEmail,
-                schoolId: setupSchoolId,
-                role: role,
-                accentColor: accentColor
-            )
-        }
         .task { await loadSchools() }
     }
 

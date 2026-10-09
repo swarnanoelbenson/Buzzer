@@ -17,6 +17,8 @@ struct ParentPortalView: View {
     @State private var drivers: [String: Driver] = [:]       // routeId → driver
     @State private var routes: [String: Route] = [:]         // routeId → route
     @State private var todaysTrips: [Trip] = []
+    @State private var futureTrips: [Trip] = []
+    @State private var completedTrips: [Trip] = []
     @State private var childNotes: [String: [FirestorePassengerNote]] = [:]   // studentId → notes
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
@@ -158,6 +160,12 @@ struct ParentPortalView: View {
 
                 // Bus card
                 busCard(child: child)
+
+                // Future trips card
+                futureTripsCard(child: child)
+
+                // Completed trips card
+                completedTripsCard(child: child)
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
@@ -354,6 +362,98 @@ struct ParentPortalView: View {
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
     }
 
+    // MARK: - Future Trips Card
+
+    private func futureTripsCard(child: Student) -> some View {
+        let childId = child.id ?? ""
+        let trips = futureTrips.filter { $0.studentRecords.contains { $0.id == childId } }
+
+        return VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Upcoming Schedule")
+
+            if trips.isEmpty {
+                Text("No trips scheduled in the next 2 weeks.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(trips.enumerated()), id: \.element.id) { index, trip in
+                        if index > 0 { Divider().padding(.leading, 36) }
+                        tripSummaryRow(trip: trip, isPast: false)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+
+    // MARK: - Completed Trips Card
+
+    private func completedTripsCard(child: Student) -> some View {
+        let childId = child.id ?? ""
+        let trips = completedTrips.filter { $0.studentRecords.contains { $0.id == childId } }
+
+        return VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("Recent Completed Trips")
+
+            if trips.isEmpty {
+                Text("No completed trips in the last 2 weeks.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(trips.enumerated()), id: \.element.id) { index, trip in
+                        if index > 0 { Divider().padding(.leading, 36) }
+                        tripSummaryRow(trip: trip, isPast: true)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+    }
+
+    private func tripSummaryRow(trip: Trip, isPast: Bool) -> some View {
+        let isPickup = trip.type == .pickup
+        let icon = isPickup ? "arrow.up.circle.fill" : "arrow.down.circle.fill"
+        let iconColor: Color = isPickup ? .green : .orange
+        let typeLabel = isPickup ? "Pick-up" : "Drop-off"
+        let dateStr: String = {
+            let f = DateFormatter()
+            f.dateFormat = "EEE, d MMM"
+            return f.string(from: trip.date)
+        }()
+        let statusColor: Color = isPast ? .secondary : .blue
+
+        return HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(iconColor)
+                .frame(width: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(typeLabel)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(dateStr)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Text(isPast ? trip.status.rawValue.capitalized : "Scheduled")
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundColor(statusColor)
+        }
+        .padding(.vertical, 10)
+    }
+
     // MARK: - Empty / Error
 
     private var emptyChildrenView: some View {
@@ -440,6 +540,8 @@ struct ParentPortalView: View {
 
             // Initial trip load
             todaysTrips = try await service.fetchTodaysTrips(forStudentIds: childIds, schoolId: parentDoc.schoolId)
+            futureTrips = (try? await service.fetchFutureTrips(forStudentIds: childIds, schoolId: parentDoc.schoolId)) ?? []
+            completedTrips = (try? await service.fetchCompletedTrips(forStudentIds: childIds, schoolId: parentDoc.schoolId)) ?? []
 
             // Start real-time listener
             startTripsListener(childIds: childIds)

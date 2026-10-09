@@ -52,6 +52,22 @@ export async function GET(req: NextRequest) {
 
   const errors: string[] = [];
 
+  // ── Build lookup maps (schools + routes) for denormalised name fields ────────
+  const schoolNameMap = new Map<string, string>(); // schoolId → schoolName
+  const routeNameMap  = new Map<string, string>(); // routeId  → routeName
+
+  try {
+    const [schoolsSnap, routesSnap] = await Promise.all([
+      db.collection("schools").get(),
+      db.collection("routes").get(),
+    ]);
+    schoolsSnap.docs.forEach((d) => schoolNameMap.set(d.id, d.data().schoolName ?? d.id));
+    routesSnap.docs.forEach((d)  => routeNameMap.set(d.id,  d.data().name ?? d.id));
+  } catch (e: unknown) {
+    // Non-fatal: backup still runs, name fields will just be null
+    console.warn("daily-backup: could not fetch school/route names:", e);
+  }
+
   // ── 1. Backup trips ─────────────────────────────────────────────────────────
   try {
     const tripsSnap = await db.collection("trips").get();
@@ -61,7 +77,9 @@ export async function GET(req: NextRequest) {
         return {
           id: doc.id,
           school_id: d.schoolId ?? null,
+          school_name: schoolNameMap.get(d.schoolId) ?? null,
           route_id: d.routeId ?? null,
+          route_name: routeNameMap.get(d.routeId) ?? null,
           driver_id: d.driverId ?? null,
           substitute_driver_id: d.substituteDriverId ?? null,
           date: toDate(d.date)?.toISOString() ?? null,
@@ -93,6 +111,7 @@ export async function GET(req: NextRequest) {
         return {
           id: doc.id,
           school_id: d.schoolId ?? null,
+          school_name: schoolNameMap.get(d.schoolId) ?? null,
           student_id: d.studentId ?? null,
           student_name: d.studentName ?? null,
           route_id: d.routeId ?? null,
@@ -129,6 +148,7 @@ export async function GET(req: NextRequest) {
         return {
           id: doc.id,
           school_id: d.schoolId ?? null,
+          school_name: schoolNameMap.get(d.schoolId) ?? null,
           actor_id: d.actorId ?? null,
           actor_name: d.actorName ?? null,
           actor_role: d.actorRole ?? null,

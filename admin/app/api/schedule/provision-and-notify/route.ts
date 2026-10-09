@@ -356,7 +356,7 @@ export async function POST(req: NextRequest) {
       const ccList: string[] = [];
       if (adminEmail) ccList.push(adminEmail);
       await resend.emails.send({
-        from: "BusMate <onboarding@resend.dev>",
+        from: "BusMate <noreply@updates.busmate.com.au>",
         to: [driverEmail],
         ...(ccList.length > 0 ? { cc: ccList } : {}),
         subject: `Schedule update: ${payload.routeName}, Term ${payload.term} ${payload.year}`,
@@ -409,7 +409,7 @@ export async function POST(req: NextRequest) {
       // New profile: welcome email + schedule email
       emailJobs.push(
         resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
+          from: "BusMate <noreply@updates.busmate.com.au>",
           to: [row.studentEmail],
           subject: `You're on the bus — BusMate Term ${payload.term} ${payload.year}`,
           html: studentWelcomeHtml(payload, row),
@@ -418,7 +418,7 @@ export async function POST(req: NextRequest) {
       );
       emailJobs.push(
         resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
+          from: "BusMate <noreply@updates.busmate.com.au>",
           to: [row.studentEmail],
           subject: `Bus schedule confirmed: ${schoolName}, Term ${payload.term} ${payload.year}`,
           html: studentScheduleHtml(payload, row),
@@ -428,7 +428,7 @@ export async function POST(req: NextRequest) {
       // Existing profile: schedule email only
       emailJobs.push(
         resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
+          from: "BusMate <noreply@updates.busmate.com.au>",
           to: [row.studentEmail],
           subject: `Bus schedule confirmed: ${schoolName}, Term ${payload.term} ${payload.year}`,
           html: studentScheduleHtml(payload, row),
@@ -445,7 +445,7 @@ export async function POST(req: NextRequest) {
       // New profile: welcome email + schedule email
       emailJobs.push(
         resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
+          from: "BusMate <noreply@updates.busmate.com.au>",
           to: [row.parentEmail],
           subject: `${row.name} is on the bus — BusMate ${schoolName}`,
           html: parentWelcomeHtml(payload, row),
@@ -454,7 +454,7 @@ export async function POST(req: NextRequest) {
       );
       emailJobs.push(
         resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
+          from: "BusMate <noreply@updates.busmate.com.au>",
           to: [row.parentEmail],
           subject: `Bus schedule confirmed for ${row.name}: ${schoolName}, Term ${payload.term} ${payload.year}`,
           html: parentScheduleHtml(payload, row),
@@ -464,7 +464,7 @@ export async function POST(req: NextRequest) {
       // Existing profile: schedule email only
       emailJobs.push(
         resend.emails.send({
-          from: "BusMate <onboarding@resend.dev>",
+          from: "BusMate <noreply@updates.busmate.com.au>",
           to: [row.parentEmail],
           subject: `Bus schedule confirmed for ${row.name}: ${schoolName}, Term ${payload.term} ${payload.year}`,
           html: parentScheduleHtml(payload, row),

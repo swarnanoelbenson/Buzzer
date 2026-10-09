@@ -13,7 +13,7 @@ import FirebaseFirestore
 // Collection: /schools/{schoolId}
 // schoolId = Firestore document ID (auto-generated)
 
-struct School: Identifiable, Codable {
+struct School: Identifiable, Codable, Hashable {
     @DocumentID var id: String?
     var schoolName: String
     var adminUid: String            // Firebase Auth UID of the school admin
@@ -34,6 +34,7 @@ struct Driver: Identifiable, Codable {
     var schoolId: String            // FK → schools/{schoolId}
     var name: String
     var phone: String               // Full phone number with country code e.g. +61412345678
+    var email: String?              // Email address — used for sign-in
     var age: Int
     var gender: String
     var address: String
@@ -43,14 +44,15 @@ struct Driver: Identifiable, Codable {
     var busRegistration: String     // Globally unique across all schools
     var imageUrl: String?
     var isActive: Bool
+    var passwordSet: Bool           // False until driver completes first-time password setup
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id
         case schoolId
-        case name, phone, age, gender, address
+        case name, phone, email, age, gender, address
         case childrenCheck, driversLicense, licenseExpiry, busRegistration
-        case imageUrl, isActive, createdAt
+        case imageUrl, isActive, passwordSet, createdAt
     }
 }
 
@@ -74,13 +76,14 @@ struct Student: Identifiable, Codable {
     var scheduledDropoffTime: String // e.g. "03:30 PM"
     var authorisedParentIds: [String] // parent UIDs who can receive notifications
     var isActive: Bool
+    var passwordSet: Bool           // False until student completes first-time password setup
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id, schoolId, name, grade, imageUrl, phone, email
         case stopAddressAM, stopAddressPM, orderAM, orderPM
         case routeId, scheduledPickupTime, scheduledDropoffTime
-        case authorisedParentIds, isActive, createdAt
+        case authorisedParentIds, isActive, passwordSet, createdAt
     }
 }
 
@@ -99,11 +102,12 @@ struct Parent: Identifiable, Codable {
     var childIds: [String]          // Student IDs linked to this parent
     var isActive: Bool
     var profileCompleted: Bool      // False until parent fills in profile on first login
+    var passwordSet: Bool           // False until parent completes first-time password setup
     var createdAt: Date
 
     enum CodingKeys: String, CodingKey {
         case id, schoolId, name, relationship, phone, email, fcmToken
-        case childIds, isActive, profileCompleted, createdAt
+        case childIds, isActive, profileCompleted, passwordSet, createdAt
     }
 }
 
@@ -204,7 +208,7 @@ enum StudentTripStatus: String, Codable {
 
 // MARK: - Firestore Passenger Note
 // Collection: /passengerNotes/{noteId}
-// Written by parents via the parent portal; read by drivers and admin console.
+// Written by parents, drivers, or admins. Read by all portals.
 // Named FirestorePassengerNote to distinguish from the Core Data PassengerNote in PassengerNoteManager.
 
 struct FirestorePassengerNote: Identifiable, Codable {
@@ -219,15 +223,16 @@ struct FirestorePassengerNote: Identifiable, Codable {
     var fromDate: Date
     var toDate: Date
     var createdAt: Date
-    var createdByParentId: String
-    var createdByParentName: String
+    var createdById: String         // Firebase Auth UID of creator
+    var createdByName: String       // Display name of creator
+    var createdByRole: String       // "parent", "driver", or "admin"
     var isDeleted: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, schoolId, studentId, studentName
         case routeId, routeName, type, noteText
         case fromDate, toDate, createdAt
-        case createdByParentId, createdByParentName, isDeleted
+        case createdById, createdByName, createdByRole, isDeleted
     }
 }
 

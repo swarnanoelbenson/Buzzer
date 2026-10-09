@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
       const ccList: string[] = [];
       if (adminEmail) ccList.push(adminEmail);
       await resend.emails.send({
-        from: "BusMate <onboarding@resend.dev>",
+        from: "BusMate <noreply@updates.busmate.com.au>",
         to: [driverEmail],
         ...(ccList.length > 0 ? { cc: ccList } : {}),
         subject: `Schedule update: ${payload.routeName}, Term ${payload.term} ${payload.year}`,
@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
       return Promise.resolve();
     }
     return resend.emails.send({
-      from: "BusMate <onboarding@resend.dev>",
+      from: "BusMate <noreply@updates.busmate.com.au>",
       to: [row.studentEmail],
       subject: `Bus schedule confirmed: ${payload.schoolName}, Term ${payload.term} ${payload.year}`,
       html: studentHtml(payload, row),
@@ -227,7 +227,7 @@ export async function POST(req: NextRequest) {
       return Promise.resolve();
     }
     return resend.emails.send({
-      from: "BusMate <onboarding@resend.dev>",
+      from: "BusMate <noreply@updates.busmate.com.au>",
       to: [row.parentEmail],
       subject: `Bus schedule confirmed for ${row.name}: ${payload.schoolName}, Term ${payload.term} ${payload.year}`,
       html: parentHtml(payload, row),

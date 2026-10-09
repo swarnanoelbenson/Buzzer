@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { collection, getDocs, query, where, orderBy, limit, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { ActivityLog, Route, StudentTripRecord, PassengerNote } from "@/lib/types";
+import type { Route, StudentTripRecord, PassengerNote } from "@/lib/types";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 
@@ -249,7 +249,6 @@ export default function DashboardPage() {
   const [pickupDone, setPickupDone] = useState(0);
   const [dropoffTotal, setDropoffTotal] = useState(0);
   const [dropoffDone, setDropoffDone] = useState(0);
-  const [recentActivity, setRecentActivity] = useState<ActivityLog[]>([]);
   const [ganttTrips, setGanttTrips] = useState<GanttTrip[]>([]);
   const [passengerNotes, setPassengerNotes] = useState<PassengerNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -263,9 +262,8 @@ export default function DashboardPage() {
       // Run each query independently — a missing index or empty collection in one
       // won't block the others from resolving.
       const empty = { docs: [] };
-      const [tripsSnap, activitySnap, routesSnap, notesSnap] = await Promise.all([
+      const [tripsSnap, routesSnap, notesSnap] = await Promise.all([
         getDocs(query(collection(db, "trips"), where("date", ">=", startOfDay), where("date", "<=", endOfDay))).catch(() => empty),
-        getDocs(query(collection(db, "activityLog"), orderBy("timestamp", "desc"), limit(10))).catch(() => empty),
         getDocs(query(collection(db, "routes"), where("isActive", "==", true))).catch(() => empty),
         getDocs(query(collection(db, "passengerNotes"), where("fromDate", "<=", endOfDay), where("toDate", ">=", startOfDay))).catch(() => empty),
       ]);
@@ -313,11 +311,6 @@ export default function DashboardPage() {
       });
       setDropoffTotal(dTotal);
       setDropoffDone(dDone);
-
-      setRecentActivity(activitySnap.docs.map(d => ({
-        id: d.id, ...d.data(),
-        timestamp: firestoreToDate(d.data().timestamp),
-      } as ActivityLog)));
 
       setPassengerNotes(notesSnap.docs.map(d => ({
         id: d.id, ...d.data(),
@@ -447,48 +440,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* VIEW LOG */}
-          <div className="flex-1 bg-white rounded-2xl border border-gray-100 flex flex-col overflow-hidden shadow-sm">
-            <div className="px-5 py-3.5 border-b border-gray-50 flex items-center justify-between flex-shrink-0">
-              <span className="text-[13px] font-black tracking-widest text-gray-900 uppercase">View Log</span>
-              <Link href="/activity" className="text-[12px] font-bold text-blue-600 hover:underline tracking-wide">
-                VIEW ALL
-              </Link>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              {loading ? (
-                <div className="px-5 py-6 text-sm text-gray-300">Loading...</div>
-              ) : recentActivity.length === 0 ? (
-                <div className="px-5 py-8 text-[13px] text-gray-700 text-center">No recent activity.</div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {recentActivity.map(log => (
-                    <div key={log.id} className="px-5 py-3">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${
-                          log.actorRole === "driver" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
-                        }`}>
-                          {log.actorName?.charAt(0) ?? "?"}
-                        </div>
-                        <span className="text-xs font-bold text-gray-900 truncate">{log.actorName}</span>
-                        <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                          log.actorRole === "driver" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
-                        }`}>
-                          {log.actorRole?.toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-gray-700 leading-snug pl-7">{log.action}</div>
-                      <div className="text-[10px] text-gray-900 pl-7 mt-0.5">
-                        {log.timestamp instanceof Date
-                          ? log.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                          : ""}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* RIGHT container — Today's Schedule Gantt */}

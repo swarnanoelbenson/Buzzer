@@ -13,6 +13,8 @@
 		592B2B62303021CE007425C2 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 592B2B61303021CE007425C2 /* FirebaseFirestore */; };
 		592B2B64303021D6007425C2 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 592B2B63303021D6007425C2 /* FirebaseStorage */; };
 		592B2B66303021DC007425C2 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 592B2B65303021DC007425C2 /* FirebaseMessaging */; };
+		5938BFFF30771D12008F7CF9 /* EmailSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5938BFFE30771D12008F7CF9 /* EmailSignInView.swift */; };
+		5938C00130771D4E008F7CF9 /* PasswordSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5938C00030771D4E008F7CF9 /* PasswordSetupView.swift */; };
 		593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DD22F58EC30004B6282 /* Buzzer.xcdatamodeld */; };
 		593A3DE22F593685004B6282 /* CSVGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DE12F593685004B6282 /* CSVGenerator.swift */; };
 		593A3DE42F5936BF004B6282 /* ReportGenerationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */; };
@@ -63,6 +65,8 @@
 
 /* Begin PBXFileReference section */
 		590DBA5F2F6B8A4C0067745F /* XLSXGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XLSXGenerator.swift; sourceTree = "<group>"; };
+		5938BFFE30771D12008F7CF9 /* EmailSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSignInView.swift; sourceTree = "<group>"; };
+		5938C00030771D4E008F7CF9 /* PasswordSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasswordSetupView.swift; sourceTree = "<group>"; };
 		593A3DD32F58EC30004B6282 /* Buzzer.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Buzzer.xcdatamodel; sourceTree = "<group>"; };
 		593A3DE12F593685004B6282 /* CSVGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVGenerator.swift; sourceTree = "<group>"; };
 		593A3DE32F5936BF004B6282 /* ReportGenerationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportGenerationView.swift; sourceTree = "<group>"; };
@@ -170,6 +174,8 @@
 				593F724A30490BBA00017804 /* StudentLoginView.swift */,
 				593F724C30490BFB00017804 /* StudentPortalView.swift */,
 				593F724E30496CA900017804 /* ParentOnboardingView.swift */,
+				5938BFFE30771D12008F7CF9 /* EmailSignInView.swift */,
+				5938C00030771D4E008F7CF9 /* PasswordSetupView.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -323,6 +329,8 @@
 				59633ED12F616D1D00D79E5D /* DriverManager.swift in Sources */,
 				599F1D1F2F83D0C8006251C3 /* XLSXDocument.swift in Sources */,
 				593A3DD42F58EC30004B6282 /* Buzzer.xcdatamodeld in Sources */,
+				5938BFFF30771D12008F7CF9 /* EmailSignInView.swift in Sources */,
+				5938C00130771D4E008F7CF9 /* PasswordSetupView.swift in Sources */,
 				59633EDD2F616E6100D79E5D /* DriverDetailsSettingsView.swift in Sources */,
 				593A3DF02F594E11004B6282 /* BuzzerLogo.swift in Sources */,
 				59633ECF2F616D1200D79E5D /* DriverDetails.swift in Sources */,
@@ -478,7 +486,7 @@
 				CODE_SIGN_ENTITLEMENTS = BusMate.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8H5C36M3T9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -521,7 +529,7 @@
 				CODE_SIGN_ENTITLEMENTS = BusMate.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = 8H5C36M3T9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;

@@ -36,7 +36,8 @@ class NotificationService {
         studentName: String,
         status: StudentTripStatus,
         tripType: TripType,
-        driverName: String
+        driverName: String,
+        schoolId: String = ""
     ) async {
         guard status != .pending else { return }
 
@@ -63,6 +64,7 @@ class NotificationService {
 
         // Also log to activity log
         FirestoreService.shared.logActivity(
+            schoolId: schoolId,
             actorId: studentId,
             actorName: driverName,
             actorRole: "driver",

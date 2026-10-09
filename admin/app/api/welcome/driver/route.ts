@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
   try {
     const resend = new Resend(resendKey);
     await resend.emails.send({
-      from: "BusMate <onboarding@resend.dev>",
+      from: "BusMate <noreply@updates.busmate.com.au>",
       to: [email],
       subject: `Welcome to BusMate — You're all set, ${driverName}`,
       html,

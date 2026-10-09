@@ -13,6 +13,7 @@ struct DriverPortalView: View {
 
     @State private var driver: Driver? = nil
     @State private var upcomingTrips: [Trip] = []
+    @State private var completedTrips: [Trip] = []
     @State private var routeNames: [String: String] = [:]
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
@@ -160,6 +161,28 @@ struct DriverPortalView: View {
                             .textCase(nil)
                     }
                 }
+
+                // Completed trips — last 2 weeks
+                if !completedTrips.isEmpty {
+                    Section {
+                        ForEach(completedTrips) { trip in
+                            NavigationLink(destination: TripDetailView(trip: trip)) {
+                                TripRow(trip: trip, routeName: routeNames[trip.routeId])
+                            }
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.secondary.opacity(0.08))
+                                    .padding(.vertical, 3)
+                            )
+                        }
+                    } header: {
+                        Text("Completed — Last 2 Weeks")
+                            .font(.subheadline.bold())
+                            .foregroundColor(.primary)
+                            .textCase(nil)
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .refreshable { await loadData() }
@@ -269,8 +292,9 @@ struct DriverPortalView: View {
 
             let trips = try await service.fetchAllTrips(for: driverId, schoolId: driverDoc.schoolId)
             upcomingTrips = trips
+            completedTrips = (try? await service.fetchCompletedTrips(for: driverId, schoolId: driverDoc.schoolId)) ?? []
 
-            let uniqueRouteIds = Set(trips.map(\.routeId))
+            let uniqueRouteIds = Set((trips + completedTrips).map(\.routeId))
             for id in uniqueRouteIds {
                 routeNames[id] = await service.routeName(for: id)
             }

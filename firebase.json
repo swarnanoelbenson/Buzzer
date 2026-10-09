@@ -3,6 +3,7 @@
     "source": "functions"
   },
   "firestore": {
-    "database": "busmate-db"
+    "database": "busmate-db",
+    "indexes": "firestore.indexes.json"
   }
 }
