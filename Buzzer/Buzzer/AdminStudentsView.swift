@@ -19,13 +19,15 @@ private struct StudentListItem: Identifiable {
     let routeName: String
 }
 
-// MARK: - Sort option
+// MARK: - Route colour palette
 
-private enum StudentSortOption: String, CaseIterable {
-    case nameAZ   = "Name (A–Z)"
-    case nameZA   = "Name (Z–A)"
-    case grade    = "Grade"
-    case route    = "Route"
+private let routeColourPalette: [Color] = [
+    .blue, .green, .orange, .purple, .pink, .teal, .indigo, .mint, .cyan, .red
+]
+
+func routeColour(for routeName: String) -> Color {
+    let index = abs(routeName.hashValue) % routeColourPalette.count
+    return routeColourPalette[index]
 }
 
 // MARK: - Main list
@@ -34,7 +36,7 @@ struct AdminStudentsView: View {
     @State private var items: [StudentListItem] = []
     @State private var isLoading = true
     @State private var searchText = ""
-    @State private var sortOption: StudentSortOption = .nameAZ
+    @State private var sortOption: AdminSortOption = .nameAZ
     @State private var filterRoute: String = ""      // "" = all routes
 
     private let db = Firestore.db
@@ -56,60 +58,75 @@ struct AdminStudentsView: View {
             base = base.filter { $0.routeName == filterRoute }
         }
         switch sortOption {
+        case .recent: return base.sorted { $0.student.createdAt > $1.student.createdAt }
         case .nameAZ: return base.sorted { $0.student.name < $1.student.name }
         case .nameZA: return base.sorted { $0.student.name > $1.student.name }
-        case .grade:  return base.sorted { $0.student.grade < $1.student.grade }
-        case .route:  return base.sorted { $0.routeName < $1.routeName }
         }
     }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if items.isEmpty {
-                    ContentUnavailableView("No Students", systemImage: "graduationcap",
-                                          description: Text("Create a route with students first."))
-                } else if filtered.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                } else {
-                    List(filtered) { item in
-                        NavigationLink(destination: AdminStudentDetailView(student: item.student,
-                                                                           routeName: item.routeName)) {
-                            AdminStudentRow(student: item.student, routeName: item.routeName)
-                        }
-                    }
-                    .listStyle(.insetGrouped)
-                    .refreshable { await load() }
-                }
-            }
-            .navigationTitle("Students")
-            .searchable(text: $searchText, prompt: "Search by name, grade or route")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Section("Sort") {
-                            Picker("Sort", selection: $sortOption) {
-                                ForEach(StudentSortOption.allCases, id: \.self) {
-                                    Text($0.rawValue).tag($0)
-                                }
-                            }
-                        }
-                        Section("Filter by Route") {
+            VStack(spacing: 0) {
+                // Filter / sort bar
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        // Filter — left
+                        Menu {
                             Button("All Routes") { filterRoute = "" }
                             ForEach(allRouteNames, id: \.self) { name in
                                 Button(name) { filterRoute = name }
                             }
+                        } label: {
+                            Label(filterRoute.isEmpty ? "All Routes" : filterRoute,
+                                  systemImage: filterRoute.isEmpty
+                                    ? "line.3.horizontal.decrease.circle"
+                                    : "line.3.horizontal.decrease.circle.fill")
+                                .font(.subheadline)
                         }
-                    } label: {
-                        Image(systemName: filterRoute.isEmpty
-                              ? "line.3.horizontal.decrease.circle"
-                              : "line.3.horizontal.decrease.circle.fill")
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+
+                        // Sort — right
+                        Menu {
+                            Picker("Sort by", selection: $sortOption) {
+                                ForEach(AdminSortOption.allCases, id: \.self) {
+                                    Text($0.rawValue).tag($0)
+                                }
+                            }
+                        } label: {
+                            Label(sortOption.rawValue, systemImage: "arrow.up.arrow.down.circle")
+                                .font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+
+                Group {
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if items.isEmpty {
+                        ContentUnavailableView("No Students", systemImage: "graduationcap",
+                                              description: Text("Create a route with students first."))
+                    } else if filtered.isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                    } else {
+                        List(filtered) { item in
+                            NavigationLink(destination: AdminStudentDetailView(student: item.student,
+                                                                               routeName: item.routeName)) {
+                                AdminStudentRow(student: item.student, routeName: item.routeName)
+                            }
+                        }
+                        .listStyle(.insetGrouped)
+                        .refreshable { await load() }
                     }
                 }
             }
+            .searchable(text: $searchText, prompt: "Search by name, grade or route")
             .task { await load() }
         }
     }
@@ -162,10 +179,11 @@ private struct AdminStudentRow: View {
                 .font(.headline)
             HStack(spacing: 10) {
                 Label(routeName, systemImage: "bus")
+                    .foregroundStyle(routeColour(for: routeName), routeColour(for: routeName).opacity(0.7))
                 Label("Grade \(student.grade)", systemImage: "graduationcap")
+                    .foregroundStyle(.secondary)
             }
             .font(.caption)
-            .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
     }

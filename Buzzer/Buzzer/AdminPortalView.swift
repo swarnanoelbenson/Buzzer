@@ -13,7 +13,6 @@ enum AdminTab: String, CaseIterable, Identifiable {
     case drivers   = "Drivers"
     case students  = "Students"
     case schedule  = "Schedule"
-    case logs      = "Activity Log"
 
     var id: String { rawValue }
 
@@ -23,7 +22,6 @@ enum AdminTab: String, CaseIterable, Identifiable {
         case .drivers:   return "person.2.fill"
         case .students:  return "graduationcap.fill"
         case .schedule:  return "calendar"
-        case .logs:      return "list.bullet.clipboard.fill"
         }
     }
 }
@@ -32,6 +30,7 @@ struct AdminPortalView: View {
     @Environment(AuthManager.self) private var authManager
     @State private var selectedTab: AdminTab = .dashboard
     @State private var sidebarOpen = false
+    @State private var showSignOutAlert = false
 
     var body: some View {
         GeometryReader { geo in
@@ -40,37 +39,45 @@ struct AdminPortalView: View {
                 // MARK: - Main content
                 VStack(spacing: 0) {
                     // Top navigation bar
-                    HStack(spacing: 12) {
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                sidebarOpen.toggle()
+                    ZStack {
+                        // Centered tab title — must fill ZStack width to center correctly
+                        Text(selectedTab == .dashboard ? "BusMate" : selectedTab.rawValue)
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        // Leading / trailing buttons
+                        HStack {
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    sidebarOpen.toggle()
+                                }
+                            } label: {
+                                Image(systemName: sidebarOpen ? "xmark" : "sidebar.left")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 36, height: 36)
+                                    .background(Color.white.opacity(0.2))
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
-                        } label: {
-                            Image(systemName: sidebarOpen ? "xmark" : "sidebar.left")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.purple)
-                                .frame(width: 36, height: 36)
-                                .background(Color.purple.opacity(0.1))
-                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                        }
 
-                        Text(selectedTab.rawValue)
-                            .font(.headline)
-                            .fontWeight(.bold)
+                            Spacer()
 
-                        Spacer()
-
-                        Button(role: .destructive) {
-                            authManager.signOut()
-                        } label: {
-                            Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-                                .font(.caption)
-                                .foregroundStyle(.red)
+                            Button {
+                                showSignOutAlert = true
+                            } label: {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 36, height: 36)
+                                    .background(Color.white.opacity(0.2))
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color(.systemBackground))
+                    .background(Color.blue)
                     .overlay(alignment: .bottom) {
                         Divider()
                     }
@@ -78,11 +85,14 @@ struct AdminPortalView: View {
                     // Detail content
                     Group {
                         switch selectedTab {
-                        case .dashboard: AdminDashboardView()
+                        case .dashboard: AdminDashboardView {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                selectedTab = .students
+                            }
+                        }
                         case .drivers:   AdminDriversView()
                         case .students:  AdminStudentsView()
                         case .schedule:  AdminScheduleView()
-                        case .logs:      AdminLogsView()
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -113,15 +123,25 @@ struct AdminPortalView: View {
             }
         }
         .tint(.purple)
+        .confirmationDialog("Sign Out", isPresented: $showSignOutAlert, titleVisibility: .visible) {
+            Button("Sign Out", role: .destructive) {
+                authManager.signOut()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You will need to verify your identity to sign back in.")
+        }
     }
 }
 
 // MARK: - Sidebar Drawer
 
 private struct SidebarDrawer: View {
+    @Environment(AuthManager.self) private var authManager
     @Binding var selectedTab: AdminTab
     @Binding var sidebarOpen: Bool
     let screenWidth: CGFloat
+    @State private var showSignOutAlert = false
 
     // Sidebar takes 72% of screen width, capped at 280pt
     private var drawerWidth: CGFloat { min(screenWidth * 0.72, 280) }
@@ -130,32 +150,24 @@ private struct SidebarDrawer: View {
         VStack(alignment: .leading, spacing: 0) {
 
             // Header
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Image(systemName: "bus.fill")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(.purple)
-                    Text("BusMate")
-                        .font(.title3)
-                        .fontWeight(.black)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            sidebarOpen = false
-                        }
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 28, height: 28)
-                            .background(Color(.tertiarySystemFill))
-                            .clipShape(Circle())
-                    }
-                }
+            HStack {
                 Text("Admin Console")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.title3)
+                    .fontWeight(.black)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        sidebarOpen = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(Circle())
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
@@ -184,12 +196,33 @@ private struct SidebarDrawer: View {
             Divider()
                 .padding(.horizontal, 16)
 
-            // Footer
-            Text("Admin Portal")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .padding(.horizontal, 20)
+            // Sign out button
+            Button {
+                showSignOutAlert = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.red)
+                        .frame(width: 22)
+                    Text("Sign Out")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.red)
+                    Spacer()
+                }
+                .padding(.horizontal, 26)
                 .padding(.vertical, 16)
+            }
+            .buttonStyle(.plain)
+            .confirmationDialog("Sign Out", isPresented: $showSignOutAlert, titleVisibility: .visible) {
+                Button("Sign Out", role: .destructive) {
+                    authManager.signOut()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("You will need to verify your identity to sign back in.")
+            }
         }
         .frame(width: drawerWidth)
         .frame(maxHeight: .infinity)

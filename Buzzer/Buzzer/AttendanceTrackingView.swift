@@ -206,10 +206,11 @@ struct AttendanceTrackingView: View {
                     VStack(spacing: 20) {
                         // Slot 1: Attendee name
                         Text(currentAttendee.name)
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .font(.system(size: 64, weight: .bold, design: .rounded))
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                            .minimumScaleFactor(0.5)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.horizontal, 24)
+                            .minimumScaleFactor(0.4)
                             .lineLimit(2)
 
                         // Slot 2: Scheduled time (fixed height, shown when available)

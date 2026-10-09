@@ -73,6 +73,7 @@ extension Notification.Name {
 struct BuzzerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @State private var authManager: AuthManager? = nil
+    @State private var lockManager = AppLockManager()
     @State private var showSplash = true
 
     var body: some Scene {
@@ -86,6 +87,7 @@ struct BuzzerApp: App {
                     } else {
                         RootView()
                             .environment(authManager)
+                            .environment(lockManager)
                     }
                 }
             }

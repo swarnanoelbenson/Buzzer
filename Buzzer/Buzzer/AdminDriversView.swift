@@ -11,80 +11,98 @@ import FirebaseFirestore
 
 // MARK: - Main list
 
-private enum DriverSortOption: String, CaseIterable {
-    case nameAZ = "Name (A–Z)"
-    case nameZA = "Name (Z–A)"
-    case routeCount = "Most Routes"
+enum AdminSortOption: String, CaseIterable {
+    case recent  = "Recent"
+    case nameAZ  = "Name (A–Z)"
+    case nameZA  = "Name (Z–A)"
 }
 
 struct AdminDriversView: View {
     @State private var drivers: [Driver] = []
     @State private var routesByDriver: [String: [Route]] = [:]
     @State private var isLoading = true
-    @State private var showAddSheet = false
     @State private var searchText = ""
-    @State private var sortOption: DriverSortOption = .nameAZ
+    @State private var sortOption: AdminSortOption = .nameAZ
+    @State private var filterActiveOnly: Bool = false
 
     private let db = Firestore.db
 
     private var filtered: [Driver] {
-        let base = searchText.isEmpty ? drivers : drivers.filter {
+        var base = searchText.isEmpty ? drivers : drivers.filter {
             $0.name.localizedCaseInsensitiveContains(searchText) ||
             $0.phone.localizedCaseInsensitiveContains(searchText) ||
             (routesByDriver[$0.id ?? ""] ?? []).contains { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
+        if filterActiveOnly {
+            base = base.filter { !(routesByDriver[$0.id ?? ""] ?? []).isEmpty }
+        }
         switch sortOption {
-        case .nameAZ:    return base.sorted { $0.name < $1.name }
-        case .nameZA:    return base.sorted { $0.name > $1.name }
-        case .routeCount: return base.sorted { (routesByDriver[$0.id ?? ""] ?? []).count > (routesByDriver[$1.id ?? ""] ?? []).count }
+        case .recent: return base.sorted { $0.createdAt > $1.createdAt }
+        case .nameAZ: return base.sorted { $0.name < $1.name }
+        case .nameZA: return base.sorted { $0.name > $1.name }
         }
     }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if drivers.isEmpty {
-                    ContentUnavailableView("No Drivers", systemImage: "person.2",
-                                          description: Text("Add a driver to get started."))
-                } else if filtered.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                } else {
-                    List(filtered) { driver in
-                        NavigationLink(destination: AdminDriverDetailView(driver: driver)) {
-                            AdminDriverRow(driver: driver, routes: routesByDriver[driver.id ?? ""] ?? [])
+            VStack(spacing: 0) {
+                // Filter / sort bar
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        // Filter — left
+                        Menu {
+                            Button("All Drivers") { filterActiveOnly = false }
+                            Button("With Routes") { filterActiveOnly = true }
+                        } label: {
+                            Label(filterActiveOnly ? "With Routes" : "All Drivers",
+                                  systemImage: filterActiveOnly
+                                    ? "line.3.horizontal.decrease.circle.fill"
+                                    : "line.3.horizontal.decrease.circle")
+                                .font(.subheadline)
                         }
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+
+                        // Sort — right
+                        Menu {
+                            Picker("Sort by", selection: $sortOption) {
+                                ForEach(AdminSortOption.allCases, id: \.self) {
+                                    Text($0.rawValue).tag($0)
+                                }
+                            }
+                        } label: {
+                            Label(sortOption.rawValue, systemImage: "arrow.up.arrow.down.circle")
+                                .font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .listStyle(.insetGrouped)
-                    .refreshable { await load() }
+                    .padding(.horizontal)
                 }
-            }
-            .navigationTitle("Drivers")
-            .searchable(text: $searchText, prompt: "Search by name, phone or route")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Picker("Sort", selection: $sortOption) {
-                            ForEach(DriverSortOption.allCases, id: \.self) {
-                                Text($0.rawValue).tag($0)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+
+                Group {
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if drivers.isEmpty {
+                        ContentUnavailableView("No Drivers", systemImage: "person.2",
+                                              description: Text("No active drivers found."))
+                    } else if filtered.isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                    } else {
+                        List(filtered) { driver in
+                            NavigationLink(destination: AdminDriverDetailView(driver: driver)) {
+                                AdminDriverRow(driver: driver, routes: routesByDriver[driver.id ?? ""] ?? [])
                             }
                         }
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down.circle")
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showAddSheet = true } label: {
-                        Image(systemName: "plus")
+                        .listStyle(.insetGrouped)
+                        .refreshable { await load() }
                     }
                 }
             }
-            .sheet(isPresented: $showAddSheet) {
-                AddDriverSheet()
-                    .onDisappear { Task { await load() } }
-            }
+            .searchable(text: $searchText, prompt: "Search by name, phone or route")
             .task { await load() }
         }
     }
@@ -143,7 +161,7 @@ private struct AdminDriverRow: View {
                     HStack(spacing: 6) {
                         Image(systemName: "bus")
                             .font(.caption2)
-                            .foregroundStyle(.purple)
+                            .foregroundStyle(.yellow)
                         Text("\(route.name) · Term \(route.term) \(route.year)")
                             .font(.caption)
                             .foregroundStyle(.secondary)

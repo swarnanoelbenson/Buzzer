@@ -45,6 +45,7 @@ struct TripDetailView: View {
                 // Start button
                 if trip.status == .scheduled {
                     startButton
+                    notesSummarySection
                 }
 
                 if let error = errorMessage {
@@ -182,6 +183,65 @@ struct TripDetailView: View {
         }
         .disabled(isStarting)
         .padding(.horizontal)
+    }
+
+    // MARK: - Notes Summary (shown before trip starts)
+
+    @ViewBuilder
+    private var notesSummarySection: some View {
+        // Collect only students who have at least one active note
+        let studentsWithNotes = trip.studentRecords.compactMap { record -> (name: String, notes: [FirestorePassengerNote])? in
+            let notes = studentNotes[record.id] ?? []
+            guard !notes.isEmpty else { return nil }
+            return (name: record.studentName, notes: notes)
+        }
+
+        if !studentsWithNotes.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "note.text")
+                        .foregroundColor(.orange)
+                    Text("Passenger Notes")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.primary)
+                }
+                .padding(.horizontal)
+
+                VStack(spacing: 8) {
+                    ForEach(studentsWithNotes, id: \.name) { entry in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(entry.name)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.primary)
+                            ForEach(entry.notes) { note in
+                                Text(note.noteText)
+                                    .font(.system(size: 14, weight: .regular))
+                                    .foregroundColor(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(Color.orange.opacity(0.10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                        )
+                        .cornerRadius(12)
+                    }
+                }
+                .padding(.horizontal)
+            }
+        } else if isLoadingNotes {
+            HStack {
+                ProgressView()
+                    .padding(.trailing, 4)
+                Text("Loading notes…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal)
+        }
     }
 
     // MARK: - Data Loading

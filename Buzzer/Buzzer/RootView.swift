@@ -3,12 +3,21 @@
 //  Buzzer
 //
 //  Routes the user to the correct portal based on their authenticated role.
+//  Also manages the biometric lock gate — whenever the app returns to the
+//  foreground with an active session, the user must re-verify via Face ID /
+//  Touch ID / passcode before portal content is shown.
 //
 
 import SwiftUI
 
 struct RootView: View {
     @Environment(AuthManager.self) private var authManager
+    @Environment(AppLockManager.self) private var lockManager
+    @Environment(\.scenePhase) private var scenePhase
+
+    private var hasActiveSession: Bool {
+        authManager.currentRole != .none
+    }
 
     var body: some View {
         Group {
@@ -31,5 +40,84 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: authManager.currentRole)
+        // Show the lock screen overlay whenever there's an active session
+        // but the app hasn't been biometrically unlocked yet.
+        .overlay {
+            if hasActiveSession && !lockManager.isUnlocked {
+                AppLockView()
+                    .transition(.opacity)
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .active:
+                // App came to foreground — prompt if a session exists and is locked.
+                if hasActiveSession && !lockManager.isUnlocked {
+                    Task { await lockManager.authenticate() }
+                }
+            case .background:
+                // Lock immediately when the app goes to the background.
+                if hasActiveSession {
+                    lockManager.lock()
+                }
+            default:
+                break
+            }
+        }
+        // On first appearance: lock so the foreground transition triggers a prompt.
+        .task {
+            if hasActiveSession {
+                lockManager.lock()
+                await lockManager.authenticate()
+            }
+        }
+        // When the user signs out, reset lock state so it doesn't linger on next login.
+        .onChange(of: authManager.currentRole) { _, newRole in
+            if newRole == .none {
+                lockManager.isUnlocked = false
+            }
+        }
+    }
+}
+
+// MARK: - Lock Screen
+
+private struct AppLockView: View {
+    @Environment(AppLockManager.self) private var lockManager
+
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 28) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 56, weight: .semibold))
+                    .foregroundStyle(.blue)
+
+                VStack(spacing: 8) {
+                    Text("BusMate")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text("Verify your identity to continue")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                Button {
+                    Task { await lockManager.authenticate() }
+                } label: {
+                    Label("Unlock", systemImage: "faceid")
+                        .font(.headline)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 14)
+                        .background(.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+            }
+            .padding(40)
+        }
     }
 }

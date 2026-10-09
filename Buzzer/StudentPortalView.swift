@@ -25,6 +25,9 @@ struct StudentPortalView: View {
     // Real-time listener handle
     @State private var tripsListener: ListenerRegistration? = nil
 
+    // Collapsible card state
+    @State private var completedTripsExpanded = false
+
     private let service = FirestoreService.shared
 
     var body: some View {
@@ -185,7 +188,7 @@ struct StudentPortalView: View {
         VStack(alignment: .leading, spacing: 10) {
             sectionLabel("Student")
 
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 portalInfoRow(icon: "person.fill", iconColor: .indigo, label: "Name", value: student.name)
                 Divider().padding(.leading, 36)
                 portalInfoRow(icon: "graduationcap.fill", iconColor: .indigo, label: "Grade", value: student.grade)
@@ -200,6 +203,7 @@ struct StudentPortalView: View {
                 Divider().padding(.leading, 36)
                 portalInfoRow(icon: "arrow.down.circle.fill", iconColor: .orange, label: "Drop-off", value: "\(student.scheduledDropoffTime)  ·  \(student.stopAddressPM)")
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
@@ -233,12 +237,14 @@ struct StudentPortalView: View {
                     }
                     Spacer()
                 }
+                .frame(maxWidth: .infinity)
             } else {
                 Text("No driver assigned")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -307,24 +313,48 @@ struct StudentPortalView: View {
     // MARK: - Completed Trips Card
 
     private var completedTripsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Recent Completed Trips")
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row — always visible, tappable to expand/collapse
+            Button {
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    completedTripsExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    sectionLabel("Recent Completed Trips")
+                    Spacer()
+                    Image(systemName: completedTripsExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+            .padding()
 
-            if completedTrips.isEmpty {
-                Text("No completed trips in the last 2 weeks.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 4)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(completedTrips.enumerated()), id: \.element.id) { index, trip in
-                        if index > 0 { Divider().padding(.leading, 36) }
-                        tripSummaryRow(trip: trip, isPast: true)
+            // Collapsible body
+            if completedTripsExpanded {
+                Divider()
+                    .padding(.horizontal)
+
+                if completedTrips.isEmpty {
+                    Text("No completed trips in the last 2 weeks.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                        .padding(.vertical, 12)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(completedTrips.enumerated()), id: \.element.id) { index, trip in
+                            if index > 0 { Divider().padding(.leading, 52) }
+                            tripSummaryRow(trip: trip, isPast: true)
+                        }
                     }
+                    .padding(.horizontal)
                 }
             }
         }
-        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)

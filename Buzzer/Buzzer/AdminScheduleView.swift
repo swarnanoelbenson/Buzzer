@@ -26,24 +26,14 @@ struct RouteListItem: Identifiable {
     let busRegistration: String?
 }
 
-// MARK: - Sort option
-
-private enum ScheduleSortOption: String, CaseIterable {
-    case dateNewest = "Newest First"
-    case dateOldest = "Oldest First"
-    case nameAZ     = "Name (A–Z)"
-    case nameZA     = "Name (Z–A)"
-}
-
 // MARK: - Main list
 
 struct AdminScheduleView: View {
     @Environment(AuthManager.self) private var authManager
     @State private var routes: [RouteListItem] = []
     @State private var isLoading = true
-    @State private var showCreateSheet = false
     @State private var searchText = ""
-    @State private var sortOption: ScheduleSortOption = .dateNewest
+    @State private var sortOption: AdminSortOption = .recent
     @State private var filterTerm: Int = 0    // 0 = all terms
 
     private let db = Firestore.db
@@ -57,64 +47,73 @@ struct AdminScheduleView: View {
             base = base.filter { $0.term == filterTerm }
         }
         switch sortOption {
-        case .dateNewest: return base.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
-        case .dateOldest: return base.sorted { ($0.startDate ?? .distantPast) < ($1.startDate ?? .distantPast) }
-        case .nameAZ:     return base.sorted { $0.name < $1.name }
-        case .nameZA:     return base.sorted { $0.name > $1.name }
+        case .recent:  return base.sorted { ($0.startDate ?? .distantPast) > ($1.startDate ?? .distantPast) }
+        case .nameAZ:  return base.sorted { $0.name < $1.name }
+        case .nameZA:  return base.sorted { $0.name > $1.name }
         }
     }
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if routes.isEmpty {
-                    ContentUnavailableView("No Routes", systemImage: "calendar",
-                                          description: Text("Create a route to get started."))
-                } else if filtered.isEmpty {
-                    ContentUnavailableView.search(text: searchText)
-                } else {
-                    List(filtered) { route in
-                        NavigationLink(destination: AdminRouteDetailView(route: route)) {
-                            RouteListRow(route: route)
-                        }
-                    }
-                    .listStyle(.insetGrouped)
-                    .refreshable { loadRoutes() }
-                }
-            }
-            .navigationTitle("Schedule")
-            .searchable(text: $searchText, prompt: "Search routes")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Section("Sort") {
-                            Picker("Sort", selection: $sortOption) {
-                                ForEach(ScheduleSortOption.allCases, id: \.self) {
-                                    Text($0.rawValue).tag($0)
-                                }
-                            }
-                        }
-                        Section("Filter by Term") {
+            VStack(spacing: 0) {
+                // Filter / sort bar
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        // Filter — left
+                        Menu {
                             Button("All Terms") { filterTerm = 0 }
                             ForEach(1...4, id: \.self) { t in
                                 Button("Term \(t)") { filterTerm = t }
                             }
+                        } label: {
+                            Label(filterTerm == 0 ? "All Terms" : "Term \(filterTerm)",
+                                  systemImage: filterTerm == 0
+                                    ? "line.3.horizontal.decrease.circle"
+                                    : "line.3.horizontal.decrease.circle.fill")
+                                .font(.subheadline)
                         }
-                    } label: {
-                        Image(systemName: filterTerm == 0
-                              ? "line.3.horizontal.decrease.circle"
-                              : "line.3.horizontal.decrease.circle.fill")
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+
+                        // Sort — right
+                        Menu {
+                            Picker("Sort by", selection: $sortOption) {
+                                ForEach(AdminSortOption.allCases, id: \.self) {
+                                    Text($0.rawValue).tag($0)
+                                }
+                            }
+                        } label: {
+                            Label(sortOption.rawValue, systemImage: "arrow.up.arrow.down.circle")
+                                .font(.subheadline)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .padding(.horizontal)
+                }
+                .padding(.top, 12)
+                .padding(.bottom, 8)
+
+                Group {
+                    if isLoading {
+                        ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if routes.isEmpty {
+                        ContentUnavailableView("No Routes", systemImage: "calendar",
+                                              description: Text("No active routes found."))
+                    } else if filtered.isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                    } else {
+                        List(filtered) { route in
+                            NavigationLink(destination: AdminRouteDetailView(route: route)) {
+                                RouteListRow(route: route)
+                            }
+                        }
+                        .listStyle(.insetGrouped)
+                        .refreshable { loadRoutes() }
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showCreateSheet = true } label: { Image(systemName: "plus") }
-                }
             }
-            .sheet(isPresented: $showCreateSheet, onDismiss: loadRoutes) {
-                CreateRouteSheet()
-            }
+            .searchable(text: $searchText, prompt: "Search routes")
             .task { loadRoutes() }
         }
     }
