@@ -41,7 +41,7 @@ struct AdminPortalView: View {
                     // Top navigation bar
                     ZStack {
                         // Centered tab title — must fill ZStack width to center correctly
-                        Text(selectedTab == .dashboard ? "BusMate" : selectedTab.rawValue)
+                        Text("BusMate")
                             .font(.system(size: 20, weight: .bold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity, alignment: .center)

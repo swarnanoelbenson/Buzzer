@@ -46,6 +46,15 @@ struct AdminDriversView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Section title
+                Text("Drivers")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
+
                 // Filter / sort bar
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
@@ -103,6 +112,7 @@ struct AdminDriversView: View {
                 }
             }
             .searchable(text: $searchText, prompt: "Search by name, phone or route")
+            .toolbar(.hidden, for: .navigationBar)
             .task { await load() }
         }
     }
