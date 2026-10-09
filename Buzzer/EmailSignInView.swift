@@ -34,7 +34,6 @@ struct EmailSignInView: View {
 
     // Navigation
     @State private var navigateToSetup = false
-    @State private var setupSchoolId = ""
 
     // UI state
     @State private var isLoading = false
@@ -44,7 +43,6 @@ struct EmailSignInView: View {
         ScrollView {
             VStack(spacing: 28) {
                 NavigationLink(destination: PasswordSetupView(
-                    schoolId: setupSchoolId,
                     role: role,
                     accentColor: accentColor
                 ), isActive: $navigateToSetup) { EmptyView() }
@@ -142,11 +140,6 @@ struct EmailSignInView: View {
                     // Set password (left) / Forgot password (right)
                     HStack {
                         Button("Set password") {
-                            guard let school = selectedSchool else {
-                                errorMessage = "Please select a school first."
-                                return
-                            }
-                            setupSchoolId = school.id ?? ""
                             navigateToSetup = true
                         }
                         .font(.subheadline)
@@ -155,11 +148,6 @@ struct EmailSignInView: View {
                         Spacer()
 
                         Button("Forgot password?") {
-                            guard let school = selectedSchool else {
-                                errorMessage = "Please select a school first."
-                                return
-                            }
-                            setupSchoolId = school.id ?? ""
                             navigateToSetup = true
                         }
                         .font(.subheadline)
@@ -236,7 +224,6 @@ struct EmailSignInView: View {
 
             if !result.passwordSet {
                 // First-time setup — navigate to PasswordSetupView
-                setupSchoolId = schoolId
                 isLoading = false
                 navigateToSetup = true
                 return

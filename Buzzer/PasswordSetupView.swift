@@ -16,8 +16,6 @@ private let setupCodeEndpoint = "https://busmate-admin.vercel.app/api/auth/send-
 private let verifyCodeEndpoint = "https://busmate-admin.vercel.app/api/auth/verify-setup-code"
 
 struct PasswordSetupView: View {
-    // schoolId is still required (school context for the API)
-    let schoolId: String
     let role: UserRole
     let accentColor: Color
 
@@ -27,7 +25,10 @@ struct PasswordSetupView: View {
     // Step tracking
     @State private var step: SetupStep = .enterEmail
 
-    // Step 1 — email entry
+    // Step 1 — school + email entry
+    @State private var schools: [School] = []
+    @State private var selectedSchool: School? = nil
+    @State private var isLoadingSchools = true
     @State private var emailInput = ""
 
     // Step 2 — code entry
@@ -89,17 +90,52 @@ struct PasswordSetupView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await loadSchools() }
     }
 
-    // MARK: - Step 1: Enter Email
+    // MARK: - Step 1: Enter School + Email
 
     private var enterEmailSection: some View {
         VStack(spacing: 20) {
-            Text("Enter the email address registered with your school.")
+            Text("Enter the school and email address registered with your account.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
+            // School picker
+            VStack(alignment: .leading, spacing: 8) {
+                Label("School", systemImage: "building.2.fill")
+                    .font(.headline)
+
+                if isLoadingSchools {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                } else if schools.isEmpty {
+                    Text("No schools found. Check your connection.")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(12)
+                } else {
+                    Picker("Select your school", selection: $selectedSchool) {
+                        Text("Select your school...").tag(Optional<School>.none)
+                        ForEach(schools) { school in
+                            Text(school.schoolName).tag(Optional(school))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .tint(.primary)
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(12)
+                }
+            }
+
+            // Email
             VStack(alignment: .leading, spacing: 8) {
                 Label("Email", systemImage: "envelope.fill")
                     .font(.headline)
@@ -322,7 +358,7 @@ struct PasswordSetupView: View {
     // MARK: - Computed
 
     private var canSendCode: Bool {
-        emailInput.contains("@") && emailInput.count > 4
+        selectedSchool != nil && emailInput.contains("@") && emailInput.count > 4
     }
 
     private var canSetPassword: Bool {
@@ -331,11 +367,21 @@ struct PasswordSetupView: View {
 
     // MARK: - Actions
 
+    private func loadSchools() async {
+        do {
+            schools = try await service.fetchSchools()
+        } catch {
+            errorMessage = "Failed to load schools. Check your connection."
+        }
+        isLoadingSchools = false
+    }
+
     private func handleSendCode() async {
         errorMessage = nil
         isLoading = true
 
         let trimmedEmail = emailInput.trimmingCharacters(in: .whitespaces).lowercased()
+        let resolvedSchoolId = selectedSchool?.id ?? ""
 
         do {
             guard let url = URL(string: setupCodeEndpoint) else { throw URLError(.badURL) }
@@ -344,7 +390,7 @@ struct PasswordSetupView: View {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: [
                 "email": trimmedEmail,
-                "schoolId": schoolId
+                "schoolId": resolvedSchoolId
             ])
             let (data, response) = try await URLSession.shared.data(for: req)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
@@ -374,7 +420,7 @@ struct PasswordSetupView: View {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try JSONSerialization.data(withJSONObject: [
                 "email": emailInput,
-                "schoolId": schoolId,
+                "schoolId": selectedSchool?.id ?? "",
                 "code": code
             ])
             let (data, response) = try await URLSession.shared.data(for: req)

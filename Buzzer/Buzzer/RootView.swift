@@ -71,10 +71,14 @@ struct RootView: View {
                 await lockManager.authenticate()
             }
         }
-        // When the user signs out, reset lock state so it doesn't linger on next login.
-        .onChange(of: authManager.currentRole) { _, newRole in
+        // Track role changes: unlock on fresh sign-in, lock on sign-out.
+        .onChange(of: authManager.currentRole) { oldRole, newRole in
             if newRole == .none {
+                // Sign-out — lock so the next session requires re-auth.
                 lockManager.isUnlocked = false
+            } else if oldRole == .none {
+                // Fresh sign-in — user just authenticated; no lock needed.
+                lockManager.isUnlocked = true
             }
         }
     }
