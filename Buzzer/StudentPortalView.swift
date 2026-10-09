@@ -42,7 +42,7 @@ struct StudentPortalView: View {
                     mainContent
                 }
             }
-            .navigationTitle("Buzzer")
+            .navigationTitle("BusMate")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -102,16 +102,24 @@ struct StudentPortalView: View {
     }
 
     private func greetingHeader(student: Student) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Hello, \(student.name.components(separatedBy: " ").first ?? student.name)")
-                .font(.title2)
-                .fontWeight(.semibold)
+        VStack(alignment: .center, spacing: 4) {
+            Text((student.name.components(separatedBy: " ").first ?? student.name).uppercased())
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
             Text(todayDateString)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+            Text("Dashboard")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 4)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
     }
 
     // MARK: - Notes Card (read-only)

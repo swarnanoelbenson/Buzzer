@@ -16,7 +16,8 @@ Buzzer/                             Xcode project root
 ├── Buzzer.xcodeproj/               Xcode project file
 ├── Buzzer/                         Main app source code
 │   ├── BuzzerApp.swift             App entry point
-│   ├── RootView.swift              Role-based navigation root
+│   ├── RootView.swift              Role-based navigation root + biometric lock gate
+│   ├── AppLockManager.swift        Biometric lock (Face ID / Touch ID / passcode)
 │   ├── AuthManager.swift           Authentication state manager
 │   ├── FirestoreService.swift      All Firestore read/write operations
 │   ├── FirestoreModels.swift       Codable data model structs
@@ -31,16 +32,16 @@ Buzzer/                             Xcode project root
 │   │   └── StudentLoginView.swift      Email + setup code login for students (project root)
 │   │
 │   ├── Driver Portal
-│   │   ├── DriverPortalView.swift      Main driver hub. Dashboard with driver card,
-│   │   │                               upcoming schedule list, search/filter/sort,
+│   │   ├── DriverPortalView.swift      Main driver hub. "BusMate" navbar title. Dashboard with
+│   │   │                               driver card, upcoming schedule list, search/filter/sort,
 │   │   │                               and "Last 3 Days" history sheet.
 │   │   └── TripDetailView.swift        Single trip view. Start trip, mark students
 │   │                                   on/off/absent, per-student notes (driver CRUD).
 │   │
 │   ├── Parent Portal
-│   │   ├── ParentPortalView.swift      Left-right pager (one page per child). Each page:
-│   │   │                               Notes card (parent add/edit/delete own notes),
-│   │   │                               Live Status card, Student Summary, Driver, Bus cards.
+│   │   ├── ParentPortalView.swift      Left-right pager (one page per child). "BusMate" navbar
+│   │   │                               title. Dashboard header: greeting + date. Each page:
+│   │   │                               Notes card, Live Status, Student Summary, Driver, Bus cards.
 │   │   ├── PassengerNoteView.swift     Legacy note view (unused in new flow).
 │   │   ├── PassengerNotesListView.swift Legacy note list (unused in new flow).
 │   │   ├── PassengerNoteManager.swift  Core Data storage for passenger notes (legacy).
@@ -52,12 +53,23 @@ Buzzer/                             Xcode project root
 │   │                                   student (by any creator). (file lives at project root)
 │   │
 │   ├── Admin Portal
-│   │   ├── AdminPortalView.swift       Admin hub. Sidebar navigation.
-│   │   ├── AdminDashboardView.swift    Today's operations overview.
-│   │   ├── AdminDriversView.swift      List, add, and view drivers.
-│   │   ├── AdminScheduleView.swift     List, create, and manage routes with inline student entry.
-│   │   ├── AdminStudentsView.swift     View all students by route. Admin can add/delete notes.
-│   │   └── AdminLogsView.swift         View activity log with role filter.
+│   │   ├── AdminPortalView.swift       Admin hub. Custom sliding sidebar navigation.
+│   │   │                               "BusMate" navbar always shown regardless of active tab.
+│   │   │                               Sign-out requires confirmation dialog.
+│   │   ├── AdminDashboardView.swift    Dashboard: school name, today's date, "Dashboard" title,
+│   │   │                               Notes card (→ Students), Today's Schedule card.
+│   │   ├── AdminDriversView.swift      List of drivers with route assignments. "Drivers" section
+│   │   │                               title above filter/sort bar.
+│   │   ├── AdminStudentsView.swift     Students by route. "Students" section title above
+│   │   │                               filter/sort bar. Admin can add/delete notes.
+│   │   ├── AdminScheduleView.swift     Routes with inline student entry, CSV import, driver
+│   │   │                               substitution. "Schedule" section title above filter/sort.
+│   │   └── AdminLogsView.swift         Activity log with role filter.
+│   │
+│   ├── Security
+│   │   └── AppLockManager.swift        @Observable class. Biometric lock gate (Face ID →
+│   │                                   Touch ID → passcode). Locks on background, prompts on
+│   │                                   foreground. Bypassed on simulator via compile flag.
 │   │
 │   ├── Developer / Admin Tools
 │   │   ├── DeveloperMenuView.swift     Hidden debug menu for developers.
@@ -120,6 +132,7 @@ All dependencies are managed via Swift Package Manager (SPM).
 | FirebaseAuth              | User authentication (phone OTP, email OTP, custom token)  |
 | FirebaseFirestore         | Cloud database reads and writes                           |
 | FirebaseMessaging         | Push notifications via FCM                                |
+| LocalAuthentication       | Biometric lock (Face ID / Touch ID / passcode)            |
 | Core Data                 | Local on-device data storage (Apple framework)            |
 | SwiftUI                   | UI framework (Apple framework)                            |
 | Foundation                | Core Swift system types (Apple framework)                 |
@@ -142,16 +155,34 @@ The app supports four roles. Each role sees a different portal after login.
 `RootView.swift` reads `authManager.currentRole` and shows the correct portal.
 `AuthManager.swift` determines the role by checking Firestore collections after login.
 
+All portals are gated behind a **biometric lock** (`AppLockManager`). The app locks when backgrounded and prompts Face ID / Touch ID / passcode on return to foreground. Bypassed automatically on simulator.
+
 ---
 
-## 5. Key Files and Functions
+## 5. UI Design Conventions
+
+The following conventions apply across all portals for consistency:
+
+| Convention | Detail |
+|------------|--------|
+| App title | "BusMate" shown in the navbar on every portal screen |
+| Dashboard header | School/user name (or greeting) → today's date → "Dashboard" label, all centred |
+| Card width | All content cards use full available width with consistent horizontal padding |
+| Section titles | Non-dashboard list screens show a centred 20pt bold section title above the filter/sort bar |
+| Nav bar | Hidden inside list content views; controlled by each portal's custom top bar |
+
+**Admin portal** is the reference implementation. Other portals should follow the same patterns.
+
+---
+
+## 6. Key Files and Functions
 
 ### `BuzzerApp.swift`
 The app entry point.
 Initialises Firebase.
 Sets up FCM (Firebase Cloud Messaging) for push notifications.
 Handles universal links for admin magic-link sign-in.
-Injects `AuthManager` into the SwiftUI environment.
+Injects `AuthManager` and `AppLockManager` into the SwiftUI environment.
 Renders `RootView` as the first screen.
 
 ### `RootView.swift`
@@ -159,6 +190,17 @@ Reads `authManager.currentRole`.
 Shows a loading spinner while auth state is resolving.
 Routes to the correct portal: `DriverPortalView`, `ParentPortalView`, `StudentPortalView`, or `AdminPortalView`.
 Shows `LoginSelectionView` when no user is signed in.
+Overlays `AppLockView` when a session is active and the app is locked.
+
+### `AppLockManager.swift`
+`@Observable` class. Runs on the main actor.
+
+**Properties:**
+- `isUnlocked: Bool` — whether the current session has passed the biometric gate
+
+**Key functions:**
+`authenticate()` — Evaluates `LAContext.evaluatePolicy(.deviceOwnerAuthentication, ...)`. Falls back from Face ID → Touch ID → passcode. Bypassed on simulator via `#if targetEnvironment(simulator)`.
+`lock()` — Sets `isUnlocked = false`. Called when the app goes to the background.
 
 ### `AuthManager.swift`
 `@Observable` class. Runs on the main actor.
@@ -253,6 +295,34 @@ A Firebase Cloud Function watches this collection and sends the actual FCM messa
 
 `notifyParents(studentId:studentName:status:tripType:driverName:)` — Builds the notification payload (title + body) based on student status and trip type, then writes it to `notificationQueue`.
 
+### `AdminPortalView.swift`
+Custom sliding sidebar layout (no TabView). The sidebar slides in over content.
+Navbar always shows "BusMate" regardless of active tab.
+Sign-out shows a confirmation dialog before calling `authManager.signOut()`.
+Tabs: Dashboard, Drivers, Students, Schedule.
+
+### `AdminDashboardView.swift`
+Dashboard header: school name (uppercased) → today's date (18pt bold) → "Dashboard" (20pt bold), all centred.
+Notes card with purple "Add Note" button that navigates to the Students tab.
+Today's schedule card showing today's trips grouped by route.
+
+### `AdminDriversView.swift`
+"Drivers" section title (20pt bold, centred) above filter/sort bar.
+Navigation bar hidden via `.toolbar(.hidden, for: .navigationBar)`.
+Filter: All Drivers / With Routes. Sort: A–Z, Z–A, Recent.
+
+### `AdminStudentsView.swift`
+"Students" section title (20pt bold, centred) above filter/sort bar.
+Navigation bar hidden via `.toolbar(.hidden, for: .navigationBar)`.
+Filter by route. Sort: A–Z, Z–A, Recent.
+
+### `AdminScheduleView.swift`
+"Schedule" section title (20pt bold, centred) above filter/sort bar.
+Navigation bar hidden via `.toolbar(.hidden, for: .navigationBar)`.
+Filter by term. Sort: Recent, A–Z, Z–A.
+Inline 3-step route creation wizard: route details → student review table → notification progress.
+Supports CSV import of students, driver substitution, and route removal.
+
 ### `ParentPortalView.swift`
 Left-right `TabView` pager — one full-screen page per linked child.
 Page dots shown at top when the parent has more than one child.
@@ -298,7 +368,7 @@ Remove before App Store submission.
 
 ---
 
-## 6. Firestore Collections
+## 7. Firestore Collections
 
 | Collection          | Documents                | Key Fields                                                                    |
 |---------------------|--------------------------|-------------------------------------------------------------------------------|
@@ -315,7 +385,7 @@ Remove before App Store submission.
 
 ---
 
-## 7. Authentication Flows
+## 8. Authentication Flows
 
 ### Driver / Student Login (email + setup code)
 ```
@@ -413,7 +483,37 @@ authManager.signInWithCustomToken(token) → AdminPortalView
 
 ---
 
-## 8. Push Notifications (FCM)
+## 9. Biometric Lock Gate
+
+Every signed-in session is protected by `AppLockManager`:
+
+```
+App launches / returns to foreground
+       │
+       ▼
+RootView checks: hasActiveSession && !lockManager.isUnlocked
+       │
+       ▼
+AppLockView overlay shown (blurs content behind it)
+       │
+       ▼
+User taps "Unlock" → lockManager.authenticate()
+  LAContext.evaluatePolicy(.deviceOwnerAuthentication, ...)
+  Face ID → Touch ID → passcode (OS manages fallback)
+       │
+       ▼
+On success: isUnlocked = true → overlay dismissed
+On failure: overlay stays, user can retry
+       │
+       ▼
+App goes to background → lockManager.lock() called immediately
+```
+
+On simulator: `#if targetEnvironment(simulator)` bypasses authentication and sets `isUnlocked = true` immediately.
+
+---
+
+## 10. Push Notifications (FCM)
 
 **Flow:**
 ```
@@ -437,7 +537,7 @@ Parent device receives push notification
 
 ---
 
-## 9. Data Storage: Firestore vs Core Data
+## 11. Data Storage: Firestore vs Core Data
 
 The app uses two separate storage systems.
 
@@ -448,7 +548,7 @@ The app uses two separate storage systems.
 
 ---
 
-## 10. External Services
+## 12. External Services
 
 ### Firebase Auth
 - **Purpose:** User authentication for all four roles.
@@ -476,7 +576,7 @@ The app uses two separate storage systems.
 
 ---
 
-## 11. App Capabilities
+## 13. App Capabilities
 
 Set in `BusMate.entitlements`:
 
@@ -487,7 +587,7 @@ Set in `BusMate.entitlements`:
 
 ---
 
-## 12. Build and Run
+## 14. Build and Run
 
 ### Requirements
 - macOS 14+
@@ -509,7 +609,51 @@ Do not commit changes to this file without team approval.
 
 ---
 
-## 13. Developer Menu
+## 15. Pending UI Consistency Work
+
+The following changes are planned to align Driver and Parent portals with the Admin portal reference design:
+
+### 1. "BusMate" title throughout the app
+**Status:** Done for Admin portal. Driver and Parent portals already show "Buzzer" in `.navigationTitle` — this needs to be updated to "BusMate".
+
+**Files to change:**
+- `DriverPortalView.swift` line 44: `.navigationTitle("Buzzer")` → `.navigationTitle("BusMate")`
+- `ParentPortalView.swift` line 52: `.navigationTitle("Buzzer")` → `.navigationTitle("BusMate")`
+- `StudentPortalView.swift`: same update
+
+### 2. Consistent card width throughout the app
+**Status:** Admin portal cards use `.padding()` (16pt) with full-width layout. Driver and Parent portal cards should match the same horizontal inset.
+
+**Files to audit:** `DriverPortalView.swift`, `ParentPortalView.swift`, `StudentPortalView.swift` — review all card components for inconsistent padding or fixed widths.
+
+### 3. Dashboard header: School/name + Date + "Dashboard" on all dashboards
+**Status:** Done for Admin portal (`AdminDashboardView.swift` lines 40–58). Driver and Parent portals need the same centred header block.
+
+**Admin reference pattern:**
+```swift
+VStack(alignment: .center, spacing: 4) {
+    Text(schoolName.uppercased())          // or greeting / user name
+        .font(.system(size: 20, weight: .bold))
+        .multilineTextAlignment(.center)
+    Text(todayDateLine)                    // "Monday, 10 Oct 2026"
+        .font(.system(size: 18, weight: .bold))
+        .multilineTextAlignment(.center)
+    Text("Dashboard")
+        .font(.system(size: 20, weight: .bold))
+        .multilineTextAlignment(.center)
+        .padding(.top, 4)
+}
+.frame(maxWidth: .infinity)
+.padding(.top, 4)
+```
+
+**Files to change:**
+- `DriverPortalView.swift`: add header above the search/filter bar in `mainContent`
+- `ParentPortalView.swift`: replace `greetingHeader` with the standardised header block
+
+---
+
+## 16. Developer Menu
 
 A hidden developer menu is available on the login selection screen.
 Tap the small "Developer Menu" text at the bottom of the screen.

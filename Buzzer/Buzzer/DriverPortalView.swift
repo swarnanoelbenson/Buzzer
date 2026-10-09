@@ -41,7 +41,7 @@ struct DriverPortalView: View {
                     mainContent
                 }
             }
-            .navigationTitle("Buzzer")
+            .navigationTitle("BusMate")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -70,6 +70,26 @@ struct DriverPortalView: View {
 
     private var mainContent: some View {
         VStack(spacing: 0) {
+            // Dashboard header
+            VStack(alignment: .center, spacing: 4) {
+                Text((driver?.name ?? "Driver").uppercased())
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                Text(todayDateString)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                Text("Dashboard")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 4)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+
             // Search bar
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
@@ -123,13 +143,6 @@ struct DriverPortalView: View {
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Color.clear)
                     }
-                }
-
-                // Greeting
-                Section {
-                    greetingRow
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
                 }
 
                 // Schedule
@@ -187,17 +200,6 @@ struct DriverPortalView: View {
             .listStyle(.insetGrouped)
             .refreshable { await loadData() }
         }
-    }
-
-    private var greetingRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Hello, \(driver?.name.components(separatedBy: " ").first ?? "Driver")")
-                .font(.title2.bold())
-            Text(todayDateString)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .padding(.vertical, 6)
     }
 
     private var emptyScheduleRow: some View {
