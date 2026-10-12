@@ -91,7 +91,7 @@ admin/
 | `/`                | `app/page.tsx`              | Dashboard. Shows Gantt chart of all scheduled trips.|
 | `/login`           | `app/login/page.tsx`        | Admin login. Enter email, then enter OTP.           |
 | `/signup`          | `app/signup/page.tsx`       | Register a new school admin account.                |
-| `/check-email`     | `app/check-email/page.tsx`  | Tell user to check their email for OTP.             |
+| `/check-email`     | `app/check-email/page.tsx`  | Tell user to check their email for signup magic link. Not used for login. |
 | `/auth-callback`   | `app/auth-callback/page.tsx`| Handle Firebase auth redirect after login.          |
 | `/drivers`         | `app/drivers/page.tsx`      | List all drivers for this school.                   |
 | `/drivers/add`     | `app/drivers/add/page.tsx`  | Form to add a new driver.                           |
@@ -125,7 +125,7 @@ This route sends a 6-digit OTP to an admin's email address.
 5. Send the OTP to the admin's email via Resend.
 6. Return `{ sent: true, schoolName }`.
 
-**Used by:** The iOS app `AdminLoginView.swift` only.
+**Used by:** The WAC login page (`app/login/page.tsx`) and the iOS app (`AdminLoginView.swift`).
 
 ---
 
@@ -144,7 +144,7 @@ This route verifies a submitted OTP and returns a Firebase custom token.
 7. Create a Firebase custom token using `firebase-admin`.
 8. Return `{ customToken, schoolName, adminName, adminUid }`.
 
-**Used by:** The iOS app `AdminLoginView.swift` only.
+**Used by:** The WAC login page (`app/login/page.tsx`) and the iOS app (`AdminLoginView.swift`).
 
 ---
 
@@ -161,7 +161,7 @@ This route sends a magic sign-in link to an admin's email address via Resend.
 5. Send a styled HTML email via Resend with a button linking to `{origin}/auth-callback?token=...&email=...`.
 6. Return `{ sent: true }`.
 
-**Used by:** `app/login/page.tsx`, `app/signup/page.tsx`, and `app/check-email/page.tsx`.
+**Used by:** `app/signup/page.tsx` and `app/check-email/page.tsx` (signup flow only — login no longer uses magic links).
 
 ---
 
@@ -307,7 +307,7 @@ Phone numbers are normalised to E.164 format (`+61...`) on upload.
 | Collection          | Purpose                                                          |
 |---------------------|------------------------------------------------------------------|
 | `schools`           | One document per school. Contains admin email and UID.           |
-| `adminOtps`         | Temporary OTP storage. Documents expire after 10 minutes. iOS only. |
+| `adminOtps`         | Temporary OTP storage. Documents expire after 10 minutes. Used by WAC login and iOS app. |
 | `adminSigninTokens` | Temporary magic link token storage. Documents expire after 15 minutes. WAC only. |
 | `drivers`           | One document per driver. Contains profile and FCM token.         |
 | `students`          | One document per student. Contains route and stop info.          |
@@ -323,27 +323,29 @@ Phone numbers are normalised to E.164 format (`+61...`) on upload.
 
 ### Admin Login Flow (WAC web)
 ```
-Admin enters email on /login
+Admin enters email on /login → clicks "Continue"
        │
        ▼
-POST /api/admin-signin-link/send
-   Checks schools collection
-   Generates 64-char hex token (crypto.randomBytes)
-   Stores token in adminSigninTokens with 15-min expiry
-   Sends magic link email via Resend
+POST /api/admin-otp/send
+   Looks up email in schools collection
+   If found: generates 6-digit OTP, stores in adminOtps with 10-min expiry, sends email via Resend
+   If not found (404): silently ignored — email existence is never revealed to the user
        │
        ▼
-Admin clicks link → /auth-callback?token=...&email=...
+OTP step shown — "If this address is linked to a BusMate membership, you'll receive a 6-digit code."
+Admin enters 6-digit code → clicks "Sign In"
        │
        ▼
-POST /api/admin-signin-link/verify
-   Checks token expiry and email match
-   Deletes token from Firestore (single-use)
+POST /api/admin-otp/verify
+   Checks OTP expiry and match
+   Deletes OTP from Firestore (single-use)
    Creates Firebase custom token
        │
        ▼
-WAC signs in with custom token
-Firebase resolves user → schools collection
+WAC signs in with custom token (signInWithCustomToken)
+Writes session token to school doc (for concurrent session detection)
+Logs login event to adminLog
+Fires notify-login email (fire-and-forget)
 Admin sees dashboard
 ```
 

@@ -340,9 +340,9 @@ Has a real-time Firestore listener for live trip status updates.
 
 ### `DriverPortalView.swift`
 Single dashboard (no tabs). Contains:
+- **Header** — "Driver Dashboard" (left-aligned, bold), school name (secondary), today's date (secondary), "Hey, {firstName}" (centred greeting).
 - **Search bar** — filters the schedule list by route name.
-- **Filter chips** — All / Pick-up / Drop-off.
-- **Sort chips** — Date ↑ / Date ↓ / Pick-up First / Drop-off First.
+- **Filter/Sort bar** — left `Menu` dropdown (All / Pickup / Dropoff / Route Name / Date), right `Menu` dropdown (Date ↑ / Date ↓).
 - **Driver card** — name, phone, bus registration.
 - **Upcoming schedule list** — all future trips (today included), each pickup and dropoff shown as a separate row.
 - **"Last 3 Days" nav bar button** — opens `DriverHistoryView` sheet with the last 3 days of completed trips.
@@ -609,51 +609,7 @@ Do not commit changes to this file without team approval.
 
 ---
 
-## 15. Pending UI Consistency Work
-
-The following changes are planned to align Driver and Parent portals with the Admin portal reference design:
-
-### 1. "BusMate" title throughout the app
-**Status:** Done for Admin portal. Driver and Parent portals already show "Buzzer" in `.navigationTitle` — this needs to be updated to "BusMate".
-
-**Files to change:**
-- `DriverPortalView.swift` line 44: `.navigationTitle("Buzzer")` → `.navigationTitle("BusMate")`
-- `ParentPortalView.swift` line 52: `.navigationTitle("Buzzer")` → `.navigationTitle("BusMate")`
-- `StudentPortalView.swift`: same update
-
-### 2. Consistent card width throughout the app
-**Status:** Admin portal cards use `.padding()` (16pt) with full-width layout. Driver and Parent portal cards should match the same horizontal inset.
-
-**Files to audit:** `DriverPortalView.swift`, `ParentPortalView.swift`, `StudentPortalView.swift` — review all card components for inconsistent padding or fixed widths.
-
-### 3. Dashboard header: School/name + Date + "Dashboard" on all dashboards
-**Status:** Done for Admin portal (`AdminDashboardView.swift` lines 40–58). Driver and Parent portals need the same centred header block.
-
-**Admin reference pattern:**
-```swift
-VStack(alignment: .center, spacing: 4) {
-    Text(schoolName.uppercased())          // or greeting / user name
-        .font(.system(size: 20, weight: .bold))
-        .multilineTextAlignment(.center)
-    Text(todayDateLine)                    // "Monday, 10 Oct 2026"
-        .font(.system(size: 18, weight: .bold))
-        .multilineTextAlignment(.center)
-    Text("Dashboard")
-        .font(.system(size: 20, weight: .bold))
-        .multilineTextAlignment(.center)
-        .padding(.top, 4)
-}
-.frame(maxWidth: .infinity)
-.padding(.top, 4)
-```
-
-**Files to change:**
-- `DriverPortalView.swift`: add header above the search/filter bar in `mainContent`
-- `ParentPortalView.swift`: replace `greetingHeader` with the standardised header block
-
----
-
-## 16. Developer Menu
+## 15. Developer Menu
 
 A hidden developer menu is available on the login selection screen.
 Tap the small "Developer Menu" text at the bottom of the screen.

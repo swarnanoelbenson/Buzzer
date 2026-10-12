@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import FirebaseFirestore
 
 struct DriverPortalView: View {
     @Environment(AuthManager.self) private var authManager
@@ -17,12 +18,14 @@ struct DriverPortalView: View {
     @State private var routeNames: [String: String] = [:]
     @State private var isLoading = true
     @State private var errorMessage: String? = nil
+    @State private var schoolName: String = ""
 
     // Search / filter / sort
     @State private var searchText = ""
     @State private var filterType: TripTypeFilter = .all
     @State private var sortOrder: TripSortOrder = .dateAscending
     @State private var showFilterSheet = false
+    @State private var filterDate: Date? = nil
 
     // History
     @State private var showHistory = false
@@ -31,34 +34,55 @@ struct DriverPortalView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Loading...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = errorMessage {
-                    errorView(message: error)
-                } else {
-                    mainContent
-                }
-            }
-            .navigationTitle("BusMate")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        showHistory = true
-                    } label: {
-                        Label("History", systemImage: "clock.arrow.circlepath")
-                            .font(.subheadline)
+            VStack(spacing: 0) {
+                // Top navigation bar — matches admin portal style
+                ZStack {
+                    Text("BusMate")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .center)
+
+                    HStack {
+                        Button {
+                            showHistory = true
+                        } label: {
+                            Label("History", systemImage: "clock.arrow.circlepath")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                        }
+
+                        Spacer()
+
+                        Button("Sign Out") {
+                            authManager.signOut()
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.18))
+                        .clipShape(Capsule())
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Sign Out") {
-                        authManager.signOut()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.blue)
+                .overlay(alignment: .bottom) {
+                    Divider()
+                }
+
+                Group {
+                    if isLoading {
+                        ProgressView("Loading...")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let error = errorMessage {
+                        errorView(message: error)
+                    } else {
+                        mainContent
                     }
-                    .foregroundColor(.red)
                 }
             }
+            .navigationBarHidden(true)
         }
         .task { await loadData() }
         .sheet(isPresented: $showHistory) {
@@ -71,22 +95,32 @@ struct DriverPortalView: View {
     private var mainContent: some View {
         VStack(spacing: 0) {
             // Dashboard header
-            VStack(alignment: .center, spacing: 4) {
-                Text((driver?.name ?? "Driver").uppercased())
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                Text(todayDateString)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                Text("Dashboard")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 4)
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Driver Dashboard")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.primary)
+                    if !schoolName.isEmpty {
+                        Text(schoolName)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(todayDateString)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if let d = driver {
+                    let firstName = d.name.components(separatedBy: " ").first ?? d.name
+                    Text("Hey, \(firstName)")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 8)
+                }
             }
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal)
             .padding(.top, 12)
             .padding(.bottom, 8)
 
@@ -111,36 +145,92 @@ struct DriverPortalView: View {
             .padding(.bottom, 6)
 
             // Filter/Sort toolbar
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    // Type filter chips
-                    ForEach(TripTypeFilter.allCases, id: \.self) { filter in
-                        FilterChip(title: filter.label, isSelected: filterType == filter) {
-                            filterType = filter
-                        }
+            HStack(spacing: 0) {
+                // Filter menu (left)
+                Menu {
+                    Button {
+                        filterType = .all
+                        filterDate = nil
+                    } label: {
+                        Label("All", systemImage: filterType == .all && filterDate == nil ? "checkmark" : "line.3.horizontal.decrease")
                     }
-
-                    Divider()
-                        .frame(height: 20)
-                        .padding(.horizontal, 2)
-
-                    // Sort chips
-                    ForEach(TripSortOrder.allCases, id: \.self) { order in
-                        FilterChip(title: order.label, isSelected: sortOrder == order) {
-                            sortOrder = order
-                        }
+                    Button {
+                        filterType = .pickup
+                        filterDate = nil
+                    } label: {
+                        Label("Pickup", systemImage: filterType == .pickup ? "checkmark" : "arrow.up.circle")
                     }
+                    Button {
+                        filterType = .dropoff
+                        filterDate = nil
+                    } label: {
+                        Label("Dropoff", systemImage: filterType == .dropoff ? "checkmark" : "arrow.down.circle")
+                    }
+                    Button {
+                        filterType = .route
+                        filterDate = nil
+                    } label: {
+                        Label("Route Name", systemImage: filterType == .route ? "checkmark" : "map")
+                    }
+                    Button {
+                        filterType = .date
+                        filterDate = filterDate ?? Date()
+                    } label: {
+                        Label("Date", systemImage: filterType == .date ? "checkmark" : "calendar")
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                        Text(filterMenuLabel)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(filterType != .all || filterDate != nil ? Color.blue : Color(.secondarySystemGroupedBackground))
+                    .foregroundColor(filterType != .all || filterDate != nil ? .white : .primary)
+                    .clipShape(Capsule())
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 6)
+
+                Spacer()
+
+                // Sort menu (right)
+                Menu {
+                    Button {
+                        sortOrder = .dateAscending
+                    } label: {
+                        Label("Date ↑", systemImage: sortOrder == .dateAscending ? "checkmark" : "arrow.up")
+                    }
+                    Button {
+                        sortOrder = .dateDescending
+                    } label: {
+                        Label("Date ↓", systemImage: sortOrder == .dateDescending ? "checkmark" : "arrow.down")
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down")
+                        Text(sortOrder == .dateAscending ? "Date ↑" : "Date ↓")
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color(.secondarySystemGroupedBackground))
+                    .foregroundColor(.primary)
+                    .clipShape(Capsule())
+                }
             }
+            .padding(.horizontal)
+            .padding(.vertical, 6)
 
             List {
                 // Driver card section
                 if let driver {
                     Section {
                         DriverInfoCard(driver: driver)
-                            .listRowInsets(EdgeInsets())
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                             .listRowBackground(Color.clear)
                     }
                 }
@@ -245,15 +335,31 @@ struct DriverPortalView: View {
     private var filteredSortedTrips: [Trip] {
         var result = upcomingTrips
 
-        // Type filter
+        // Type / route / date filter
         switch filterType {
-        case .all:     break
-        case .pickup:  result = result.filter { $0.type == .pickup }
-        case .dropoff: result = result.filter { $0.type == .dropoff }
+        case .all:
+            break
+        case .pickup:
+            result = result.filter { $0.type == .pickup }
+        case .dropoff:
+            result = result.filter { $0.type == .dropoff }
+        case .route:
+            // Route filter uses the search bar text
+            if !searchText.isEmpty {
+                let q = searchText.lowercased()
+                result = result.filter {
+                    (routeNames[$0.routeId] ?? $0.routeId).lowercased().contains(q)
+                }
+            }
+        case .date:
+            if let fd = filterDate {
+                let cal = Calendar.current
+                result = result.filter { cal.isDate($0.date, inSameDayAs: fd) }
+            }
         }
 
-        // Search text
-        if !searchText.isEmpty {
+        // Search text (only when not in route-filter mode, which uses search itself)
+        if filterType != .route && !searchText.isEmpty {
             let q = searchText.lowercased()
             result = result.filter {
                 (routeNames[$0.routeId] ?? $0.routeId).lowercased().contains(q)
@@ -266,19 +372,25 @@ struct DriverPortalView: View {
             result.sort { $0.date < $1.date }
         case .dateDescending:
             result.sort { $0.date > $1.date }
-        case .typePickupFirst:
-            result.sort {
-                if $0.date != $1.date { return $0.date < $1.date }
-                return $0.type == .pickup && $1.type != .pickup
-            }
-        case .typeDropoffFirst:
-            result.sort {
-                if $0.date != $1.date { return $0.date < $1.date }
-                return $0.type == .dropoff && $1.type != .dropoff
-            }
         }
 
         return result
+    }
+
+    private var filterMenuLabel: String {
+        switch filterType {
+        case .all:     return "Filter"
+        case .pickup:  return "Pickup"
+        case .dropoff: return "Dropoff"
+        case .route:   return "Route"
+        case .date:
+            if let fd = filterDate {
+                let f = DateFormatter()
+                f.dateFormat = "d MMM"
+                return f.string(from: fd)
+            }
+            return "Date"
+        }
     }
 
     // MARK: - Data Loading
@@ -292,6 +404,12 @@ struct DriverPortalView: View {
             let driverDoc = try await service.fetchDriver(id: driverId)
             driver = driverDoc
 
+            // Fetch school name
+            if let schoolDoc = try? await Firestore.db.collection("schools").document(driverDoc.schoolId).getDocument(),
+               let school = try? schoolDoc.data(as: School.self) {
+                schoolName = school.schoolName
+            }
+
             let trips = try await service.fetchAllTrips(for: driverId, schoolId: driverDoc.schoolId)
             upcomingTrips = trips
             completedTrips = (try? await service.fetchCompletedTrips(for: driverId, schoolId: driverDoc.schoolId)) ?? []
@@ -301,7 +419,7 @@ struct DriverPortalView: View {
                 routeNames[id] = await service.routeName(for: id)
             }
         } catch {
-            errorMessage = "Failed to load schedule. Check your connection."
+            errorMessage = error.localizedDescription
         }
 
         isLoading = false
@@ -341,7 +459,7 @@ struct DriverInfoCard: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                Label("Bus: \(driver.busRegistration)", systemImage: "bus.fill")
+                Label("Bus: \(driver.busRegistration ?? "—")", systemImage: "bus.fill")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -352,8 +470,6 @@ struct DriverInfoCard: View {
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-        .padding(.horizontal)
-        .padding(.vertical, 4)
     }
 }
 
@@ -381,13 +497,15 @@ struct FilterChip: View {
 // MARK: - TripTypeFilter
 
 enum TripTypeFilter: CaseIterable {
-    case all, pickup, dropoff
+    case all, pickup, dropoff, route, date
 
     var label: String {
         switch self {
         case .all:     return "All"
-        case .pickup:  return "Pick-up"
-        case .dropoff: return "Drop-off"
+        case .pickup:  return "Pickup"
+        case .dropoff: return "Dropoff"
+        case .route:   return "Route Name"
+        case .date:    return "Date"
         }
     }
 }
@@ -395,14 +513,12 @@ enum TripTypeFilter: CaseIterable {
 // MARK: - TripSortOrder
 
 enum TripSortOrder: CaseIterable {
-    case dateAscending, dateDescending, typePickupFirst, typeDropoffFirst
+    case dateAscending, dateDescending
 
     var label: String {
         switch self {
-        case .dateAscending:    return "Date ↑"
-        case .dateDescending:   return "Date ↓"
-        case .typePickupFirst:  return "Pick-up First"
-        case .typeDropoffFirst: return "Drop-off First"
+        case .dateAscending:  return "Date ↑"
+        case .dateDescending: return "Date ↓"
         }
     }
 }
@@ -441,7 +557,7 @@ struct DriverHistoryView: View {
                         Image(systemName: "clock.arrow.circlepath")
                             .font(.system(size: 44))
                             .foregroundColor(.secondary)
-                        Text("No trips in the last 3 days")
+                        Text("No trips earlier this week")
                             .font(.headline)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -474,7 +590,7 @@ struct DriverHistoryView: View {
                     .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("Last 3 Days")
+            .navigationTitle("This Week")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
