@@ -130,9 +130,14 @@ struct AdminScheduleView: View {
 
     private func loadRoutes() {
         isLoading = true
+        guard let schoolId = authManager.schoolId else {
+            isLoading = false
+            return
+        }
         Task {
             do {
                 let snap = try await db.collection("routes")
+                    .whereField("schoolId", isEqualTo: schoolId)
                     .whereField("isActive", isEqualTo: true)
                     .getDocuments()
                 let loaded: [RouteListItem] = snap.documents.compactMap { doc in
@@ -331,7 +336,7 @@ struct AdminRouteDetailView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(driver.name).font(.headline)
                         Text(driver.phone).font(.caption).foregroundStyle(.secondary)
-                        Text(driver.busRegistration).font(.caption).foregroundStyle(.secondary)
+                        Text(driver.busRegistration ?? "—").font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 .padding()
@@ -860,6 +865,7 @@ struct CreateRouteSheet: View {
                             "relationship": s.relationship.trimmingCharacters(in: .whitespaces),
                             "phone": s.parentPhone.trimmingCharacters(in: .whitespaces),
                             "email": s.parentEmail.trimmingCharacters(in: .whitespaces),
+                            "dateOfBirth": Timestamp(date: s.parentDateOfBirth),
                             "fcmToken": NSNull(),
                             "childIds": [ref.documentID],
                             "isActive": true,
@@ -951,6 +957,7 @@ struct StudentEntry: Identifiable {
     var parentPhone: String
     var parentEmail: String
     var relationship: String
+    var parentDateOfBirth: Date
 }
 
 // MARK: - Add Student Entry Sheet
@@ -973,6 +980,17 @@ struct AddStudentEntrySheet: View {
     @State private var parentPhone = ""
     @State private var parentEmail = ""
     @State private var relationship = ""
+    @State private var parentDateOfBirth = Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
+
+    /// Maximum selectable date of birth for a parent — must be at least 18 years old.
+    private var maxParentDateOfBirth: Date {
+        Calendar.current.date(byAdding: .year, value: -18, to: Date()) ?? Date()
+    }
+
+    /// Derived age in whole years from the selected date of birth.
+    private var parentDerivedAge: Int {
+        Calendar.current.dateComponents([.year], from: parentDateOfBirth, to: Date()).year ?? 0
+    }
 
     var body: some View {
         NavigationStack {
@@ -1006,6 +1024,14 @@ struct AddStudentEntrySheet: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                     TextField("Relationship (e.g. Mother, Father, Guardian)", text: $relationship)
+                    if !parentName.isEmpty {
+                        DatePicker(
+                            "Date of Birth",
+                            selection: $parentDateOfBirth,
+                            in: ...maxParentDateOfBirth,
+                            displayedComponents: .date
+                        )
+                    }
                 }
             }
             .navigationTitle("Add Student")
@@ -1020,7 +1046,8 @@ struct AddStudentEntrySheet: View {
                             orderAM: orderAM, pickupTime: pickupTime, stopLocationAM: stopLocationAM,
                             orderPM: orderPM, dropoffTime: dropoffTime, stopLocationPM: stopLocationPM,
                             parentName: parentName, parentPhone: parentPhone,
-                            parentEmail: parentEmail, relationship: relationship
+                            parentEmail: parentEmail, relationship: relationship,
+                            parentDateOfBirth: parentDateOfBirth
                         ))
                         dismiss()
                     }
