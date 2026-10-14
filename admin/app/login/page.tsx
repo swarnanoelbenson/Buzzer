@@ -224,6 +224,15 @@ export default function LoginPage() {
           )}
 
         </div>
+
+        {step === "email" && (
+          <p className="mt-6 text-center text-sm text-gray-500">
+            Don&apos;t have an account?{" "}
+            <a href="/signup" className="text-blue-600 font-bold hover:underline">
+              Sign up
+            </a>
+          </p>
+        )}
       </div>
     </div>
   );
