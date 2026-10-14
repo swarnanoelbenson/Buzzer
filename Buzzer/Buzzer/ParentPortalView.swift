@@ -13,6 +13,7 @@ struct ParentPortalView: View {
     @Environment(AuthManager.self) private var authManager
 
     @State private var parent: Parent? = nil
+    @State private var schoolName: String = ""
     @State private var children: [Student] = []
     @State private var drivers: [String: Driver] = [:]       // routeId → driver
     @State private var routes: [String: Route] = [:]         // routeId → route
@@ -39,27 +40,48 @@ struct ParentPortalView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Loading...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = errorMessage {
-                    errorView(message: error)
-                } else {
-                    mainContent
-                }
-            }
-            .navigationTitle("BusMate")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Sign Out") {
-                        tripsListener?.remove()
-                        authManager.signOut()
+            VStack(spacing: 0) {
+                // Top navigation bar — matches admin/driver portal style
+                ZStack {
+                    Text("BusMate")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .center)
+
+                    HStack {
+                        Spacer()
+
+                        Button("Sign Out") {
+                            tripsListener?.remove()
+                            authManager.signOut()
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.18))
+                        .clipShape(Capsule())
                     }
-                    .foregroundColor(.red)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.blue)
+                .overlay(alignment: .bottom) {
+                    Divider()
+                }
+
+                Group {
+                    if isLoading {
+                        ProgressView("Loading...")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let error = errorMessage {
+                        errorView(message: error)
+                    } else {
+                        mainContent
+                    }
                 }
             }
+            .navigationBarHidden(true)
         }
         .task {
             await loadData()
@@ -131,22 +153,33 @@ struct ParentPortalView: View {
     }
 
     private func greetingHeader(parent: Parent) -> some View {
-        VStack(alignment: .center, spacing: 4) {
-            Text((parent.name.components(separatedBy: " ").first ?? parent.name).uppercased())
-                .font(.system(size: 20, weight: .bold))
+        VStack(spacing: 0) {
+            // Title block — left-aligned, matching admin dashboard style
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Parent Dashboard")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.primary)
+                if !schoolName.isEmpty {
+                    Text(schoolName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Text(todayDateString)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Greeting — centred below the title block
+            let firstName = parent.name.components(separatedBy: " ").first ?? parent.name
+            Text("Hey, \(firstName)")
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
-            Text(todayDateString)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-            Text("Dashboard")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 4)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 8)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal)
         .padding(.top, 12)
         .padding(.bottom, 8)
     }
@@ -292,6 +325,23 @@ struct ParentPortalView: View {
                 portalInfoRow(icon: "arrow.down.circle.fill", iconColor: .orange, label: "Drop-off", value: "\(child.scheduledDropoffTime)  ·  \(child.stopAddressPM)")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let parent {
+                Divider()
+                sectionLabel("Parent / Guardian")
+                VStack(alignment: .leading, spacing: 0) {
+                    portalInfoRow(icon: "person.2.fill", iconColor: .orange, label: "Name", value: parent.name)
+                    Divider().padding(.leading, 36)
+                    portalInfoRow(icon: "person.crop.circle.badge.fill", iconColor: .orange, label: "Relationship", value: parent.relationship.rawValue)
+                    Divider().padding(.leading, 36)
+                    portalInfoRow(icon: "phone.fill", iconColor: .green, label: "Phone", value: parent.phone)
+                    if let email = parent.email, !email.isEmpty {
+                        Divider().padding(.leading, 36)
+                        portalInfoRow(icon: "envelope.fill", iconColor: .blue, label: "Email", value: email)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
@@ -425,6 +475,7 @@ struct ParentPortalView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.secondary)
                 }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .padding()
@@ -541,6 +592,12 @@ struct ParentPortalView: View {
         do {
             let parentDoc = try await service.fetchParent(id: uid)
             parent = parentDoc
+
+            // Fetch school name
+            if let schoolDoc = try? await Firestore.db.collection("schools").document(parentDoc.schoolId).getDocument(),
+               let school = try? schoolDoc.data(as: School.self) {
+                schoolName = school.schoolName
+            }
 
             if !parentDoc.profileCompleted {
                 isLoading = false

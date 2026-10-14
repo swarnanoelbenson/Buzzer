@@ -13,6 +13,7 @@ struct StudentPortalView: View {
     @Environment(AuthManager.self) private var authManager
 
     @State private var student: Student? = nil
+    @State private var schoolName: String = ""
     @State private var route: Route? = nil
     @State private var driver: Driver? = nil
     @State private var notes: [FirestorePassengerNote] = []
@@ -32,27 +33,48 @@ struct StudentPortalView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    ProgressView("Loading...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = errorMessage {
-                    errorView(message: error)
-                } else {
-                    mainContent
-                }
-            }
-            .navigationTitle("BusMate")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Sign Out") {
-                        tripsListener?.remove()
-                        authManager.signOut()
+            VStack(spacing: 0) {
+                // Top navigation bar — matches admin/driver portal style
+                ZStack {
+                    Text("BusMate")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .center)
+
+                    HStack {
+                        Spacer()
+
+                        Button("Sign Out") {
+                            tripsListener?.remove()
+                            authManager.signOut()
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.18))
+                        .clipShape(Capsule())
                     }
-                    .foregroundColor(.red)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.blue)
+                .overlay(alignment: .bottom) {
+                    Divider()
+                }
+
+                Group {
+                    if isLoading {
+                        ProgressView("Loading...")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let error = errorMessage {
+                        errorView(message: error)
+                    } else {
+                        mainContent
+                    }
                 }
             }
+            .navigationBarHidden(true)
         }
         .task {
             await loadData()
@@ -71,14 +93,14 @@ struct StudentPortalView: View {
                     // Greeting header
                     greetingHeader(student: student)
 
-                    // Notes card (read-only)
-                    notesCard
+                    // Student Summary card
+                    studentSummaryCard(student: student)
 
                     // Live Status card
                     liveStatusCard(student: student)
 
-                    // Student Summary card
-                    studentSummaryCard(student: student)
+                    // Notes card (read-only)
+                    notesCard
 
                     // Driver card
                     driverCard
@@ -102,22 +124,33 @@ struct StudentPortalView: View {
     }
 
     private func greetingHeader(student: Student) -> some View {
-        VStack(alignment: .center, spacing: 4) {
-            Text((student.name.components(separatedBy: " ").first ?? student.name).uppercased())
-                .font(.system(size: 20, weight: .bold))
+        VStack(spacing: 0) {
+            // Title block — left-aligned, matching admin dashboard style
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Student Dashboard")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.primary)
+                if !schoolName.isEmpty {
+                    Text(schoolName)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Text(todayDateString)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Greeting — centred below the title block
+            let firstName = student.name.components(separatedBy: " ").first ?? student.name
+            Text("Hey, \(firstName)")
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.center)
-            Text(todayDateString)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-            Text("Dashboard")
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-                .padding(.top, 4)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 8)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal)
         .padding(.top, 12)
         .padding(.bottom, 8)
     }
@@ -147,6 +180,7 @@ struct StudentPortalView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -194,8 +228,6 @@ struct StudentPortalView: View {
 
     private func studentSummaryCard(student: Student) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionLabel("Student")
-
             VStack(alignment: .leading, spacing: 0) {
                 portalInfoRow(icon: "person.fill", iconColor: .indigo, label: "Name", value: student.name)
                 Divider().padding(.leading, 36)
@@ -336,6 +368,7 @@ struct StudentPortalView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.secondary)
                 }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .padding()
@@ -434,6 +467,12 @@ struct StudentPortalView: View {
         do {
             let studentDoc = try await service.fetchStudent(id: uid)
             student = studentDoc
+
+            // Fetch school name
+            if let schoolDoc = try? await Firestore.db.collection("schools").document(studentDoc.schoolId).getDocument(),
+               let school = try? schoolDoc.data(as: School.self) {
+                schoolName = school.schoolName
+            }
 
             if !studentDoc.routeId.isEmpty {
                 let routeDoc = try? await service.fetchRoute(id: studentDoc.routeId)

@@ -35,17 +35,17 @@ struct Driver: Identifiable, Codable {
     var name: String
     var phone: String               // Full phone number with country code e.g. +61412345678
     var email: String?              // Email address — used for sign-in
-    var age: Int
-    var gender: String
-    var address: String
-    var childrenCheck: String       // Working with Children Check number
-    var driversLicense: String
-    var licenseExpiry: Date
-    var busRegistration: String     // Globally unique across all schools
+    var age: Int?
+    var gender: String?
+    var address: String?
+    var childrenCheck: String?      // Working with Children Check number
+    var driversLicense: String?
+    var licenseExpiry: Date?
+    var busRegistration: String?    // Globally unique across all schools
     var imageUrl: String?
     var isActive: Bool
     var passwordSet: Bool           // False until driver completes first-time password setup
-    var createdAt: Date
+    var createdAt: Date?
 
     enum CodingKeys: String, CodingKey {
         case id

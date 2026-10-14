@@ -40,6 +40,14 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: authManager.currentRole)
+        // Show the consent gate on the very first login before the portal is accessible.
+        .overlay {
+            if hasActiveSession && authManager.consentRequired {
+                FirstLoginConsentGateView()
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+        }
         // Show the lock screen overlay whenever there's an active session
         // but the app hasn't been biometrically unlocked yet.
         .overlay {

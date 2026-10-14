@@ -63,16 +63,15 @@ struct AdminPortalView: View {
 
                             Spacer()
 
-                            Button {
+                            Button("Sign Out") {
                                 showSignOutAlert = true
-                            } label: {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 36, height: 36)
-                                    .background(Color.white.opacity(0.2))
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.red)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.18))
+                            .clipShape(Capsule())
                         }
                     }
                     .padding(.horizontal, 16)
@@ -187,34 +186,35 @@ private struct SidebarDrawer: View {
                             }
                         }
                     }
+
+                    Divider()
+                        .padding(.horizontal, 2)
+                        .padding(.vertical, 4)
+
+                    // Sign out button — below Schedule in the nav list
+                    Button {
+                        showSignOutAlert = true
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 16, weight: .regular))
+                                .foregroundStyle(.red)
+                                .frame(width: 22)
+                            Text("Sign Out")
+                                .font(.subheadline)
+                                .fontWeight(.regular)
+                                .foregroundStyle(.red)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.clear))
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
             }
-
-            Spacer()
-            Divider()
-                .padding(.horizontal, 16)
-
-            // Sign out button
-            Button {
-                showSignOutAlert = true
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.red)
-                        .frame(width: 22)
-                    Text("Sign Out")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.red)
-                    Spacer()
-                }
-                .padding(.horizontal, 26)
-                .padding(.vertical, 16)
-            }
-            .buttonStyle(.plain)
             .confirmationDialog("Sign Out", isPresented: $showSignOutAlert, titleVisibility: .visible) {
                 Button("Sign Out", role: .destructive) {
                     authManager.signOut()

@@ -9,7 +9,6 @@
 //
 
 import SwiftUI
-import FirebaseAuth
 import FirebaseFirestore
 
 struct ParentOnboardingView: View {
@@ -27,7 +26,6 @@ struct ParentOnboardingView: View {
     enum OnboardingStep {
         case loading
         case childPreview
-        case passwordChange
     }
 
     var body: some View {
@@ -41,12 +39,7 @@ struct ParentOnboardingView: View {
                 ChildPreviewStep(
                     parent: parent,
                     children: children,
-                    onContinue: { step = .passwordChange }
-                )
-
-            case .passwordChange:
-                PasswordChangeStep(
-                    onComplete: { await finishOnboarding() }
+                    onContinue: { await finishOnboarding() }
                 )
             }
         }
@@ -66,8 +59,7 @@ struct ParentOnboardingView: View {
             children = try await service.fetchStudents(for: uid, childIds: parentDoc.childIds)
             step = .childPreview
         } catch {
-            // If fetch fails, skip to password change
-            step = .passwordChange
+            step = .childPreview
         }
     }
 
@@ -88,7 +80,9 @@ struct ParentOnboardingView: View {
 private struct ChildPreviewStep: View {
     let parent: Parent?
     let children: [Student]
-    let onContinue: () -> Void
+    let onContinue: () async -> Void
+
+    @State private var isFinishing = false
 
     var body: some View {
         NavigationStack {
@@ -145,15 +139,28 @@ private struct ChildPreviewStep: View {
                     .padding(.horizontal, 24)
 
                     // Continue button
-                    Button(action: onContinue) {
-                        Text("Looks Good — Continue")
-                            .font(.system(size: 17, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.orange)
-                            .foregroundColor(.white)
-                            .cornerRadius(14)
+                    Button {
+                        Task {
+                            isFinishing = true
+                            await onContinue()
+                            isFinishing = false
+                        }
+                    } label: {
+                        Group {
+                            if isFinishing {
+                                ProgressView().tint(.white)
+                            } else {
+                                Text("Go to Dashboard")
+                                    .font(.system(size: 17, weight: .semibold))
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.orange)
+                        .foregroundColor(.white)
+                        .cornerRadius(14)
                     }
+                    .disabled(isFinishing)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 32)
                 }
@@ -217,155 +224,4 @@ private struct OnboardingChildCard: View {
     }
 }
 
-// MARK: - Step 2: Password Change
 
-private struct PasswordChangeStep: View {
-    let onComplete: () async -> Void
-
-    @State private var newPassword: String = ""
-    @State private var confirmPassword: String = ""
-    @State private var showNew = false
-    @State private var showConfirm = false
-    @State private var isSaving = false
-    @State private var errorMessage: String? = nil
-
-    private var passwordsMatch: Bool { newPassword == confirmPassword }
-    private var isValid: Bool { newPassword.count >= 8 && passwordsMatch }
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 10) {
-                        Image(systemName: "lock.rotation")
-                            .font(.system(size: 52))
-                            .foregroundColor(.orange)
-
-                        Text("Set Your Password")
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
-
-                        Text("Create a new password for your account. Your school-issued password will no longer work after this step.")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                    }
-                    .padding(.top, 32)
-
-                    VStack(spacing: 16) {
-                        // New password
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("New Password", systemImage: "lock.fill")
-                                .font(.headline)
-
-                            HStack {
-                                if showNew {
-                                    TextField("At least 8 characters", text: $newPassword)
-                                        .autocapitalization(.none)
-                                        .autocorrectionDisabled()
-                                } else {
-                                    SecureField("At least 8 characters", text: $newPassword)
-                                }
-                                Button { showNew.toggle() } label: {
-                                    Image(systemName: showNew ? "eye.slash.fill" : "eye.fill")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .padding()
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(12)
-                        }
-
-                        // Confirm password
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Confirm Password", systemImage: "lock.fill")
-                                .font(.headline)
-
-                            HStack {
-                                if showConfirm {
-                                    TextField("Re-enter your password", text: $confirmPassword)
-                                        .autocapitalization(.none)
-                                        .autocorrectionDisabled()
-                                } else {
-                                    SecureField("Re-enter your password", text: $confirmPassword)
-                                }
-                                Button { showConfirm.toggle() } label: {
-                                    Image(systemName: showConfirm ? "eye.slash.fill" : "eye.fill")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .padding()
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(12)
-
-                            // Match indicator
-                            if !confirmPassword.isEmpty {
-                                HStack(spacing: 6) {
-                                    Image(systemName: passwordsMatch ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                    Text(passwordsMatch ? "Passwords match" : "Passwords do not match")
-                                        .font(.caption)
-                                }
-                                .foregroundColor(passwordsMatch ? .green : .red)
-                            }
-                        }
-
-                        if let error = errorMessage {
-                            Text(error)
-                                .foregroundColor(.red)
-                                .font(.caption)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-
-                        // Save button
-                        Button {
-                            Task { await handleSave() }
-                        } label: {
-                            Group {
-                                if isSaving {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    Text("Set Password & Continue")
-                                        .font(.system(size: 17, weight: .semibold))
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(isValid ? Color.orange : Color.gray)
-                            .foregroundColor(.white)
-                            .cornerRadius(14)
-                        }
-                        .disabled(!isValid || isSaving)
-
-                        // Requirements note
-                        Text("Password must be at least 8 characters long.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 32)
-                }
-            }
-            .navigationTitle("Set Password")
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-
-    private func handleSave() async {
-        isSaving = true
-        errorMessage = nil
-
-        do {
-            guard let user = Auth.auth().currentUser else {
-                throw NSError(domain: "Onboarding", code: 0, userInfo: [NSLocalizedDescriptionKey: "Not signed in."])
-            }
-            try await user.updatePassword(to: newPassword)
-            await onComplete()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-
-        isSaving = false
-    }
-}

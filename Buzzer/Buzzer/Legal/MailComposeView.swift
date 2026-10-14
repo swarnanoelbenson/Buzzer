@@ -165,6 +165,6 @@ struct MailUnavailableView: View {
 
 #if DEBUG
 #Preview("Mail unavailable fallback") {
-    MailUnavailableView(supportEmail: "support@busmate.com.au")
+    MailUnavailableView(supportEmail: BusMateConstants.supportEmail)
 }
 #endif

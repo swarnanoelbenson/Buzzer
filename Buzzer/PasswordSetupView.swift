@@ -20,6 +20,7 @@ struct PasswordSetupView: View {
     let accentColor: Color
 
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.dismiss) private var dismiss
     private let service = FirestoreService.shared
 
     // Step tracking
@@ -90,6 +91,33 @@ struct PasswordSetupView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    switch step {
+                    case .enterEmail:
+                        dismiss()
+                    case .enterCode:
+                        code = ""
+                        errorMessage = nil
+                        codeSentMessage = nil
+                        step = .enterEmail
+                    case .setPassword:
+                        errorMessage = nil
+                        step = .enterCode
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: step == .enterEmail ? "xmark" : "chevron.left")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(step == .enterEmail ? "Cancel" : "Back")
+                            .font(.subheadline)
+                    }
+                    .foregroundColor(accentColor)
+                }
+            }
+        }
         .task { await loadSchools() }
     }
 

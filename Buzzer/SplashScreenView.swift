@@ -28,7 +28,10 @@ struct SplashScreenView: View {
             
             VStack(spacing: 20) {
                 // Logo with animation
-                BuzzerLogo(size: 140)
+                Image("Busmate_logo_for_website")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 140, height: 140)
                     .scaleEffect(isAnimating ? 1.0 : 0.5)
                     .opacity(isAnimating ? 1.0 : 0.0)
                     .animation(.spring(response: 0.6, dampingFraction: 0.6), value: isAnimating)
@@ -69,7 +72,7 @@ struct SplashScreenView: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Buzzer app is loading")
+        .accessibilityLabel("BusMate app is loading")
     }
 }
 

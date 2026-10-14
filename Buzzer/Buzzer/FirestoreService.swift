@@ -277,14 +277,24 @@ class FirestoreService {
         return try snapshot.documents.map { try $0.data(as: Trip.self) }
     }
 
-    /// Fetches the last 3 days of completed trips for a driver (history).
+    /// Fetches completed trips for a driver from Monday of the current week up to (not including) today.
+    /// If today is Monday there is nothing to show yet — returns an empty array.
     func fetchRecentCompletedTrips(for driverId: String, schoolId: String) async throws -> [Trip] {
-        let threeDaysAgo = Calendar.current.date(byAdding: .day, value: -3, to: Calendar.current.startOfDay(for: Date()))!
-        let startOfToday = Calendar.current.startOfDay(for: Date())
+        var cal = Calendar.current
+        cal.firstWeekday = 2   // Monday = first day of week
+        let startOfToday = cal.startOfDay(for: Date())
+        // Find the most recent Monday (or today if today is Monday)
+        let weekday = cal.component(.weekday, from: startOfToday)  // 1=Sun, 2=Mon … 7=Sat
+        let daysFromMonday = (weekday + 5) % 7   // Sun→6, Mon→0, Tue→1, … Sat→5
+        let startOfMonday = cal.date(byAdding: .day, value: -daysFromMonday, to: startOfToday)!
+
+        // If today is Monday, there are no previous days this week to show
+        if daysFromMonday == 0 { return [] }
+
         let snapshot = try await db.collection("trips")
             .whereField("schoolId", isEqualTo: schoolId)
             .whereField("driverId", isEqualTo: driverId)
-            .whereField("date", isGreaterThanOrEqualTo: threeDaysAgo)
+            .whereField("date", isGreaterThanOrEqualTo: startOfMonday)
             .whereField("date", isLessThan: startOfToday)
             .order(by: "date", descending: true)
             .getDocuments()
@@ -434,6 +444,27 @@ class FirestoreService {
     func fetchStudent(id: String) async throws -> Student {
         let doc = try await db.collection("students").document(id).getDocument()
         return try doc.data(as: Student.self)
+    }
+
+    // MARK: - Consent Records
+
+    /// Returns true if the user has already accepted the current legal document versions.
+    /// Checks the `consent_records` collection for a document matching the user's ID.
+    func hasConsent(userId: String) async -> Bool {
+        let doc = try? await db.collection("consent_records").document(userId).getDocument()
+        return doc?.exists == true
+    }
+
+    /// Writes a consent record to Firestore for the given user.
+    /// Stores termsVersion, privacyPolicyVersion, acceptedAt, and userId.
+    func recordConsent(_ record: ConsentRecord, userId: String) async throws {
+        try await db.collection("consent_records").document(userId).setData([
+            "userId": userId,
+            "termsVersion": record.termsVersion,
+            "privacyPolicyVersion": record.privacyPolicyVersion,
+            "acceptedAt": record.acceptedAt,
+            "recordedAt": FieldValue.serverTimestamp()
+        ])
     }
 
     // MARK: - Activity Log

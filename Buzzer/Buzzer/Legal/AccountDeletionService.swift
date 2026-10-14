@@ -133,7 +133,7 @@ final class LiveAccountDeletionService: AccountDeletionService {
         throw AccountDeletionError.serverError(
             statusCode: 501,
             message: "Account deletion is not yet configured. " +
-                     "Please contact support@busmate.com.au"  // ⚠️ Replace with real support email
+                     "Please contact \(BusMateConstants.supportEmail)"
         )
     }
 }
@@ -144,7 +144,7 @@ final class LiveAccountDeletionService: AccountDeletionService {
 /// Do NOT ship this in release builds.
 final class MockAccountDeletionService: AccountDeletionService, @unchecked Sendable {
 
-    enum Behaviour {
+    indirect enum Behaviour {
         case success
         case failWithError(AccountDeletionError)
         case delay(seconds: UInt64, then: Behaviour)

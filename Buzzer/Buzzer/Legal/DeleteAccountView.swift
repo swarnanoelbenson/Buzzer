@@ -58,8 +58,8 @@ struct DeleteAccountView: View {
     @State private var showCopyAlert = false
 
     // MARK: Support email
-    // ⚠️ INTEGRATION REQUIRED: Replace with your actual support email.
-    private let supportEmail = "support@busmate.com.au"
+
+    private let supportEmail = BusMateConstants.supportEmail
 
     // MARK: Body
 

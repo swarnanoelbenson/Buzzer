@@ -23,12 +23,17 @@ struct LegalAndPrivacyView: View {
 
     @State private var presenter = LegalDocumentPresenter()
     @State private var showDeleteAccount = false
+    @State private var showMailCompose = false
+    @State private var showCopyAlert = false
+    @State private var mailRecipient = ""
+    @State private var mailSubject = ""
 
     // MARK: Body
 
     var body: some View {
         List {
             legalDocumentsSection
+            contactSection
             accountSection
         }
         .navigationTitle("Legal & Privacy")
@@ -37,6 +42,19 @@ struct LegalAndPrivacyView: View {
         .navigationDestination(isPresented: $showDeleteAccount) {
             DeleteAccountView()
                 .environment(authManager)
+        }
+        .sheet(isPresented: $showMailCompose) {
+            MailComposeView(
+                recipient: mailRecipient,
+                subject: mailSubject,
+                body: ""
+            )
+            .ignoresSafeArea()
+        }
+        .alert("Address Copied", isPresented: $showCopyAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Email address copied to clipboard.")
         }
     }
 
@@ -58,6 +76,26 @@ struct LegalAndPrivacyView: View {
         }
     }
 
+    private var contactSection: some View {
+        Section {
+            contactRow(
+                label: "Support",
+                email: BusMateConstants.supportEmail,
+                subject: "BusMate Support Enquiry"
+            )
+            contactRow(
+                label: "Legal Notices",
+                email: BusMateConstants.noticesEmail,
+                subject: "Legal Notice"
+            )
+        } header: {
+            Text("Contact")
+        } footer: {
+            Text("For formal legal correspondence, use the Legal Notices address.")
+                .font(.caption)
+        }
+    }
+
     private var accountSection: some View {
         Section {
             deleteAccountRow
@@ -67,6 +105,28 @@ struct LegalAndPrivacyView: View {
     }
 
     // MARK: Rows
+
+    private func contactRow(label: String, email: String, subject: String) -> some View {
+        Button {
+            presentMail(recipient: email, subject: subject)
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .foregroundStyle(.primary)
+                    Text(email)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Image(systemName: "envelope")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .accessibilityLabel("\(label): \(email)")
+        .accessibilityHint("Opens a pre-filled email to \(email).")
+    }
 
     private func documentRow(for document: LegalDocument) -> some View {
         Button {
@@ -99,6 +159,19 @@ struct LegalAndPrivacyView: View {
         }
         .accessibilityLabel("Delete Account")
         .accessibilityHint("Opens the account deletion confirmation screen. This action is permanent.")
+    }
+
+    // MARK: Actions
+
+    private func presentMail(recipient: String, subject: String) {
+        if MailComposeView.canSendMail {
+            mailRecipient = recipient
+            mailSubject = subject
+            showMailCompose = true
+        } else {
+            UIPasteboard.general.string = recipient
+            showCopyAlert = true
+        }
     }
 }
 

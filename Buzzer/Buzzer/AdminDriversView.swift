@@ -37,7 +37,7 @@ struct AdminDriversView: View {
             base = base.filter { !(routesByDriver[$0.id ?? ""] ?? []).isEmpty }
         }
         switch sortOption {
-        case .recent: return base.sorted { $0.createdAt > $1.createdAt }
+        case .recent: return base.sorted { ($0.createdAt ?? .distantPast) > ($1.createdAt ?? .distantPast) }
         case .nameAZ: return base.sorted { $0.name < $1.name }
         case .nameZA: return base.sorted { $0.name > $1.name }
         }
@@ -205,10 +205,12 @@ struct AdminDriverDetailView: View {
                 // Driver info card
                 VStack(alignment: .leading, spacing: 8) {
                     Label(driver.phone, systemImage: "phone")
-                    Label(driver.busRegistration, systemImage: "bus")
-                    Label(driver.driversLicense, systemImage: "creditcard")
-                    Label("Licence expires \(driver.licenseExpiry.formatted(date: .abbreviated, time: .omitted))",
-                          systemImage: "calendar.badge.clock")
+                    Label(driver.busRegistration ?? "—", systemImage: "bus")
+                    Label(driver.driversLicense ?? "—", systemImage: "creditcard")
+                    if let expiry = driver.licenseExpiry {
+                        Label("Licence expires \(expiry.formatted(date: .abbreviated, time: .omitted))",
+                              systemImage: "calendar.badge.clock")
+                    }
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -331,7 +333,7 @@ struct AddDriverSheet: View {
 
     @State private var name = ""
     @State private var phone = ""
-    @State private var age = ""
+    @State private var dateOfBirth = Calendar.current.date(byAdding: .year, value: -21, to: Date()) ?? Date()
     @State private var gender = "Male"
     @State private var address = ""
     @State private var childrenCheck = ""
@@ -345,6 +347,16 @@ struct AddDriverSheet: View {
     private let db = Firestore.db
     private let genders = ["Male", "Female", "Other"]
 
+    /// Maximum selectable date of birth — must be at least 21 years old.
+    private var maxDateOfBirth: Date {
+        Calendar.current.date(byAdding: .year, value: -21, to: Date()) ?? Date()
+    }
+
+    /// Age in whole years derived from the selected date of birth.
+    private var derivedAge: Int {
+        Calendar.current.dateComponents([.year], from: dateOfBirth, to: Date()).year ?? 0
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -352,8 +364,12 @@ struct AddDriverSheet: View {
                     TextField("Full Name", text: $name)
                     TextField("Phone (e.g. 0412 345 678)", text: $phone)
                         .keyboardType(.phonePad)
-                    TextField("Age", text: $age)
-                        .keyboardType(.numberPad)
+                    DatePicker(
+                        "Date of Birth",
+                        selection: $dateOfBirth,
+                        in: ...maxDateOfBirth,
+                        displayedComponents: .date
+                    )
                     Picker("Gender", selection: $gender) {
                         ForEach(genders, id: \.self) { Text($0) }
                     }
@@ -392,6 +408,12 @@ struct AddDriverSheet: View {
     }
 
     private func save() {
+        // Enforce minimum age of 21 years at point of save (belt-and-suspenders;
+        // the DatePicker range already prevents selection of under-21 dates).
+        guard derivedAge >= 21 else {
+            errorMessage = "Driver must be at least 21 years old."
+            return
+        }
         isSaving = true
         errorMessage = ""
         Task {
@@ -400,7 +422,8 @@ struct AddDriverSheet: View {
                 try await ref.setData([
                     "name": name.trimmingCharacters(in: .whitespaces),
                     "phone": phone.trimmingCharacters(in: .whitespaces),
-                    "age": Int(age) ?? 0,
+                    "dateOfBirth": Timestamp(date: dateOfBirth),
+                    "age": derivedAge,
                     "gender": gender,
                     "address": address.trimmingCharacters(in: .whitespaces),
                     "childrenCheck": childrenCheck.trimmingCharacters(in: .whitespaces),

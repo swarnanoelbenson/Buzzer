@@ -42,10 +42,6 @@ struct EmailSignInView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
-                NavigationLink(destination: PasswordSetupView(
-                    role: role,
-                    accentColor: accentColor
-                ), isActive: $navigateToSetup) { EmptyView() }
                 // Header
                 VStack(spacing: 8) {
                     Image(systemName: icon)
@@ -189,6 +185,9 @@ struct EmailSignInView: View {
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $navigateToSetup) {
+            PasswordSetupView(role: role, accentColor: accentColor)
+        }
         .task { await loadSchools() }
     }
 

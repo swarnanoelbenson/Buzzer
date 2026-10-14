@@ -36,25 +36,21 @@ struct AdminDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
 
-                // MARK: School name + date header (no card — sits on screen background)
-                VStack(alignment: .center, spacing: 4) {
-                    if !schoolName.isEmpty {
-                        Text(schoolName.uppercased())
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.center)
-                    }
-                    Text(todayDateLine)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.center)
-                    Text("Dashboard")
+                // MARK: Section title — top-left, matching Drivers/Students/Schedule sections
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Admin Dashboard")
                         .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(.primary)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 4)
+                    if !schoolName.isEmpty {
+                        Text(schoolName)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(todayDateLine)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
 
                 // MARK: Notes card

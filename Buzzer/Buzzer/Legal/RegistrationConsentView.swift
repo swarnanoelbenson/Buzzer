@@ -205,7 +205,7 @@ struct RegistrationConsentView: View {
 /// A checkbox-style toggle so colour alone does not communicate state.
 /// The checkmark glyph reinforces the ticked/unticked state for
 /// colour-blind users and satisfies WCAG 1.4.1.
-private struct CheckmarkToggleStyle: ToggleStyle {
+struct CheckmarkToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button {
             configuration.isOn.toggle()

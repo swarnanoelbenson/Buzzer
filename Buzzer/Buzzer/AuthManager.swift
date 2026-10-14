@@ -28,6 +28,8 @@ class AuthManager {
     var currentUserId: String? = nil
     var schoolId: String? = nil     // Set only for admin role — the school doc ID
     var isLoading: Bool = true
+    /// True when the user has a role but has not yet accepted the current ToS + Privacy Policy.
+    var consentRequired: Bool = false
 
     private let db = Firestore.db
     @ObservationIgnored nonisolated(unsafe) private var authStateListener: AuthStateDidChangeListenerHandle?
@@ -78,6 +80,7 @@ class AuthManager {
             self.currentUserId = uid
             self.isLoading = false
             await saveCurrentFCMToken()
+            await checkConsentIfNeeded()
             return
         }
 
@@ -93,6 +96,7 @@ class AuthManager {
                 self.currentUserId = doc.documentID
                 self.isLoading = false
                 await saveCurrentFCMToken()
+                await checkConsentIfNeeded()
                 return
             }
         }
@@ -107,6 +111,7 @@ class AuthManager {
             self.currentRole = .driver
             self.currentUserId = linkedId   // use the real driver doc ID
             self.isLoading = false
+            await checkConsentIfNeeded()
             return
         }
         #endif
@@ -119,6 +124,7 @@ class AuthManager {
             self.currentUserId = uid
             self.isLoading = false
             await saveCurrentFCMToken()
+            await checkConsentIfNeeded()
             return
         }
 
@@ -133,6 +139,7 @@ class AuthManager {
                 self.currentUserId = doc.documentID
                 self.isLoading = false
                 await saveCurrentFCMToken()
+                await checkConsentIfNeeded()
                 return
             }
         }
@@ -144,6 +151,7 @@ class AuthManager {
             self.currentRole = .student
             self.currentUserId = uid
             self.isLoading = false
+            await checkConsentIfNeeded()
             return
         }
 
@@ -157,6 +165,7 @@ class AuthManager {
                 self.currentRole = .student
                 self.currentUserId = doc.documentID
                 self.isLoading = false
+                await checkConsentIfNeeded()
                 return
             }
         }
@@ -172,6 +181,7 @@ class AuthManager {
             self.currentUserId = uid           // Firebase Auth UID of the admin
             self.schoolId = schoolDoc.documentID  // Firestore school doc ID
             self.isLoading = false
+            await checkConsentIfNeeded()
             return
         }
 
@@ -181,6 +191,21 @@ class AuthManager {
         self.currentUserId = nil
         self.schoolId = nil
         self.isLoading = false
+    }
+
+    // MARK: - Consent Gate
+
+    /// After a role is resolved, check whether the user needs to see the consent gate.
+    /// Sets `consentRequired = true` if no record exists in Firestore yet.
+    func checkConsentIfNeeded() async {
+        guard let uid = currentUserId, currentRole != .none else { return }
+        let alreadyAccepted = await FirestoreService.shared.hasConsent(userId: uid)
+        consentRequired = !alreadyAccepted
+    }
+
+    /// Called by FirstLoginConsentGateView after it has written the consent record.
+    func markConsentRecorded() {
+        consentRequired = false
     }
 
     // MARK: - Email + Password Sign-In (Driver / Parent / Student)
