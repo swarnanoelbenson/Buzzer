@@ -51,8 +51,20 @@ export async function POST(req: NextRequest) {
   const pendingSignup = data.pendingSignup as {
     schoolName: string;
     schoolNameLower: string;
+    schoolAddress: {
+      street1: string;
+      street2: string;
+      suburb: string;
+      state: string;
+      postcode: string;
+    };
+    schoolPhone: string;
+    schoolEmail: string;
+    adminFirstName: string;
+    adminLastName: string;
     adminName: string;
     email: string;
+    dateOfBirth: string;
     isSignup: boolean;
   } | undefined;
 
@@ -61,6 +73,22 @@ export async function POST(req: NextRequest) {
   let adminName: string;
 
   if (pendingSignup?.isSignup) {
+    // Server-side age re-validation — defence in depth, do not trust client alone
+    const MIN_ADMIN_AGE = 21;
+    if (!pendingSignup.dateOfBirth) {
+      return NextResponse.json({ error: "Date of birth is required." }, { status: 400 });
+    }
+    const dob = new Date(pendingSignup.dateOfBirth);
+    const today = new Date();
+    const age = today.getFullYear() - dob.getFullYear() -
+      (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+    if (age < MIN_ADMIN_AGE) {
+      return NextResponse.json(
+        { error: `Administrator accounts require a minimum age of ${MIN_ADMIN_AGE} years.` },
+        { status: 403 },
+      );
+    }
+
     // New signup — create the Firebase Auth user if they don't exist yet,
     // then create the school doc. The custom token will sign them in.
     let uid: string;
@@ -81,9 +109,15 @@ export async function POST(req: NextRequest) {
     await db.collection("schools").add({
       schoolName: pendingSignup.schoolName,
       schoolNameLower: pendingSignup.schoolNameLower,
+      schoolAddress: pendingSignup.schoolAddress,
+      schoolPhone: pendingSignup.schoolPhone,
+      schoolEmail: pendingSignup.schoolEmail,
+      adminFirstName: pendingSignup.adminFirstName,
+      adminLastName: pendingSignup.adminLastName,
+      adminName: pendingSignup.adminName,
       email: normalised,
       adminUid: uid,
-      adminName: pendingSignup.adminName,
+      dateOfBirth: pendingSignup.dateOfBirth,
       createdAt: Timestamp.now(),
       emailVerified: true,
     });

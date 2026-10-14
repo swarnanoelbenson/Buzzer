@@ -26,8 +26,20 @@ export async function POST(req: NextRequest) {
     pendingSignup?: {
       schoolName: string;
       schoolNameLower: string;
+      schoolAddress: {
+        street1: string;
+        street2: string;
+        suburb: string;
+        state: string;
+        postcode: string;
+      };
+      schoolPhone: string;
+      schoolEmail: string;
+      adminFirstName: string;
+      adminLastName: string;
       adminName: string;
       email: string;
+      dateOfBirth: string;
       isSignup: boolean;
     };
     origin?: string;
