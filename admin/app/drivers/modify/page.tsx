@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
-import { collection, getDocs, doc, updateDoc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import type { Driver } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
 import PhoneInput, { stripPrefix } from "@/components/PhoneInput";
@@ -24,6 +25,7 @@ function ModifyDriverForm() {
   const router = useRouter();
   const params = useSearchParams();
   const preselectedId = params.get("id") ?? "";
+  const { schoolId } = useAuth();
 
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selected, setSelected] = useState<Driver | null>(null);
@@ -32,7 +34,8 @@ function ModifyDriverForm() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    getDocs(collection(db, "drivers")).then(snap => {
+    if (!schoolId) return;
+    getDocs(query(collection(db, "drivers"), where("schoolId", "==", schoolId))).then(snap => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data(), licenseExpiry: toDate(d.data().licenseExpiry), createdAt: toDate(d.data().createdAt) } as Driver));
       setDrivers(list);
       if (preselectedId) {
@@ -40,7 +43,7 @@ function ModifyDriverForm() {
         if (found) selectDriver(found);
       }
     });
-  }, []);
+  }, [schoolId]);
 
   const selectDriver = (d: Driver) => {
     setSelected(d);

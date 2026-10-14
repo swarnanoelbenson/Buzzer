@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import type { Route, Trip, Student } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
 import * as XLSX from "xlsx";
@@ -469,6 +470,7 @@ function DayDetail({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function RouteLogPage() {
+  const { schoolId } = useAuth();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -482,10 +484,11 @@ export default function RouteLogPage() {
   const [selDate, setSelDate] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!schoolId) return;
     Promise.all([
-      getDocs(collection(db, "routes")),
-      getDocs(query(collection(db, "trips"), orderBy("date", "desc"))),
-      getDocs(collection(db, "students")),
+      getDocs(query(collection(db, "routes"), where("schoolId", "==", schoolId))),
+      getDocs(query(collection(db, "trips"), where("schoolId", "==", schoolId), orderBy("date", "desc"))),
+      getDocs(query(collection(db, "students"), where("schoolId", "==", schoolId))),
     ]).then(([routeSnap, tripSnap, studentSnap]) => {
       const r = routeSnap.docs.map(d => ({ id: d.id, ...d.data() } as Route));
       // Normalize trip.date to "YYYY-MM-DD" string for easy comparisons
@@ -510,7 +513,7 @@ export default function RouteLogPage() {
       if (ys.length) setSelYear(ys[0]);
       setLoading(false);
     });
-  }, []);
+  }, [schoolId]);
 
   // Filtered routes: those that ran in the selected year/term
   const termTrips = trips.filter(t => {

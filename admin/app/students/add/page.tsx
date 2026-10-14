@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import type { Route } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
 import PhoneInput from "@/components/PhoneInput";
@@ -11,6 +12,7 @@ const FIELD = "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 tex
 
 export default function AddStudentPage() {
   const router = useRouter();
+  const { schoolId } = useAuth();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -25,10 +27,11 @@ export default function AddStudentPage() {
   });
 
   useEffect(() => {
-    getDocs(collection(db, "routes")).then(snap => {
+    if (!schoolId) return;
+    getDocs(query(collection(db, "routes"), where("schoolId", "==", schoolId))).then(snap => {
       setRoutes(snap.docs.map(d => ({ id: d.id, ...d.data() } as Route)));
     });
-  }, []);
+  }, [schoolId]);
 
   const set = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));
 
@@ -37,6 +40,7 @@ export default function AddStudentPage() {
     setSaving(true);
     try {
       await addDoc(collection(db, "students"), {
+        schoolId,
         name: form.name.trim(),
         grade: form.grade.trim(),
         stopAddressAM: form.stopAddressAM.trim(),

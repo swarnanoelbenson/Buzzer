@@ -76,7 +76,9 @@ export default function AuthCallbackPage() {
 
       if (isSignup) {
         // Log the signup (school doc is already created by the verify route)
+        const signupSchoolId = schoolSnapForToken.empty ? "" : schoolSnapForToken.docs[0].id;
         await addDoc(collection(db, "adminLog"), {
+          schoolId: signupSchoolId,
           type: "signup",
           tag: "SIGNUP",
           actorId: user.uid,
@@ -104,6 +106,7 @@ export default function AuthCallbackPage() {
         const displayName = user.displayName ?? user.email?.split("@")[0] ?? "Admin";
 
         await addDoc(collection(db, "adminLog"), {
+          schoolId: schoolSnap.docs[0].id,
           type: "login",
           tag: "LOGIN",
           actorId: user.uid,

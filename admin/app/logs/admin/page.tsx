@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import PageHeader from "@/components/PageHeader";
 
 interface AdminLogEntry {
@@ -50,6 +51,7 @@ function tagColor(tag?: string) {
 }
 
 export default function AdminLogPage() {
+  const { schoolId } = useAuth();
   const [logs, setLogs] = useState<AdminLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [years, setYears] = useState<number[]>([]);
@@ -59,7 +61,8 @@ export default function AdminLogPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    getDocs(query(collection(db, "adminLog"), orderBy("timestamp", "desc"))).then(snap => {
+    if (!schoolId) return;
+    getDocs(query(collection(db, "adminLog"), where("schoolId", "==", schoolId), orderBy("timestamp", "desc"))).then(snap => {
       const items = snap.docs.map(d => ({
         id: d.id, ...d.data(),
         timestamp: toDate(d.data().timestamp),
@@ -72,7 +75,7 @@ export default function AdminLogPage() {
       if (ys.length > 0) setSelYear(ys[0]);
       setLoading(false);
     });
-  }, []);
+  }, [schoolId]);
 
   const yearLogs = logs.filter(l => l.year === selYear);
   const termLogs = selTerm ? yearLogs.filter(l => TERM_MONTHS[selTerm].includes(l.month ?? 0)) : yearLogs;

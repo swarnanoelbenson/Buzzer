@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, orderBy, limit, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, limit, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import type { ActivityLog } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
 
@@ -13,16 +14,18 @@ function toDate(v: unknown): Date {
 }
 
 export default function ActivityPage() {
+  const { schoolId } = useAuth();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "driver" | "parent">("all");
 
   useEffect(() => {
-    getDocs(query(collection(db, "activityLog"), orderBy("timestamp", "desc"), limit(200))).then(snap => {
+    if (!schoolId) return;
+    getDocs(query(collection(db, "activityLog"), where("schoolId", "==", schoolId), orderBy("timestamp", "desc"), limit(200))).then(snap => {
       setLogs(snap.docs.map(d => ({ id: d.id, ...d.data(), timestamp: toDate(d.data().timestamp) } as ActivityLog)));
       setLoading(false);
     });
-  }, []);
+  }, [schoolId]);
 
   const filtered = filter === "all" ? logs : logs.filter(l => l.actorRole === filter);
 

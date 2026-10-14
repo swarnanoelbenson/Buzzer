@@ -662,9 +662,10 @@ function EditStudentModal({ student, routes, onClose, onSaved }: {
 
 // ── Remove Student Modal ──────────────────────────────────────────────────────
 
-function RemoveStudentModal({ student, onClose, onRemoved, user }: {
+function RemoveStudentModal({ student, onClose, onRemoved, user, schoolId }: {
   student: Student; onClose: () => void; onRemoved: (id: string) => void;
   user: { uid?: string; displayName?: string | null; email?: string | null } | null;
+  schoolId: string;
 }) {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -674,6 +675,7 @@ function RemoveStudentModal({ student, onClose, onRemoved, user }: {
     const now = new Date();
     await updateDoc(doc(db, "students", student.id), { isActive: false });
     await addDoc(collection(db, "adminLog"), {
+      schoolId,
       type: "remove_student", tag: "REMOVE STUDENT",
       actorId: user?.uid ?? "admin",
       actorName: user?.displayName ?? user?.email ?? "Admin",
@@ -743,9 +745,10 @@ function RemoveStudentModal({ student, onClose, onRemoved, user }: {
 
 // ── Reactivate Student Modal ──────────────────────────────────────────────────
 
-function ReactivateStudentModal({ student, routes, onClose, onReactivated, user }: {
+function ReactivateStudentModal({ student, routes, onClose, onReactivated, user, schoolId }: {
   student: Student; routes: Route[]; onClose: () => void; onReactivated: (s: Student) => void;
   user: { uid?: string; displayName?: string | null; email?: string | null } | null;
+  schoolId: string;
 }) {
   const original = studentToForm(student);
   const { form, onChange, onParentChange, onAddParent, onRemoveParent } = useStudentForm(original);
@@ -767,6 +770,7 @@ function ReactivateStudentModal({ student, routes, onClose, onReactivated, user 
       parents: validParents,
     });
     await addDoc(collection(db, "adminLog"), {
+      schoolId,
       type: "reactivate_student", tag: "REACTIVATE STUDENT",
       actorId: user?.uid ?? "admin",
       actorName: user?.displayName ?? user?.email ?? "Admin",
@@ -1128,10 +1132,10 @@ export default function StudentsPage() {
         <EditStudentModal student={modal.student} routes={routes} onClose={closeModal} onSaved={handleSaved} />
       )}
       {modal?.type === "remove" && (
-        <RemoveStudentModal student={modal.student} onClose={closeModal} onRemoved={handleRemoved} user={user} />
+        <RemoveStudentModal student={modal.student} onClose={closeModal} onRemoved={handleRemoved} user={user} schoolId={schoolId} />
       )}
       {modal?.type === "reactivate" && (
-        <ReactivateStudentModal student={modal.student} routes={routes} onClose={closeModal} onReactivated={handleReactivated} user={user} />
+        <ReactivateStudentModal student={modal.student} routes={routes} onClose={closeModal} onReactivated={handleReactivated} user={user} schoolId={schoolId} />
       )}
     </div>
   );

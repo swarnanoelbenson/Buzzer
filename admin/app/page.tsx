@@ -244,7 +244,7 @@ function GanttChart({ trips }: { trips: GanttTrip[] }) {
 
 // ── Main Dashboard ─────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { schoolName } = useAuth();
+  const { schoolName, schoolId } = useAuth();
   const [pickupTotal, setPickupTotal] = useState(0);
   const [pickupDone, setPickupDone] = useState(0);
   const [dropoffTotal, setDropoffTotal] = useState(0);
@@ -255,6 +255,7 @@ export default function DashboardPage() {
   const [viewDate, setViewDate] = useState<Date>(new Date());
 
   useEffect(() => {
+    if (!schoolId) return;
     async function load() {
       const startOfDay = new Date(viewDate); startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(viewDate); endOfDay.setHours(23, 59, 59, 999);
@@ -263,9 +264,9 @@ export default function DashboardPage() {
       // won't block the others from resolving.
       const empty = { docs: [] };
       const [tripsSnap, routesSnap, notesSnap] = await Promise.all([
-        getDocs(query(collection(db, "trips"), where("date", ">=", startOfDay), where("date", "<=", endOfDay))).catch(() => empty),
-        getDocs(query(collection(db, "routes"), where("isActive", "==", true))).catch(() => empty),
-        getDocs(query(collection(db, "passengerNotes"), where("fromDate", "<=", endOfDay), where("toDate", ">=", startOfDay))).catch(() => empty),
+        getDocs(query(collection(db, "trips"), where("schoolId", "==", schoolId), where("date", ">=", startOfDay), where("date", "<=", endOfDay))).catch(() => empty),
+        getDocs(query(collection(db, "routes"), where("schoolId", "==", schoolId), where("isActive", "==", true))).catch(() => empty),
+        getDocs(query(collection(db, "passengerNotes"), where("schoolId", "==", schoolId), where("fromDate", "<=", endOfDay), where("toDate", ">=", startOfDay))).catch(() => empty),
       ]);
 
       const routeMap: Record<string, Route> = {};
@@ -323,7 +324,7 @@ export default function DashboardPage() {
     }
     setLoading(true);
     load();
-  }, [viewDate]);
+  }, [viewDate, schoolId]);
 
   // Date display
   const dateStr = viewDate.toLocaleDateString("en-AU", {

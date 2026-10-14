@@ -38,7 +38,7 @@ interface Props {
 }
 
 export default function SubstituteDriverModal({ route, drivers, onClose, onCompleted }: Props) {
-  const { user } = useAuth();
+  const { user, schoolId } = useAuth();
 
   const today = toInputDate(new Date());
   const routeStart = toInputDate(route.startDate instanceof Date ? route.startDate : new Date());
@@ -156,6 +156,7 @@ export default function SubstituteDriverModal({ route, drivers, onClose, onCompl
 
       // Log to adminLog (separate write — not in batch to keep batch size down and avoid issues)
       await addDoc(collection(db, "adminLog"), {
+        schoolId,
         type: "substitute_driver",
         tag: "SUBSTITUTE DRIVER",
         actorId: user?.uid ?? "admin",

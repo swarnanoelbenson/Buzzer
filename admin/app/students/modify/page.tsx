@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 import type { Student, Route } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,6 +13,7 @@ function ModifyStudentForm() {
   const router = useRouter();
   const params = useSearchParams();
   const preId = params.get("id") ?? "";
+  const { schoolId } = useAuth();
 
   const [students, setStudents] = useState<Student[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -21,13 +23,17 @@ function ModifyStudentForm() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    Promise.all([getDocs(collection(db, "students")), getDocs(collection(db, "routes"))]).then(([sSnap, rSnap]) => {
+    if (!schoolId) return;
+    Promise.all([
+      getDocs(query(collection(db, "students"), where("schoolId", "==", schoolId))),
+      getDocs(query(collection(db, "routes"), where("schoolId", "==", schoolId))),
+    ]).then(([sSnap, rSnap]) => {
       const list = sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Student));
       setStudents(list);
       setRoutes(rSnap.docs.map(d => ({ id: d.id, ...d.data() } as Route)));
       if (preId) { const s = list.find(s => s.id === preId); if (s) select(s); }
     });
-  }, []);
+  }, [schoolId]);
 
   const select = (s: Student) => {
     setSelected(s);

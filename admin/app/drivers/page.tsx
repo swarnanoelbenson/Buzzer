@@ -459,9 +459,10 @@ function EditDriverModal({ driver, onClose, onSaved }: {
 
 // ── Remove Driver Modal ───────────────────────────────────────────────────────
 
-function RemoveDriverModal({ driver, onClose, onRemoved, user }: {
+function RemoveDriverModal({ driver, onClose, onRemoved, user, schoolId }: {
   driver: Driver; onClose: () => void; onRemoved: (id: string) => void;
   user: { uid?: string; displayName?: string | null; email?: string | null } | null;
+  schoolId: string;
 }) {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -471,6 +472,7 @@ function RemoveDriverModal({ driver, onClose, onRemoved, user }: {
     const now = new Date();
     await updateDoc(doc(db, "drivers", driver.id), { isActive: false });
     await addDoc(collection(db, "adminLog"), {
+      schoolId,
       type: "remove_driver", tag: "REMOVE DRIVER",
       actorId: user?.uid ?? "admin",
       actorName: user?.displayName ?? user?.email ?? "Admin",
@@ -538,9 +540,10 @@ function RemoveDriverModal({ driver, onClose, onRemoved, user }: {
 
 // ── Reactivate Driver Modal ───────────────────────────────────────────────────
 
-function ReactivateDriverModal({ driver, onClose, onReactivated, user }: {
+function ReactivateDriverModal({ driver, onClose, onReactivated, user, schoolId }: {
   driver: Driver; onClose: () => void; onReactivated: (updated: Driver) => void;
   user: { uid?: string; displayName?: string | null; email?: string | null } | null;
+  schoolId: string;
 }) {
   const original = driverToForm(driver);
   const [form, setForm] = useState<FormState>(original);
@@ -562,6 +565,7 @@ function ReactivateDriverModal({ driver, onClose, onReactivated, user }: {
         licenseExpiry: form.licenseExpiry ? Timestamp.fromDate(new Date(form.licenseExpiry)) : null,
       });
       await addDoc(collection(db, "adminLog"), {
+        schoolId,
         type: "reactivate_driver", tag: "REACTIVATE DRIVER",
         actorId: user?.uid ?? "admin",
         actorName: user?.displayName ?? user?.email ?? "Admin",
@@ -889,10 +893,10 @@ export default function DriversPage() {
         <EditDriverModal driver={modal.driver} onClose={closeModal} onSaved={handleSaved} />
       )}
       {modal?.type === "remove" && (
-        <RemoveDriverModal driver={modal.driver} onClose={closeModal} onRemoved={handleRemoved} user={user} />
+        <RemoveDriverModal driver={modal.driver} onClose={closeModal} onRemoved={handleRemoved} user={user} schoolId={schoolId} />
       )}
       {modal?.type === "reactivate" && (
-        <ReactivateDriverModal driver={modal.driver} onClose={closeModal} onReactivated={handleReactivated} user={user} />
+        <ReactivateDriverModal driver={modal.driver} onClose={closeModal} onReactivated={handleReactivated} user={user} schoolId={schoolId} />
       )}
     </div>
   );

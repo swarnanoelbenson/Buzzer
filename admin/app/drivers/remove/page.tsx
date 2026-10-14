@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { collection, getDocs, doc, updateDoc, addDoc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, doc, updateDoc, addDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import type { Driver } from "@/lib/types";
 import PageHeader from "@/components/PageHeader";
 
 export default function RemoveDriverPage() {
-  const { user } = useAuth();
+  const { user, schoolId } = useAuth();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalDriver, setModalDriver] = useState<Driver | null>(null);
@@ -16,11 +16,12 @@ export default function RemoveDriverPage() {
   const [done, setDone] = useState<string[]>([]);
 
   useEffect(() => {
-    getDocs(collection(db, "drivers")).then(snap => {
+    if (!schoolId) return;
+    getDocs(query(collection(db, "drivers"), where("schoolId", "==", schoolId))).then(snap => {
       setDrivers(snap.docs.map(d => ({ id: d.id, ...d.data() } as Driver)));
       setLoading(false);
     });
-  }, []);
+  }, [schoolId]);
 
   const openModal = (driver: Driver) => { setModalDriver(driver); setReason(""); };
   const closeModal = () => { setModalDriver(null); setReason(""); };
@@ -31,6 +32,7 @@ export default function RemoveDriverPage() {
     const now = new Date();
     await updateDoc(doc(db, "drivers", modalDriver.id), { isActive: false });
     await addDoc(collection(db, "adminLog"), {
+      schoolId,
       type: "remove_driver",
       tag: "REMOVE DRIVER",
       actorId: user?.uid ?? "admin",
