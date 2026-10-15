@@ -170,27 +170,49 @@ struct TripDetailView: View {
 
     // MARK: - Start Button
 
+    private var isTripToday: Bool {
+        Calendar.current.isDateInToday(trip.date)
+    }
+
     private var startButton: some View {
-        Button {
-            Task { await startTripAndNavigate() }
-        } label: {
-            Group {
-                if isStarting {
-                    ProgressView().tint(.white)
-                } else {
-                    Label("Start \(trip.type == .pickup ? "Pick-up" : "Drop-off")",
-                          systemImage: "play.fill")
-                        .font(.system(size: 18, weight: .semibold))
+        VStack(spacing: 8) {
+            Button {
+                guard isTripToday else { return }
+                Task { await startTripAndNavigate() }
+            } label: {
+                Group {
+                    if isStarting {
+                        ProgressView().tint(.white)
+                    } else {
+                        Label("Start \(trip.type == .pickup ? "Pick-up" : "Drop-off")",
+                              systemImage: "play.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(isTripToday
+                    ? (trip.type == .pickup ? Color.green : Color.orange)
+                    : Color.gray.opacity(0.35))
+                .foregroundColor(isTripToday ? .white : Color(.tertiaryLabel))
+                .cornerRadius(14)
             }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(trip.type == .pickup ? Color.green : Color.orange)
-            .foregroundColor(.white)
-            .cornerRadius(14)
+            .disabled(isStarting || !isTripToday)
+            .padding(.horizontal)
+
+            if !isTripToday {
+                let df: DateFormatter = {
+                    let f = DateFormatter()
+                    f.dateFormat = "dd/MM/yyyy"
+                    return f
+                }()
+                Text("This trip is scheduled for \(df.string(from: trip.date)). You can only start today's trips.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+            }
         }
-        .disabled(isStarting)
-        .padding(.horizontal)
     }
 
     // MARK: - Resume Attendance Button (trip already in progress)

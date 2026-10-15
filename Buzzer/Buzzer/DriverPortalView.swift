@@ -280,7 +280,7 @@ struct DriverPortalView: View {
                             )
                         }
                     } header: {
-                        Text("Completed — Last 2 Weeks")
+                        Text("History")
                             .font(.subheadline.bold())
                             .foregroundColor(.primary)
                             .textCase(nil)

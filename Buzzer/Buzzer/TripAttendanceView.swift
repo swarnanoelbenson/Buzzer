@@ -4,11 +4,11 @@
 //
 //  Card-swiper attendance flow. One student per screen.
 //  Flow:
-//    Screen A: Pre-start (blank, "< Go Back" + "Start" centred)
-//    Screen B: Per-student cards (name centred, notes below, nav buttons)
-//    Screen C: Post-attendance (blank, "< Go Back" + "Final Check" + "Review Session")
-//    Screen D: Final check sheet (dark, green tick, clock, Confirm)
-//    Screen E: Review session (student list with status labels)
+//    Screen A: Pre-start  — nav bar + "Start Pick Up / Drop Off" centred
+//    Screen B: Per-student — nav buttons at TOP, name+notes centred, action buttons at bottom
+//    Screen C: Post-attendance — nav bar + "Review Session" + "Final Check" centred
+//    Screen D: Final Check sheet — dark, green tick, clock, Confirm
+//    Screen E: Review Session — student list, per-student status change + add note, Final Check at bottom
 //
 
 import SwiftUI
@@ -16,10 +16,10 @@ import SwiftUI
 // MARK: - Attendance flow stage
 
 private enum AttendanceStage {
-    case preStart          // Screen A
-    case attending         // Screen B
-    case postAttendance    // Screen C
-    case reviewSession     // Screen E (sheet or inline)
+    case preStart       // Screen A
+    case attending      // Screen B
+    case postAttendance // Screen C
+    case reviewSession  // Screen E
 }
 
 // MARK: - Main view
@@ -29,7 +29,6 @@ struct TripAttendanceView: View {
     @Binding var trip: Trip
 
     let driverName: String
-    /// Notes keyed by studentId — passed in from TripDetailView
     let studentNotes: [String: [FirestorePassengerNote]]
 
     @State private var stage: AttendanceStage = .preStart
@@ -37,9 +36,14 @@ struct TripAttendanceView: View {
     @State private var showFinalCheckSheet = false
     @State private var showStopAlert = false
 
+    // Review session: per-student note adding
+    @State private var addNoteForStudent: StudentTripRecord? = nil
+    @State private var driverId: String = ""
+
     private var students: [StudentTripRecord] { trip.studentRecords }
     private var tripType: TripType { trip.type }
     private var presentLabel: String { tripType == .pickup ? "On Bus" : "Off Bus" }
+    private var tripLabel: String { tripType == .pickup ? "Pick Up" : "Drop Off" }
 
     private var presentCount: Int {
         students.filter { $0.status == .onBus || $0.status == .offBus }.count
@@ -80,49 +84,64 @@ struct TripAttendanceView: View {
                 dismiss()
             }
         }
+        .sheet(item: $addNoteForStudent) { record in
+            DriverAddNoteSheet(
+                record: record,
+                trip: trip,
+                driverId: driverId,
+                driverName: driverName
+            ) { _ in
+                // Note added — no local state update needed for review view
+            }
+        }
         .alert("Stop Session?", isPresented: $showStopAlert) {
             Button("Cancel", role: .cancel) { }
             Button("Stop", role: .destructive) { dismiss() }
         } message: {
             Text("All recorded attendance will be saved. You can resume this trip later.")
         }
+        .task {
+            if let uid = try? await FirestoreService.shared.fetchDriver(id: "").id {
+                driverId = uid
+            }
+        }
     }
 
     // MARK: - Screen A: Pre-start
 
     private var preStartView: some View {
-        VStack {
-            // Top-left "< Go Back"
-            HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                        Text("Go Back")
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
+        VStack(spacing: 0) {
+            // Nav bar
+            navBar(
+                leading: {
+                    AnyView(Button {
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 17, weight: .semibold))
+                            Text("Go Back")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                    })
+                },
+                title: tripType == .pickup ? "Pick Up" : "Drop Off",
+                trailing: { AnyView(Color.clear.frame(width: 80)) }
+            )
 
             Spacer()
 
-            // "Start" button centred
             Button {
                 withAnimation(.easeInOut(duration: 0.25)) {
                     currentIndex = 0
                     stage = .attending
                 }
             } label: {
-                Text("Start")
+                Text("Start \(tripLabel)")
                     .font(.system(size: 22, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                    .frame(width: 180, height: 56)
+                    .frame(width: 220, height: 56)
                     .background(tripType == .pickup ? Color.green : Color.orange)
                     .cornerRadius(16)
             }
@@ -134,22 +153,88 @@ struct TripAttendanceView: View {
     // MARK: - Screen B: Attending (per-student card)
 
     private var attendingView: some View {
-        // Guard — should always be valid while attending
         guard currentIndex < students.count else { return AnyView(EmptyView()) }
 
         let student = students[currentIndex]
         let isFirst = currentIndex == 0
-        let isLast = currentIndex == students.count - 1
-        let notes = studentNotes[student.id] ?? []
+        let isLast  = currentIndex == students.count - 1
+        let notes   = studentNotes[student.id] ?? []
 
         return AnyView(
             VStack(spacing: 0) {
-                // ── Progress header ──────────────────────────────────────────
+
+                // ── Top: progress counts + bar ────────────────────────────────
                 progressHeader
+
+                // ── Nav buttons row (Cancel/Previous  ·  Next/Finish) ─────────
+                HStack(spacing: 12) {
+                    // Left
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            if isFirst {
+                                stage = .preStart
+                            } else {
+                                currentIndex -= 1
+                            }
+                        }
+                    } label: {
+                        Text(isFirst ? "Cancel" : "Previous")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .foregroundColor(.white)
+                            .background(Color.white.opacity(0.12))
+                            .cornerRadius(12)
+                    }
+
+                    // Right
+                    if isLast {
+                        // Finish: pick status via menu then advance
+                        Menu {
+                            Button {
+                                mark(student: student, status: .absent, thenFinish: true)
+                            } label: {
+                                Label("Absent", systemImage: "xmark.circle.fill")
+                            }
+                            Button {
+                                mark(student: student,
+                                     status: tripType == .pickup ? .onBus : .offBus,
+                                     thenFinish: true)
+                            } label: {
+                                Label(presentLabel, systemImage: "checkmark.circle.fill")
+                            }
+                        } label: {
+                            Text("Finish")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .foregroundColor(.white)
+                                .background(Color.green)
+                                .cornerRadius(12)
+                        }
+                    } else {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                currentIndex += 1
+                            }
+                        } label: {
+                            Text("Next")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .foregroundColor(.white)
+                                .background(Color.blue)
+                                .cornerRadius(12)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
 
                 Spacer()
 
-                // ── Student name centred ─────────────────────────────────────
+                // ── Student name centred ──────────────────────────────────────
                 Text(student.studentName)
                     .font(.system(size: 52, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
@@ -158,9 +243,14 @@ struct TripAttendanceView: View {
                     .lineLimit(2)
                     .padding(.horizontal, 24)
 
-                // ── Notes directly below the name ────────────────────────────
-                if !notes.isEmpty {
-                    VStack(spacing: 6) {
+                // ── Notes directly below the name ─────────────────────────────
+                if notes.isEmpty {
+                    Text("Notes: None")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.40))
+                        .padding(.top, 10)
+                } else {
+                    VStack(spacing: 5) {
                         ForEach(notes) { note in
                             Text(note.noteText)
                                 .font(.system(size: 16, weight: .medium, design: .rounded))
@@ -170,7 +260,7 @@ struct TripAttendanceView: View {
                                 .padding(.horizontal, 28)
                         }
                     }
-                    .padding(.top, 12)
+                    .padding(.top, 10)
                 }
 
                 // Already-marked indicator
@@ -193,74 +283,8 @@ struct TripAttendanceView: View {
 
                 Spacer()
 
-                // ── Previous / Cancel  ·  Next / Finish nav row ──────────────
+                // ── Absent / On Bus action buttons ────────────────────────────
                 HStack(spacing: 16) {
-                    // Left button
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            if isFirst {
-                                // "Cancel" → back to pre-start
-                                stage = .preStart
-                            } else {
-                                currentIndex -= 1
-                            }
-                        }
-                    } label: {
-                        Text(isFirst ? "Cancel" : "Previous")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .foregroundColor(.white)
-                            .background(Color.white.opacity(0.12))
-                            .cornerRadius(14)
-                    }
-
-                    // Right button — mark student then advance / finish
-                    if isLast {
-                        Menu {
-                            Button {
-                                mark(student: student, status: .absent, thenFinish: true)
-                            } label: {
-                                Label("Absent", systemImage: "xmark.circle.fill")
-                            }
-                            Button {
-                                mark(student: student,
-                                     status: tripType == .pickup ? .onBus : .offBus,
-                                     thenFinish: true)
-                            } label: {
-                                Label(presentLabel, systemImage: "checkmark.circle.fill")
-                            }
-                        } label: {
-                            Text("Finish")
-                                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .foregroundColor(.white)
-                                .background(Color.green)
-                                .cornerRadius(14)
-                        }
-                    } else {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                currentIndex += 1
-                            }
-                        } label: {
-                            Text("Next")
-                                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .foregroundColor(.white)
-                                .background(Color.blue)
-                                .cornerRadius(14)
-                        }
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
-
-                // ── Absent / On Bus action buttons ──────────────────────────
-                HStack(spacing: 16) {
-                    // Absent
                     Button {
                         mark(student: student, status: .absent)
                     } label: {
@@ -277,7 +301,6 @@ struct TripAttendanceView: View {
                         .cornerRadius(20)
                     }
 
-                    // On Bus / Off Bus
                     Button {
                         mark(student: student,
                              status: tripType == .pickup ? .onBus : .offBus)
@@ -298,30 +321,30 @@ struct TripAttendanceView: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 44)
             }
-            // Stop button in navigation bar area (custom, since nav bar is hidden)
+            // Stop button top-right overlay
             .overlay(alignment: .topTrailing) {
                 Button {
                     showStopAlert = true
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: "stop.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                        Text("Stop")
                             .font(.system(size: 15, weight: .semibold))
+                        Text("Stop")
+                            .font(.system(size: 14, weight: .semibold))
                     }
                     .foregroundColor(.red)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 6)
                     .background(Color.red.opacity(0.15))
-                    .cornerRadius(18)
+                    .cornerRadius(16)
                 }
                 .padding(.trailing, 20)
-                .padding(.top, 16)
+                .padding(.top, 14)
             }
         )
     }
 
-    // MARK: - Progress header (used in Screen B)
+    // MARK: - Progress header (Screen B)
 
     private var progressHeader: some View {
         VStack(spacing: 6) {
@@ -363,39 +386,38 @@ struct TripAttendanceView: View {
             .frame(height: 4)
             .padding(.horizontal, 20)
         }
-        .padding(.top, 52)  // space below status bar
-        .padding(.bottom, 8)
+        .padding(.top, 52)
+        .padding(.bottom, 4)
     }
 
     // MARK: - Screen C: Post-attendance
 
     private var postAttendanceView: some View {
-        VStack {
-            // Top-left "< Go Back"
-            HStack {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        currentIndex = students.count - 1
-                        stage = .attending
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                        Text("Go Back")
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
+        VStack(spacing: 0) {
+            navBar(
+                leading: {
+                    AnyView(Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            currentIndex = students.count - 1
+                            stage = .attending
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 17, weight: .semibold))
+                            Text("Go Back")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                    })
+                },
+                title: tripType == .pickup ? "Pick Up" : "Drop Off",
+                trailing: { AnyView(Color.clear.frame(width: 80)) }
+            )
 
             Spacer()
 
             VStack(spacing: 20) {
-                // Review Session
                 Button {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         stage = .reviewSession
@@ -409,7 +431,6 @@ struct TripAttendanceView: View {
                         .cornerRadius(16)
                 }
 
-                // Final Check
                 Button {
                     showFinalCheckSheet = true
                 } label: {
@@ -430,46 +451,32 @@ struct TripAttendanceView: View {
 
     private var reviewSessionView: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        stage = .postAttendance
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                        Text("Go Back")
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                }
-                Spacer()
-                Text("Review Session")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(.white)
-                Spacer()
-                Color.clear.frame(width: 80) // balance
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(students) { student in
-                        HStack(spacing: 14) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(student.studentName)
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                            }
-                            Spacer()
-                            reviewStatusBadge(for: student)
+            // Nav bar
+            navBar(
+                leading: {
+                    AnyView(Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            stage = .postAttendance
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 14)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 17, weight: .semibold))
+                            Text("Go Back")
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                    })
+                },
+                title: "Review Session",
+                trailing: { AnyView(Color.clear.frame(width: 80)) }
+            )
+
+            // Student list scrollable
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(students) { student in
+                        reviewRow(for: student)
 
                         if student.id != students.last?.id {
                             Divider()
@@ -478,21 +485,77 @@ struct TripAttendanceView: View {
                         }
                     }
                 }
+                .padding(.top, 4)
+                .padding(.bottom, 16)
             }
+
+            Divider().background(Color.white.opacity(0.15))
+
+            // Final Check button pinned at bottom
+            Button {
+                showFinalCheckSheet = true
+            } label: {
+                Text("Final Check")
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 18)
+                    .background(Color.green)
+                    .cornerRadius(16)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 40)
         }
     }
 
     @ViewBuilder
-    private func reviewStatusBadge(for student: StudentTripRecord) -> some View {
+    private func reviewRow(for student: StudentTripRecord) -> some View {
+        HStack(spacing: 12) {
+            Text(student.studentName)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.white)
+
+            Spacer()
+
+            // Status change menu
+            Menu {
+                Button {
+                    changeStatus(student: student, to: tripType == .pickup ? .onBus : .offBus)
+                } label: {
+                    Label(presentLabel, systemImage: "checkmark.circle.fill")
+                }
+                Button {
+                    changeStatus(student: student, to: .absent)
+                } label: {
+                    Label("Absent", systemImage: "xmark.circle.fill")
+                }
+                Divider()
+                Button {
+                    addNoteForStudent = student
+                } label: {
+                    Label("Add Note", systemImage: "note.text.badge.plus")
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    reviewStatusContent(for: student)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    @ViewBuilder
+    private func reviewStatusContent(for student: StudentTripRecord) -> some View {
         switch student.status {
-        case .onBus:
-            statusPill(label: "On Bus", color: .green)
-        case .offBus:
-            statusPill(label: "Off Bus", color: .orange)
-        case .absent:
-            statusPill(label: "Absent", color: .red)
-        case .pending:
-            statusPill(label: "Pending", color: .gray)
+        case .onBus:    statusPill(label: "On Bus",  color: .green)
+        case .offBus:   statusPill(label: "Off Bus", color: .orange)
+        case .absent:   statusPill(label: "Absent",  color: .red)
+        case .pending:  statusPill(label: "Pending", color: .gray)
         }
     }
 
@@ -510,7 +573,30 @@ struct TripAttendanceView: View {
             )
     }
 
-    // MARK: - Mark student status
+    // MARK: - Shared nav bar helper
+
+    private func navBar<L: View, T: View>(
+        leading: () -> L,
+        title: String,
+        trailing: () -> T
+    ) -> some View {
+        ZStack {
+            HStack {
+                leading()
+                Spacer()
+                trailing()
+            }
+            Text(title)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 56)  // below status bar
+        .padding(.bottom, 14)
+        .background(Color.black)
+    }
+
+    // MARK: - Mark student status (during attendance)
 
     private func mark(student: StudentTripRecord, status: StudentTripStatus, thenFinish: Bool = false) {
         guard let tripId = trip.id,
@@ -519,11 +605,9 @@ struct TripAttendanceView: View {
 
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
-        // Optimistic local update
         trip.studentRecords[idx].status = status
         trip.studentRecords[idx].timestamp = Date()
 
-        // Firestore write
         Task {
             try? await FirestoreService.shared.updateStudentStatus(
                 tripId: tripId,
@@ -540,13 +624,32 @@ struct TripAttendanceView: View {
         }
 
         withAnimation(.easeInOut(duration: 0.25)) {
-            if thenFinish {
+            if thenFinish || currentIndex >= students.count - 1 {
                 stage = .postAttendance
-            } else if currentIndex < students.count - 1 {
-                currentIndex += 1
             } else {
-                stage = .postAttendance
+                currentIndex += 1
             }
+        }
+    }
+
+    // MARK: - Change status (from review session)
+
+    private func changeStatus(student: StudentTripRecord, to status: StudentTripStatus) {
+        guard let tripId = trip.id,
+              let idx = trip.studentRecords.firstIndex(where: { $0.id == student.id })
+        else { return }
+
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+
+        trip.studentRecords[idx].status = status
+        trip.studentRecords[idx].timestamp = Date()
+
+        Task {
+            try? await FirestoreService.shared.updateStudentStatus(
+                tripId: tripId,
+                studentId: student.id,
+                status: status
+            )
         }
     }
 }
@@ -586,7 +689,7 @@ struct TripFinalCheckView: View {
                     Color.clear.frame(width: 60)
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 16)
+                .padding(.top, 56)
                 .padding(.bottom, 24)
 
                 Spacer()
@@ -602,19 +705,22 @@ struct TripFinalCheckView: View {
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 40)
 
+                // Unrecorded students — reworded & larger font
                 if !unmarkedStudents.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Unrecorded students:")
-                            .font(.system(size: 14, weight: .bold))
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Unrecorded: Do you want to mark these students absent for this trip?")
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
                             .foregroundColor(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+
                         ForEach(unmarkedStudents, id: \.id) { s in
                             Text("• \(s.studentName)")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.white.opacity(0.8))
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white.opacity(0.85))
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
+                    .padding(18)
                     .background(Color.orange.opacity(0.15))
                     .cornerRadius(14)
                     .overlay(
