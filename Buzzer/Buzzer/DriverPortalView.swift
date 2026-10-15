@@ -101,24 +101,15 @@ struct DriverPortalView: View {
                         .font(.system(size: 20, weight: .bold))
                         .foregroundStyle(.primary)
                     if !schoolName.isEmpty {
-                        Text(schoolName)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Text(schoolName.uppercased())
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
                     }
                     Text(todayDateString)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                if let d = driver {
-                    let firstName = d.name.components(separatedBy: " ").first ?? d.name
-                    Text("Hey, \(firstName)")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 8)
-                }
             }
             .padding(.horizontal)
             .padding(.top, 12)
@@ -231,7 +222,11 @@ struct DriverPortalView: View {
                     Section {
                         DriverInfoCard(driver: driver)
                             .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                            .listRowBackground(Color.clear)
+                            .listRowBackground(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.blue.opacity(0.08))
+                                    .padding(.vertical, 3)
+                            )
                     }
                 }
 
@@ -445,31 +440,34 @@ struct DriverInfoCard: View {
             ZStack {
                 Circle()
                     .fill(Color.blue.opacity(0.15))
-                    .frame(width: 60, height: 60)
+                    .frame(width: 50, height: 50)
                 Text(String(driver.name.prefix(1)))
                     .font(.title2.bold())
                     .foregroundColor(.blue)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(driver.name)
-                    .font(.headline)
-                HStack(spacing: 12) {
-                    Label(driver.phone, systemImage: "phone.fill")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 5) {
+                infoRow(label: "Name:", value: driver.name)
+                infoRow(label: "Phone:", value: driver.phone)
+                if let email = driver.email {
+                    infoRow(label: "Email:", value: email)
                 }
-                Label("Bus: \(driver.busRegistration ?? "—")", systemImage: "bus.fill")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
 
             Spacer()
         }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        .padding(.vertical, 10)
+    }
+
+    private func infoRow(label: String, value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.subheadline)
+                .foregroundColor(.primary)
+        }
     }
 }
 

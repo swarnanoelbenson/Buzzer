@@ -74,10 +74,28 @@ struct TripAttendanceView: View {
         .sheet(isPresented: $showFinalCheckSheet) {
             TripFinalCheckView(
                 tripId: trip.id ?? "",
-                unmarkedStudents: unmarkedStudents
+                unmarkedStudents: unmarkedStudents,
+                tripType: tripType,
+                onReviewSession: {
+                    showFinalCheckSheet = false
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        stage = .reviewSession
+                    }
+                }
             ) { timestamp in
+                // Mark all still-pending students as absent
+                let tripId = trip.id ?? ""
+                for idx in trip.studentRecords.indices where trip.studentRecords[idx].status == .pending {
+                    trip.studentRecords[idx].status = .absent
+                    trip.studentRecords[idx].timestamp = timestamp
+                    let studentId = trip.studentRecords[idx].id
+                    Task {
+                        try? await FirestoreService.shared.updateStudentStatus(
+                            tripId: tripId, studentId: studentId, status: .absent)
+                    }
+                }
                 Task {
-                    try? await FirestoreService.shared.finalCheckTrip(id: trip.id ?? "", at: timestamp)
+                    try? await FirestoreService.shared.finalCheckTrip(id: tripId, at: timestamp)
                     trip.status = .completed
                     trip.completedAt = timestamp
                 }
@@ -661,10 +679,16 @@ struct TripFinalCheckView: View {
 
     let tripId: String
     let unmarkedStudents: [StudentTripRecord]
+    let tripType: TripType
+    let onReviewSession: () -> Void
     let onConfirm: (Date) -> Void
 
     @State private var now = Date()
     @State private var isSaving = false
+
+    private var completeLabel: String {
+        tripType == .pickup ? "Complete Pick Up" : "Complete Drop Off"
+    }
 
     var body: some View {
         ZStack {
@@ -705,7 +729,7 @@ struct TripFinalCheckView: View {
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 40)
 
-                // Unrecorded students — reworded & larger font
+                // Unrecorded students banner
                 if !unmarkedStudents.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Unrecorded: Do you want to mark these students absent for this trip?")
@@ -747,28 +771,47 @@ struct TripFinalCheckView: View {
 
                 Spacer()
 
-                Button {
-                    isSaving = true
-                    onConfirm(now)
-                } label: {
-                    HStack(spacing: 10) {
-                        if isSaving {
-                            ProgressView().tint(.white)
-                        } else {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 18, weight: .bold))
-                            Text("Confirm")
-                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                VStack(spacing: 14) {
+                    // "Review Session" button — only when unrecorded students exist
+                    if !unmarkedStudents.isEmpty {
+                        Button {
+                            onReviewSession()
+                        } label: {
+                            Text("Review Session")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                                .background(Color.blue)
+                                .cornerRadius(16)
                         }
+                        .padding(.horizontal, 24)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 20)
-                    .background(Color.green)
-                    .foregroundColor(.white)
-                    .cornerRadius(18)
+
+                    // Complete button — marks unrecorded as absent, then completes trip
+                    Button {
+                        isSaving = true
+                        onConfirm(now)
+                    } label: {
+                        HStack(spacing: 10) {
+                            if isSaving {
+                                ProgressView().tint(.white)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 18, weight: .bold))
+                                Text(completeLabel)
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(18)
+                    }
+                    .disabled(isSaving)
+                    .padding(.horizontal, 24)
                 }
-                .disabled(isSaving)
-                .padding(.horizontal, 24)
                 .padding(.bottom, 44)
             }
         }

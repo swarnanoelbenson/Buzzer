@@ -18,6 +18,7 @@ struct TripDetailView: View {
     @State private var routeName: String = ""
     @State private var driverName: String = ""
     @State private var driverId: String = ""
+    @State private var busRegistration: String = ""
 
     // Navigate into card-swiper attendance view
     @State private var navigateToAttendance = false
@@ -141,6 +142,19 @@ struct TripDetailView: View {
             }
             .font(.subheadline)
             .foregroundColor(.secondary)
+
+            if !busRegistration.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "bus.fill")
+                        .foregroundColor(.secondary)
+                    Text("Bus Rego: ")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    + Text(busRegistration)
+                        .font(.subheadline.bold())
+                        .foregroundColor(.primary)
+                }
+            }
         }
         .padding()
         .background(Color(.secondarySystemBackground))
@@ -302,6 +316,7 @@ struct TripDetailView: View {
            let driver = try? await FirestoreService.shared.fetchDriver(id: uid) {
             driverName = driver.name
             driverId = uid
+            busRegistration = driver.busRegistration ?? ""
         }
         // Sort students by stop order for this trip type
         if trip.type == .pickup {
@@ -394,16 +409,16 @@ struct StudentTripCard: View {
                         .font(.system(size: 20))
                 }
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(record.studentName)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                     Text(tripType == .pickup ? record.stopAddressAM : record.stopAddressPM)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .font(.subheadline)
+                        .foregroundColor(.primary)
+                        .lineLimit(2)
                     if let ts = record.timestamp {
                         Text(formattedTime(ts))
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
@@ -473,8 +488,8 @@ struct StudentTripCard: View {
                         Button {
                             onAddNote()
                         } label: {
-                            Label("Add", systemImage: "plus.circle.fill")
-                                .font(.caption)
+                            Label("Add Notes", systemImage: "plus.circle.fill")
+                                .font(.subheadline)
                                 .fontWeight(.semibold)
                         }
                         .tint(.blue)
@@ -482,7 +497,7 @@ struct StudentTripCard: View {
 
                     if notes.isEmpty {
                         Text("No notes for this student.")
-                            .font(.caption)
+                            .font(.subheadline)
                             .foregroundColor(.secondary)
                     } else {
                         ForEach(notes) { note in
