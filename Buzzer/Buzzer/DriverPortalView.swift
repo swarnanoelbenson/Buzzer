@@ -460,13 +460,15 @@ struct DriverInfoCard: View {
     }
 
     private func infoRow(label: String, value: String) -> some View {
-        HStack(spacing: 4) {
+        HStack(alignment: .top, spacing: 4) {
             Text(label)
                 .font(.subheadline.weight(.semibold))
                 .foregroundColor(.secondary)
+                .frame(width: 56, alignment: .leading)
             Text(value)
                 .font(.subheadline)
                 .foregroundColor(.primary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
