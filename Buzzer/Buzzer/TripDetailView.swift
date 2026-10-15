@@ -19,6 +19,9 @@ struct TripDetailView: View {
     @State private var driverName: String = ""
     @State private var driverId: String = ""
 
+    // Navigate into card-swiper attendance view
+    @State private var navigateToAttendance = false
+
     // Notes: studentId → [FirestorePassengerNote]
     @State private var studentNotes: [String: [FirestorePassengerNote]] = [:]
     @State private var isLoadingNotes = false
@@ -42,10 +45,12 @@ struct TripDetailView: View {
                     progressBar
                 }
 
-                // Start button
+                // Start button (scheduled) or Resume Attendance button (in progress)
                 if trip.status == .scheduled {
                     startButton
                     notesSummarySection
+                } else if trip.status == .inProgress {
+                    resumeAttendanceButton
                 }
 
                 if let error = errorMessage {
@@ -61,7 +66,7 @@ struct TripDetailView: View {
                         StudentTripCard(
                             record: $record,
                             tripType: trip.type,
-                            isActive: trip.status == .inProgress,
+                            isActive: false,
                             tripId: trip.id ?? "",
                             driverName: driverName,
                             notes: studentNotes[record.id] ?? [],
@@ -80,6 +85,9 @@ struct TripDetailView: View {
         }
         .navigationTitle(trip.type == .pickup ? "Pick-up" : "Drop-off")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $navigateToAttendance) {
+            TripAttendanceView(trip: $trip, driverName: driverName)
+        }
         .task { await loadTripInfo() }
         .sheet(item: $addNoteForRecord) { record in
             DriverAddNoteSheet(
@@ -164,7 +172,7 @@ struct TripDetailView: View {
 
     private var startButton: some View {
         Button {
-            Task { await startTrip() }
+            Task { await startTripAndNavigate() }
         } label: {
             Group {
                 if isStarting {
@@ -182,6 +190,24 @@ struct TripDetailView: View {
             .cornerRadius(14)
         }
         .disabled(isStarting)
+        .padding(.horizontal)
+    }
+
+    // MARK: - Resume Attendance Button (trip already in progress)
+
+    private var resumeAttendanceButton: some View {
+        Button {
+            navigateToAttendance = true
+        } label: {
+            Label("Resume \(trip.type == .pickup ? "Pick-up" : "Drop-off")",
+                  systemImage: "arrow.right.circle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(trip.type == .pickup ? Color.green : Color.orange)
+                .foregroundColor(.white)
+                .cornerRadius(14)
+        }
         .padding(.horizontal)
     }
 
@@ -282,7 +308,7 @@ struct TripDetailView: View {
         studentNotes[studentId] = studentNotes[studentId]?.filter { $0.id != noteId } ?? []
     }
 
-    private func startTrip() async {
+    private func startTripAndNavigate() async {
         guard let tripId = trip.id else { return }
         isStarting = true
         do {
@@ -300,6 +326,7 @@ struct TripDetailView: View {
                     metadata: ["tripId": tripId, "routeId": trip.routeId]
                 )
             }
+            navigateToAttendance = true
         } catch {
             errorMessage = "Failed to start trip. Try again."
         }

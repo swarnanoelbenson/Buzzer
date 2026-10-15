@@ -353,6 +353,14 @@ class FirestoreService {
         try await db.collection("trips").document(tripId).updateData(updateData)
     }
 
+    /// Records the final safety check timestamp on a trip (No Children Left On Bus).
+    func finalCheckTrip(id: String, at timestamp: Date) async throws {
+        try await db.collection("trips").document(id).updateData([
+            "completedAt": Timestamp(date: timestamp),
+            "status": TripStatus.completed.rawValue
+        ])
+    }
+
     // MARK: - Substitute Driver
 
     /// Assigns a substitute driver to all scheduled/future trips on a route within a date range.
