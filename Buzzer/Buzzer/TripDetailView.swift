@@ -86,7 +86,7 @@ struct TripDetailView: View {
         .navigationTitle(trip.type == .pickup ? "Pick-up" : "Drop-off")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(isPresented: $navigateToAttendance) {
-            TripAttendanceView(trip: $trip, driverName: driverName)
+            TripAttendanceView(trip: $trip, driverName: driverName, studentNotes: studentNotes)
         }
         .task { await loadTripInfo() }
         .sheet(item: $addNoteForRecord) { record in
