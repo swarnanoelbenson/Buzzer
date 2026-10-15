@@ -29,6 +29,7 @@ struct TripAttendanceView: View {
     @Binding var trip: Trip
 
     let driverName: String
+    let driverId: String
     let studentNotes: [String: [FirestorePassengerNote]]
 
     @State private var stage: AttendanceStage = .preStart
@@ -38,7 +39,6 @@ struct TripAttendanceView: View {
 
     // Review session: per-student note adding
     @State private var addNoteForStudent: StudentTripRecord? = nil
-    @State private var driverId: String = ""
 
     private var students: [StudentTripRecord] { trip.studentRecords }
     private var tripType: TripType { trip.type }
@@ -118,11 +118,7 @@ struct TripAttendanceView: View {
         } message: {
             Text("All recorded attendance will be saved. You can resume this trip later.")
         }
-        .task {
-            if let uid = try? await FirestoreService.shared.fetchDriver(id: "").id {
-                driverId = uid
-            }
-        }
+
     }
 
     // MARK: - Screen A: Pre-start
